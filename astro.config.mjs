@@ -2,6 +2,15 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+// Guard against a polluted BASE_URL in the shell environment. Some dev
+// setups export e.g. `BASE_URL=http://localhost:3000`; at SSR Astro reads
+// `import.meta.env.BASE_URL` from process.env, so an absolute value would
+// prefix every Starlight nav / favicon / sitemap link with localhost. The
+// site's base is always "/", so drop any absolute inherited BASE_URL.
+if (process.env.BASE_URL && /^[a-z][a-z0-9+.-]*:\/\//i.test(process.env.BASE_URL)) {
+  delete process.env.BASE_URL;
+}
+
 // Custom Hale TextMate grammar → registered with Starlight's code blocks
 // (Expressive Code) so spec `hale` fences are highlighted like the rest
 // of the site.
