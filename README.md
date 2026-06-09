@@ -19,23 +19,38 @@ npm run preview  # serve the build
 
 ```
 src/
-  layouts/Base.astro        global shell (nav + footer + head)
-  components/
-    Hale.astro              code panel using the custom Hale grammar
-    Nav.astro Footer.astro Logo.astro
+  layouts/Base.astro        marketing-page shell (custom nav + footer)
+  components/               Hale.astro (code panel), Nav, Footer, Logo
   grammars/hale.tmLanguage.json   TextMate grammar → Shiki highlighting
-  styles/global.css         the design system
-  pages/                    index, why, agents, docs, tour, playground, packages
-public/
-  favicon.svg  llms.txt
+  styles/global.css         the marketing design system
+  styles/starlight.css      themes the Starlight docs chrome to match
+  content.config.ts         Starlight docs content collection
+  content/docs/docs/        the docs (served under /docs)
+    index.md install.md
+    spec/                   the language spec (synced — see below)
+  pages/                    index, why, agents, playground, packages (custom)
+scripts/sync-spec.sh        copies hale/spec/*.md → content with frontmatter
+public/                     favicon.svg, llms.txt
 ```
+
+The marketing pages use a hand-built layout; **the `/docs/*` section is
+[Starlight](https://starlight.astro.build)** (sidebar, search, ToC), themed to
+match. Run `./scripts/sync-spec.sh` to refresh the spec from the compiler repo.
 
 ## Status
 
-Early build — homepage + the core nav pages. Next: wire the language spec into
-the docs section (Astro Starlight), build the interactive Tour + Playground
-(a WASM `hale` build), and ship the agents toolchain (context pack, MCP server,
-`hale init --agent`). See the site plan in chat history.
+Homepage + core nav pages + the docs section (Starlight) with the full language
+spec wired in and searchable.
+
+**Next:**
+- Share the custom site header across the docs (override Starlight's `Header`).
+- Register the Hale grammar with Starlight's code blocks so spec snippets get
+  Hale highlighting (currently plain).
+- Rewrite the spec's `spec/*` / `notes/*` cross-links into site links.
+- The interactive Playground (a WASM `hale` build) — also unlocks guided
+  in-playground lessons (the former “tour”).
+- The agents toolchain: generate `hale-context.txt`, `llms-full.txt`,
+  `install.sh`, the `hale init --agent` templates, and the MCP server.
 
 ## Notes
 
