@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+const sample = `locus Greeter {
+    params { name: String = "world"; }
+    run() { println(f"hello, {self.name}"); }
+}
+
+fn main() { Greeter { name: "hale" }; }`;
+---
+<Base title="Hale playground">
+  <section class="container prose">
+    <span class="tag">/playground</span>
+    <h1>Playground</h1>
+    <p class="lede">
+      Edit, <code>check</code>, and <code>run</code> Hale in the browser — share a
+      link, or export a snippet with context straight to your AI assistant.
+    </p>
+    <Hale code={sample} title="scratch.hl" />
+    <p class="muted" style="margin-top:1.25rem;">
+      The interactive playground is in progress. The plan: compile the Hale
+      toolchain to WebAssembly so it runs fully in-browser (a
+      <code>hale-js</code> build), with a server-side <code>hale check</code>
+      fallback in the meantime.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-ghost" href="/docs/install">Install locally instead →</a>
+    </div>
+  </section>
+</Base>

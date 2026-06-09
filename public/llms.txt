@@ -1,0 +1,25 @@
+# Hale
+
+> Hale is a general-purpose programming language built on one primitive — the
+> locus. It offers memory safety without a garbage collector or a borrow checker
+> (regions are freed when a locus dissolves), Erlang-style supervision, a
+> transport-agnostic bus, and compile-time structural verification. Its surface
+> (ASCII-only, names not symbols, explicit commitments, a small pattern catalog)
+> is designed to be written fluently by both humans and LLMs.
+
+## Start here
+
+- [Why Hale](https://hale-lang.org/why): the case for the language.
+- [The Tour](https://hale-lang.org/tour): learn by doing.
+- [Documentation](https://hale-lang.org/docs): spec, book, stdlib, CLI.
+
+## For agents and LLMs
+
+- [Hale for agents](https://hale-lang.org/agents): the rules-doc + friction-log + compiler-oracle workflow.
+- [Context pack](https://hale-lang.org/hale-context.txt): single-file spec + styleguide + gotchas, tuned for context windows.
+- [llms-full.txt](https://hale-lang.org/llms-full.txt): the concatenated documentation corpus.
+
+## Ecosystem
+
+- [pond packages](https://hale-lang.org/packages): the "non-std stdlib".
+- [Playground](https://hale-lang.org/playground): edit, check, run in the browser.

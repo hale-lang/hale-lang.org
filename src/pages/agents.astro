@@ -1,0 +1,95 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+
+const reject = `// a model writes this:
+locus Reader {
+    bus { publish Frame; }
+}
+// hale check:
+//   error: publish references unknown topic 'Frame'
+//   (no 'topic Frame' declaration in this file)`;
+
+const mechanisms = [
+  ['ASCII-only, names not symbols', 'No symbol-input or tokenizer friction. The source is exactly what the model emits.'],
+  ['One primitive + a 6-pattern catalog', 'Tiny surface area to get wrong. “Idiomatic” is bounded and nameable.'],
+  ['Explicit named commitments', 'contract, fallible, placement, alias-required imports — intent is on the surface, never inferred.'],
+  ['Strict structural checks', 'A hallucinated field, topic, or return type is a hard error, not a silent Unknown.'],
+  ['An exhaustive, groundable spec', 'The model cites the rule instead of guessing it.'],
+  ['Deterministic, legible failures', 'Easy to reason about — and to self-correct from a diagnostic.'],
+];
+---
+<Base title="Hale for agents — written by humans and LLMs">
+  <section class="container prose">
+    <span class="tag">/agents</span>
+    <h1>Built to be written by models, too.</h1>
+    <p class="lede">
+      Hale is designed so a model can write correct, idiomatic code — and the
+      compiler proves it did. Not “AI-native” as a slogan: authorship ergonomics
+      plus verifiability, demonstrated by how real Hale systems already ship.
+    </p>
+
+    <h2>The method</h2>
+    <p>
+      Sophisticated Hale isn't written by pasting a model into a void. It's a
+      three-part loop, and the website ships each piece as a reusable artifact.
+    </p>
+
+    <h3>1 · A short load-bearing rules doc</h3>
+    <p>
+      A handful of project-level rules the agent reads <em>before writing any
+      locus</em> — the two-channel discipline, the six-pattern catalog, the
+      gotchas. <code>hale init --agent</code> drops a pre-filled
+      <code>AGENTS.md</code> / <code>CLAUDE.md</code> into your project, or copy a
+      template for Cursor.
+    </p>
+
+    <h3>2 · A living friction log</h3>
+    <p>
+      A running file the agent reads and <strong>appends to</strong> when it hits a
+      wall, so the project accumulates hard-won lessons instead of re-learning
+      them. Friction discipline is a first-class agent practice — the log is the
+      project's memory.
+    </p>
+
+    <h3 id="mcp">3 · The compiler as the oracle</h3>
+    <p>
+      <code>hale check</code> over the <strong>MCP server</strong> returns
+      structured diagnostics, so the model writes → compiles → reads the error →
+      fixes, in-loop. The type checker catches the mistakes models actually make:
+    </p>
+    <Hale code={reject} title="hale-check" />
+    <p class="muted" style="font-size:0.92rem;">
+      Unknown fields, unknown topics, and methods that return a managed entity are
+      all hard errors — the hallucination-class bugs, stopped at build time.
+    </p>
+
+    <h2 id="context-pack">The context pack</h2>
+    <p>
+      <code>hale-context.txt</code> — a single versioned file (spec + styleguide +
+      pattern catalog + gotchas) tuned for context windows, in full and slim
+      variants. This is what makes an assistant fluent in Hale.
+    </p>
+    <div class="install" style="margin-bottom:1.5rem;">
+      <span class="sigil">$</span>
+      <span class="cmd">curl -fsSL https://hale-lang.org/hale-context.txt -o hale-context.txt</span>
+    </div>
+
+    <h2>Why the language helps</h2>
+    <table class="matrix">
+      <thead><tr><th>Mechanism</th><th>Why it helps a model</th></tr></thead>
+      <tbody>
+        {mechanisms.map(([m, w]) => (
+          <tr><td><strong>{m}</strong></td><td>{w}</td></tr>
+        ))}
+      </tbody>
+    </table>
+
+    <h2>Use it now</h2>
+    <ul>
+      <li><a href="/llms.txt">llms.txt</a> / <a href="/llms-full.txt">llms-full.txt</a> — machine-readable doc index + corpus.</li>
+      <li>Playground “send to assistant” export — copy a snippet with its context.</li>
+      <li>Three steps: install the context pack → add a rules file → connect the MCP server.</li>
+    </ul>
+  </section>
+</Base>

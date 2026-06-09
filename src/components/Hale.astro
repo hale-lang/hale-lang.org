@@ -1,0 +1,14 @@
+---
+import { Code } from 'astro:components';
+import hale from '../grammars/hale.tmLanguage.json';
+
+interface Props { code: string; title?: string; }
+const { code, title = 'hale' } = Astro.props;
+---
+<div class="code">
+  <div class="code-head">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="code-title">{title}</span>
+  </div>
+  <Code code={code.trim()} lang={hale as any} theme="github-dark" />
+</div>

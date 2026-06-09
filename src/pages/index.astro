@@ -1,0 +1,258 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+
+const hero = `locus Greeter {
+    params { name: String = "world"; }
+    run() { println(f"hello, {self.name}"); }
+}
+
+fn main() { Greeter { name: "hale" }; }`;
+
+const seam = `main locus App {
+    params {
+        ingest: Ingest        = Ingest { };
+        rollup: Rollup        = Rollup { };
+        api:    MetricsServer  = MetricsServer { port: 9100 };
+    }
+    placement {
+        ingest: pinned(core = 1);          // its own OS thread
+        rollup: cooperative(pool = compute);
+        api:    cooperative(pool = io);
+    }
+    bindings {
+        // dev:  delete this block -> one binary, in-process bus.
+        // prod: keep it -> same code, separate processes.
+        Samples: unix("/run/samples.sock");
+    }
+}`;
+
+const pLocus = `locus Counter {
+    params { n: Int = 0; }
+    fn inc() { self.n = self.n + 1; }
+}`;
+
+const pMem = `fn handle(fd: Int) {
+    let s = std::io::tcp::Stream { conn_fd: fd };
+    s.send(b"ok");
+    // s dissolves at scope exit:
+    // fd closed, region freed. no GC, no free().
+}`;
+
+const pReliable = `fn port(s: String) -> Int fallible(ParseError) {
+    return std::str::parse_int(s) or raise;
+}
+
+locus Pool {
+    accept(c: Worker) { }
+    on_failure(c: Worker, err: ClosureViolation) {
+        restart(c);          // let it crash, supervised
+    }
+}`;
+
+const pLlm = `locus Cache {
+    // a model writes a method returning a managed entity:
+    fn get(key: String) -> Entry {
+        return self.lookup(key);
+    }
+}`;
+
+const features = [
+  ['Closure tests', 'Runtime structural invariants that audit themselves at each epoch.'],
+  ['Projection classes', 'Memory strategy tuned to how many children a locus fans out to.'],
+  ['Structural interfaces', 'Satisfy an interface by shape. No `impl`, no ceremony.'],
+  ['Transport-agnostic bus', 'The same publish/subscribe over in-process, unix, udp, or shm.'],
+  ['Verification catalog', 'The compiler rejects bus cycles, cross-pool races, and CQRS breaks.'],
+  ['One seed, one binary', 'A directory is a program. Focused executables are cheap.'],
+];
+
+const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', 'tracing', 'websocket', 'crypto', 'agent/llm'];
+---
+<Base>
+  <!-- HERO -->
+  <section class="container wide hero">
+    <div class="split">
+      <div>
+        <p class="eyebrow">general-purpose · memory-safe · supervised</p>
+        <h1>Build a monolith. Deploy a distributed system.</h1>
+        <p class="lede">
+          Hale is a general-purpose language built on one idea — the
+          <strong>locus</strong> — with Erlang-style supervision, memory freed by
+          structure (no GC, no borrow checker), and a surface written fluently by
+          humans and LLMs.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/docs/install">Get started</a>
+          <a class="btn btn-ghost" href="/playground">Open playground →</a>
+        </div>
+        <div class="install">
+          <span class="sigil">$</span>
+          <span class="cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
+        </div>
+      </div>
+      <Hale code={hero} title="greeter.hl" />
+    </div>
+  </section>
+
+  <!-- SHOWPIECE: deployment seam -->
+  <section class="section-alt">
+    <div class="container wide">
+      <div class="split rev">
+        <Hale code={seam} title="main.hl" />
+        <div class="copy">
+          <p class="eyebrow">the deployment seam</p>
+          <h2>Change a block, not your code.</h2>
+          <p>
+            Placement and transport are <strong>deployment seams</strong>, not
+            properties of your logic. With no <code>bindings</code>, your loci run
+            as a single in-process binary. Bind a topic to a transport and the
+            <em>same source</em> runs as separate processes — your code never
+            changes.
+          </p>
+          <p class="seam-note">
+            one source → dev monolith → pinned threads → a cross-process fleet
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PITCH -->
+  <section class="container center" style="padding-bottom:0;">
+    <h2 style="max-width:20ch;margin-inline:auto;">
+      Structure <em>is</em> the lifetime. Failure is supervised. Bad designs don't compile.
+    </h2>
+  </section>
+
+  <!-- PILLARS -->
+  <section class="container wide">
+    <div class="split" style="margin-bottom:3.5rem;">
+      <div>
+        <p class="eyebrow">pillar 1 — one primitive</p>
+        <h3 style="font-size:1.5rem;">Everything is a locus.</h3>
+        <p>
+          An app, a service, a worker, a pipeline stage, a bus subscriber — one
+          recursive shape. Pure data is a <code>type</code>; anything with flow is
+          a <code>locus</code>. There is no third thing. Learn it once; it's the
+          whole language.
+        </p>
+        <a href="/docs/book/loci">The locus model →</a>
+      </div>
+      <Hale code={pLocus} title="counter.hl" />
+    </div>
+
+    <div class="split rev" style="margin-bottom:3.5rem;">
+      <Hale code={pMem} title="handle.hl" />
+      <div class="copy">
+        <p class="eyebrow">pillar 2 — memory you can reason about</p>
+        <h3 style="font-size:1.5rem;">No GC. No borrow checker.</h3>
+        <p>
+          Every locus owns a region, freed wholesale when it dissolves —
+          deterministically, no tracing pauses, no lifetime annotations. Not
+          “memory is free”: memory is <strong>structural and
+          instrumentable</strong>, with built-in residency tooling for the rest.
+        </p>
+        <a href="/docs/book/memory">How memory works →</a>
+      </div>
+    </div>
+
+    <div class="split" style="margin-bottom:3.5rem;">
+      <div>
+        <p class="eyebrow">pillar 3 — reliable by construction</p>
+        <h3 style="font-size:1.5rem;">Let it crash — supervised. And checked first.</h3>
+        <p>
+          Failures flow up to a parent's <code>on_failure</code> (restart /
+          quarantine / bubble). There are no exceptions; recoverable errors are
+          addressed inline with <code>or</code>. And the compiler rejects whole
+          classes of design bugs — bus cycles, cross-thread races — at build time.
+        </p>
+        <a href="/docs/book/failure">The failure model →</a>
+      </div>
+      <Hale code={pReliable} title="pool.hl" />
+    </div>
+
+    <div class="split rev">
+      <div>
+        <Hale code={pLlm} title="cache.hl" />
+        <div class="callout" style="margin-top:0.75rem;">
+          error: method <code style="color:inherit;background:none;">Cache.get</code> may not return a locus value (CQRS).<br/>
+          &nbsp;&nbsp;use parent-child + contract, a bus topic, or delegation.
+        </div>
+      </div>
+      <div class="copy">
+        <p class="eyebrow">pillar 4 — fluent for humans and LLMs</p>
+        <h3 style="font-size:1.5rem;">Written well by people and models.</h3>
+        <p>
+          ASCII source, names not symbols, explicit named commitments, a bounded
+          pattern catalog — and a compiler that turns a model's hallucinated field
+          into a <strong>hard error</strong>, not a silent bug. It's already how
+          real Hale systems get built: a short rules doc, a living friction log,
+          and the compiler as the oracle.
+        </p>
+        <a href="/agents">Hale for agents →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENTS BAND -->
+  <section class="container wide">
+    <div class="band">
+      <div class="split">
+        <div>
+          <p class="eyebrow" style="color:var(--jade-deep);">built to be written by models, too</p>
+          <h2>Your assistant writes Hale — and the compiler checks it.</h2>
+          <p>
+            Hale ships an LLM context pack, agent rules files, and an MCP server so
+            your assistant can write <em>and compile</em> Hale in-loop, with a type
+            checker that catches the mistakes models actually make.
+          </p>
+          <div class="hero-actions" style="margin-bottom:0;">
+            <a class="btn btn-primary" href="/agents#context-pack">Context pack</a>
+            <a class="btn btn-ghost" href="/agents#mcp">MCP server</a>
+            <a class="btn btn-ghost" href="/agents">Read more →</a>
+          </div>
+        </div>
+        <div>
+          <p class="seam-note" style="color:#8b95a7;">
+            read rules + context pack<br/>
+            → write a locus<br/>
+            → <code style="color:var(--jade-deep);background:none;">hale check</code> via MCP<br/>
+            → structured diagnostic<br/>
+            → fix / append friction → green
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE GRID -->
+  <section class="section-alt">
+    <div class="container wide">
+      <p class="eyebrow">more in the box</p>
+      <h2 style="margin-bottom:2rem;">The parts that make it cohere.</h2>
+      <div class="grid cols-3">
+        {features.map(([h, p]) => (
+          <div class="feature">
+            <h4>{h}</h4>
+            <p set:html={p.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ECOSYSTEM -->
+  <section class="container wide center">
+    <p class="eyebrow">ecosystem</p>
+    <h2>pond — the “non-std stdlib.”</h2>
+    <p class="lede" style="margin-inline:auto;max-width:54ch;">
+      Vendor what you need. Extensible by tier, from infrastructure to agents.
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center;margin:1.5rem 0 1.75rem;">
+      {pondLibs.map((l) => (
+        <code style="font-size:0.9rem;">{l}</code>
+      ))}
+    </div>
+    <a class="btn btn-ghost" href="/packages">Browse pond →</a>
+  </section>
+</Base>

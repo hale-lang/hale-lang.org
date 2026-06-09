@@ -1,0 +1,22 @@
+---
+import Logo from './Logo.astro';
+const links = [
+  { href: '/why',        label: 'Why Hale' },
+  { href: '/docs',       label: 'Docs' },
+  { href: '/tour',       label: 'Tour', sm: true },
+  { href: '/playground', label: 'Playground', sm: true },
+  { href: '/packages',   label: 'Packages', sm: true },
+  { href: '/agents',     label: 'Agents' },
+];
+---
+<nav class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="/"><Logo /> hale</a>
+    <div class="links">
+      {links.map((l) => (
+        <a href={l.href} class={l.sm ? 'hide-sm' : ''}>{l.label}</a>
+      ))}
+      <a class="cta" href="https://github.com/hale-lang">GitHub ↗</a>
+    </div>
+  </div>
+</nav>

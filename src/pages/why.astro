@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Why Hale">
+  <section class="container prose">
+    <span class="tag">/why</span>
+    <h1>Why Hale</h1>
+    <p class="lede">
+      Hale targets realtime, data-intensive, distributed systems — where no-GC
+      memory, regions, supervision, and a transport-agnostic bus all pay off at
+      once. It earns its place by combining three things almost no language does
+      together.
+    </p>
+
+    <h2>Memory safety without a GC <em>or</em> a borrow checker</h2>
+    <p>
+      Rust makes you fight the borrow checker; Go makes you eat GC pauses. Hale
+      does neither. Every locus owns a region; when it dissolves, the region is
+      freed wholesale — deterministically. The structure of your program <em>is</em>
+      the lifetime, so there are no lifetime annotations and no tracing collector.
+      Memory stays something you can reason about and instrument, not something
+      hidden behind a runtime.
+    </p>
+
+    <h2>Reliability that's both supervised and checked</h2>
+    <p>
+      Failures are structural and flow up to a parent's <code>on_failure</code>
+      (restart / quarantine / bubble) — Erlang's let-it-crash, with regions. There
+      are no exceptions; recoverable errors are addressed inline. And a whole class
+      of design bugs — bus cycles, cross-thread races, command/query violations —
+      are rejected at <strong>build time</strong>, not discovered in production.
+    </p>
+
+    <h2>One source, many deployments</h2>
+    <p>
+      Placement and transport are deployment seams. The same loci run as a single
+      in-process binary or as a cross-process fleet, decided by a block in
+      <code>main</code> — not by rewriting your logic. You design a system once and
+      deploy it at whatever scale the moment needs.
+    </p>
+
+    <h2>Fluent for humans and LLMs</h2>
+    <p>
+      ASCII source, names instead of symbols, explicit commitments, and a compiler
+      that turns a model's hallucinated field into a hard error make Hale unusually
+      writable by AI assistants — verifiably, not on faith. See
+      <a href="/agents">Hale for agents</a>.
+    </p>
+
+    <hr/>
+    <p class="muted">
+      Ready to try it? <a href="/docs/install">Install Hale</a>,
+      take the <a href="/tour">tour</a>, or read
+      the <a href="/docs/book">book</a>.
+    </p>
+  </section>
+</Base>

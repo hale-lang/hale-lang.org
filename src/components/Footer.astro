@@ -1,0 +1,30 @@
+---
+import Logo from './Logo.astro';
+const cols = [
+  { h: 'Learn', links: [['Get started', '/docs/install'], ['Tour', '/tour'], ['The Book', '/docs/book'], ['Hale by Example', '/docs/examples']] },
+  { h: 'Reference', links: [['Language spec', '/docs/spec'], ['Standard library', '/docs/stdlib'], ['CLI', '/docs/cli'], ['Design rationale', '/docs/rationale']] },
+  { h: 'Ecosystem', links: [['Packages (pond)', '/packages'], ['Playground', '/playground'], ['Roadmap', '/roadmap']] },
+  { h: 'Agents', links: [['For LLMs', '/agents'], ['Context pack', '/agents#context-pack'], ['MCP server', '/agents#mcp'], ['llms.txt', '/llms.txt']] },
+];
+---
+<footer class="footer">
+  <div class="container wide cols">
+    <div>
+      <a class="brand" href="/"><Logo /> hale</a>
+      <p class="muted" style="font-size:0.88rem; margin-top:0.8rem; max-width:30ch;">
+        A general-purpose language for robust, supervised systems —
+        written fluently by humans and LLMs.
+      </p>
+    </div>
+    {cols.map((c) => (
+      <div>
+        <h5>{c.h}</h5>
+        {c.links.map(([label, href]) => <a href={href}>{label}</a>)}
+      </div>
+    ))}
+  </div>
+  <div class="container wide copy">
+    Hale is open source. © {new Date().getFullYear()} the Hale authors.
+    <span style="margin-left:0.5rem;"><a href="https://github.com/hale-lang">GitHub</a> · <a href="/community">Community</a></span>
+  </div>
+</footer>
