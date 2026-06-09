@@ -1,15 +1,13 @@
 ---
 title: "Standard library"
-description: "Hale language specification — Standard library."
 ---
 
-> Synced from the Hale compiler repo's `spec/stdlib.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 Bundled with the toolchain, no separate install required. This
 document describes the **current** stdlib surface. Milestone /
-phase history lives in [`../CHANGELOG.md`](../CHANGELOG.md).
+phase history lives in [`../CHANGELOG.md`](https://github.com/hale-lang/hale/blob/main/CHANGELOG.md).
 
 ## Path resolution
 
@@ -35,7 +33,7 @@ sibling), and implement one `lower_std_*` method.
 
 Cross-binary user code uses the F.25 cross-seed-imports mechanism
 (`import "path/to/lib" as alias;`) — distinct from the `std::*`
-magic path; see [`design-rationale.md` § F.25](./design-rationale.md).
+magic path; see [`design-rationale.md` § F.25](/docs/spec/design-rationale).
 
 ## Design principles
 
@@ -54,7 +52,7 @@ magic path; see [`design-rationale.md` § F.25](./design-rationale.md).
 
 `std::*` is the curated path for ships-with-the-compiler bindings
 (libc + OpenSSL only at the link floor). User-extensible C-ABI
-bindings live outside this surface — see [`spec/ffi.md`](./ffi.md)
+bindings live outside this surface — see [`spec/ffi.md`](/docs/spec/ffi)
 for `@ffi("c")` declarations, the mechanism by which library
 authors land bindings to third-party C libraries (raylib, sqlite,
 curl, ...) in community repos like pond. The stdlib's narrow link
@@ -91,7 +89,7 @@ surface without touching the compiler.
 Hale doesn't use parametric stdlib collection types (`Map<K,
 V>`, `Vec<T>`, `Set<T>`, etc.). Storage is locus-shaped via the
 `@form(...)` annotation machinery — see
-[`forms.md`](./forms.md). v1 ships `@form(vec)`
+[`forms.md`](/docs/spec/forms). v1 ships `@form(vec)`
 (contiguous-buffer), `@form(hashmap)` (intrusive open-addressing,
 String / Int keys), and `@form(ring_buffer)` (fixed-capacity
 FIFO).
@@ -485,7 +483,7 @@ probably want a streaming API; the cap surfaces as
 - Compression formats beyond ones used in stdlib
 
 These live in the Hale package ecosystem (per
-[`packages.md`](./packages.md)).
+[`packages.md`](/docs/spec/packages)).
 
 ## Open decisions
 

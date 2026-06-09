@@ -1,10 +1,8 @@
 ---
 title: "Testing pipeline"
-description: "Hale language specification — Testing pipeline."
 ---
 
-> Synced from the Hale compiler repo's `spec/testing.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 The testing pipeline is part of the language toolchain, not an

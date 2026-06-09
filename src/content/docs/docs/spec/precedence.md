@@ -1,10 +1,8 @@
 ---
 title: "Operator precedence and associativity"
-description: "Hale language specification — Operator precedence and associativity."
 ---
 
-> Synced from the Hale compiler repo's `spec/precedence.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 Operators are listed from **highest** precedence (binds tightest)

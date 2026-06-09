@@ -1,10 +1,8 @@
 ---
 title: "Design rationale"
-description: "Hale language specification — Design rationale."
 ---
 
-> Synced from the Hale compiler repo's `spec/design-rationale.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 For each major syntactic construct in the Hale grammar, this
@@ -839,7 +837,7 @@ each one is a stable navigation tag referenced from code
 comments, spec sections, and CHANGELOG entries. Section
 numbering is stable; new commitments append at the end with
 fresh F.N tags. Ship-dates for each commitment live in
-[`../CHANGELOG.md`](../CHANGELOG.md).
+[`../CHANGELOG.md`](https://github.com/hale-lang/hale/blob/main/CHANGELOG.md).
 
 ### F.1 Optimize for runtime perf, never sacrifice behavior
 
@@ -951,7 +949,7 @@ error.
 
 This is the framework's contract-graded visibility commitment
 expressed as a type rule. The full typing rule lives in
-[`types.md`](./types.md).
+[`types.md`](/docs/spec/types).
 
 The check fires once per parent locus that declares any
 `consume` entry. The parent's `accept(c: ChildType)`

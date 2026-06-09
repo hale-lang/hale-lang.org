@@ -1,10 +1,8 @@
 ---
 title: "Forms"
-description: "Hale language specification — Forms."
 ---
 
-> Synced from the Hale compiler repo's `spec/forms.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 A **form** is a compiler-recognized annotation on a locus
@@ -12,7 +10,7 @@ declaration that picks an efficient lowering for the locus's
 storage and synthesizes a standard method set. Forms are the
 mechanism Hale uses in place of parametric collection types
 (`Map<K, V>`, `Vec<T>`, etc.). See
-[`notes/agent-onboarding/hale-design-philosophy.md`](../notes/agent-onboarding/hale-design-philosophy.md)
+[`notes/agent-onboarding/hale-design-philosophy.md`](https://github.com/hale-lang/hale/blob/main/notes/agent-onboarding/hale-design-philosophy.md)
 for the design philosophy and `spec/design-rationale.md` for The
 Design's grounding (F.0 form-before-parameter, F.22 capacity).
 

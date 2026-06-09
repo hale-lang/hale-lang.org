@@ -1,10 +1,8 @@
 ---
 title: "Runtime"
-description: "Hale language specification — Runtime."
 ---
 
-> Synced from the Hale compiler repo's `spec/runtime.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 What every compiled Hale binary always ships with. Always-
@@ -1225,7 +1223,7 @@ zero_copy binding produces.
   IoError channel instead of synchronously killing the parent.
   Applies process-wide — no opt-out.
 - **Subprocess lifecycle** (added 2026-05-17, C2 — see
-  [`spec/stdlib.md` § std::process](stdlib.md) for the API
+  [`spec/stdlib.md` § std::process](/docs/spec/stdlib) for the API
   surface). Every spawned child gets its own process group via
   `setpgid(0, 0)` in the post-fork prelude. Chosen over
   `prctl(PR_SET_PDEATHSIG, SIGKILL)` for POSIX portability

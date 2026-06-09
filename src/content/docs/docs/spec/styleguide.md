@@ -1,10 +1,8 @@
 ---
 title: "Style guide"
-description: "Hale language specification — Style guide."
 ---
 
-> Synced from the Hale compiler repo's `spec/styleguide.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This document specifies idiomatic Hale: the shape primitives an

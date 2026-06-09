@@ -1,10 +1,8 @@
 ---
 title: "spec/ffi.md — Foreign-function interface (`@ffi(\"c\")`)"
-description: "Hale language specification — spec/ffi.md — Foreign-function interface (`@ffi(\"c\")`)."
 ---
 
-> Synced from the Hale compiler repo's `spec/ffi.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 User-extensible bindings to external C-ABI libraries. Library

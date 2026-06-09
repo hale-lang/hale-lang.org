@@ -31,17 +31,50 @@ export default defineConfig({
       // Custom landing pages own the site root; Starlight serves /docs/*.
       sidebar: [
         {
-          label: 'Start',
+          label: 'Getting started',
           items: [
-            { label: 'Overview', slug: 'docs' },
-            { label: 'Install', slug: 'docs/install' },
-            { label: 'Why Hale', link: '/why' },
-            { label: 'Playground', link: '/playground' },
+            { label: 'Introduction', slug: 'docs' },
+            'docs/getting-started/install',
+            'docs/getting-started/first-run',
           ],
         },
         {
-          label: 'Specification',
-          items: [{ autogenerate: { directory: 'docs/spec' } }],
+          label: 'The basics',
+          items: [
+            'docs/basics/values', 'docs/basics/math', 'docs/basics/functions',
+            'docs/basics/control-flow', 'docs/basics/strings', 'docs/basics/fallible',
+            'docs/basics/first-program',
+          ],
+        },
+        {
+          label: 'Everyday programs',
+          items: [
+            'docs/everyday/locus-gently', 'docs/everyday/collections', 'docs/everyday/records',
+            'docs/everyday/files', 'docs/everyday/json', 'docs/everyday/http',
+            'docs/everyday/cli-config', 'docs/everyday/logging',
+          ],
+        },
+        {
+          label: 'Concurrent services',
+          items: [
+            'docs/services/lifecycle', 'docs/services/bus', 'docs/services/concurrency',
+            'docs/services/parents-children', 'docs/services/failure', 'docs/services/multi-binary',
+          ],
+        },
+        {
+          label: 'Systems control',
+          items: [
+            'docs/systems/memory', 'docs/systems/performance', 'docs/systems/forms',
+            'docs/systems/zero-copy-bus', 'docs/systems/binding-c', 'docs/systems/cross-process',
+            'docs/systems/modes',
+          ],
+        },
+        {
+          label: 'Reference',
+          items: [
+            'docs/reference', 'docs/libraries', 'docs/the-design',
+            { label: 'Specification', collapsed: true, items: [{ autogenerate: { directory: 'docs/spec' } }] },
+          ],
         },
         {
           label: 'Ecosystem',

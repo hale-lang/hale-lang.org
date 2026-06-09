@@ -1,10 +1,8 @@
 ---
 title: "Static verification surface"
-description: "Hale language specification — Static verification surface."
 ---
 
-> Synced from the Hale compiler repo's `spec/verification.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This page is the canonical catalog of the compile-time **checks** the

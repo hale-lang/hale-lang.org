@@ -1,10 +1,8 @@
 ---
 title: "Type system"
-description: "Hale language specification — Type system."
 ---
 
-> Synced from the Hale compiler repo's `spec/types.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This document specifies Hale's type system: what types exist,
@@ -46,7 +44,7 @@ type set above carries an additional axis of distinction at the
 `Bytes` / `BytesView` / `StringView` may appear in `@ffi`
 parameter and return positions; `Decimal` / `Uint` are
 typecheck-rejected (platform-variable ABI or Hale-internal).
-See [`spec/ffi.md`](./ffi.md) for the full marshalling table and
+See [`spec/ffi.md`](/docs/spec/ffi) for the full marshalling table and
 the lifetime contract.
 
 ## Compound types

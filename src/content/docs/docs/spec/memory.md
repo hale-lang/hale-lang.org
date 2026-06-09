@@ -1,10 +1,8 @@
 ---
 title: "Memory model"
-description: "Hale language specification — Memory model."
 ---
 
-> Synced from the Hale compiler repo's `spec/memory.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This document specifies Hale's memory model: how regions are

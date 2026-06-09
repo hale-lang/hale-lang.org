@@ -1,10 +1,8 @@
 ---
 title: "Lexical structure"
-description: "Hale language specification — Lexical structure."
 ---
 
-> Synced from the Hale compiler repo's `spec/tokens.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This document specifies the lexical layer of Hale: the set of

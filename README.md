@@ -25,17 +25,24 @@ src/
   styles/global.css         the marketing design system
   styles/starlight.css      themes the Starlight docs chrome to match
   content.config.ts         Starlight docs content collection
-  content/docs/docs/        the docs (served under /docs)
-    index.md install.md
-    spec/                   the language spec (synced — see below)
+  content/docs/docs/        the docs (served under /docs — generated)
+    <book>                  the guide  ← hale/docs/src (the mdBook tour)
+    spec/                   the reference ← hale/spec/*.md
   pages/                    index, why, agents, playground, packages (custom)
-scripts/sync-spec.sh        copies hale/spec/*.md → content with frontmatter
-public/                     favicon.svg, llms.txt
+scripts/sync-docs.mjs       syncs the Book + spec into the docs collection
+scripts/build-agent-assets.sh   builds the context packs + rules files
+public/                     favicon.svg, llms.txt, generated agent assets
 ```
 
 The marketing pages use a hand-built layout; **the `/docs/*` section is
 [Starlight](https://starlight.astro.build)** (sidebar, search, ToC), themed to
-match. Run `./scripts/sync-spec.sh` to refresh the spec from the compiler repo.
+match, with a custom header that shares the marketing nav. The docs content is
+**synced from the compiler repo, not authored here**: the curated guide comes
+from `hale/docs/src` (the "level-by-level tour" mdBook) and the canonical
+reference from `hale/spec/*.md`. Run `node scripts/sync-docs.mjs` to refresh
+both (it injects Starlight frontmatter and rewrites in-repo links to site
+paths). The Hale grammar is registered with both the custom code panels and
+Starlight's Expressive Code, so `hale` fences are highlighted everywhere.
 
 ## Status
 
@@ -43,14 +50,12 @@ Homepage + core nav pages + the docs section (Starlight) with the full language
 spec wired in and searchable.
 
 **Next:**
-- Share the custom site header across the docs (override Starlight's `Header`).
-- Register the Hale grammar with Starlight's code blocks so spec snippets get
-  Hale highlighting (currently plain).
-- Rewrite the spec's `spec/*` / `notes/*` cross-links into site links.
 - The interactive Playground (a WASM `hale` build) — also unlocks guided
-  in-playground lessons (the former “tour”).
-- The agents toolchain: generate `hale-context.txt`, `llms-full.txt`,
-  `install.sh`, the `hale init --agent` templates, and the MCP server.
+  in-playground lessons.
+- `install.sh` (the real hosted installer) and a `hale init --agent` that
+  scaffolds the rules files locally.
+- A docs sync in CI (or committed-with-a-staleness-check) so the guide/spec
+  don't drift from the compiler repo.
 
 ## Notes
 

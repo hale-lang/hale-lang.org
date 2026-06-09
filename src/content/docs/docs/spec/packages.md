@@ -1,10 +1,8 @@
 ---
 title: "Package management"
-description: "Hale language specification — Package management."
 ---
 
-> Synced from the Hale compiler repo's `spec/packages.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 Hale's v1 package-management surface is small and explicitly
@@ -191,9 +189,9 @@ clone lands at `vendor/<name>/`, which becomes one Hale seed
   link line should pull in) and `csrc = [...]` (C glue files
   compiled alongside the runtime). The consumer's build reads
   the section automatically at import time — no manual
-  `--link` / `--csrc` flags needed. See [`spec/ffi.md`](./ffi.md)
+  `--link` / `--csrc` flags needed. See [`spec/ffi.md`](/docs/spec/ffi)
   for the FFI contract and
-  [`agents/binding-packages.md`](../agents/binding-packages.md)
+  [`agents/binding-packages.md`](https://github.com/hale-lang/hale/blob/main/agents/binding-packages.md)
   for the authoring brief. Pure-Hale libraries (no `@ffi`)
   have no reason to ship `hale.toml`; their consumers
   resolve them through the standard import lookup.

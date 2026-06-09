@@ -1,10 +1,8 @@
 ---
 title: "Operational semantics"
-description: "Hale language specification — Operational semantics."
 ---
 
-> Synced from the Hale compiler repo's `spec/semantics.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 This document specifies what Hale programs *do* when they

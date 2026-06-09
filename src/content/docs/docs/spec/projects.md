@@ -1,10 +1,8 @@
 ---
 title: "Projects"
-description: "Hale language specification — Projects."
 ---
 
-> Synced from the Hale compiler repo's `spec/projects.md`. Cross-references
-> to `spec/*` / `notes/*` / `crates/*` point at the source repo.
+> Reference material, synced from the compiler repo's `spec/`. The [guide](/docs) is the gentler path in.
 
 
 An Hale project is a directory tree of `.hl` source files plus
