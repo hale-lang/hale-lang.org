@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+
+// Custom Hale TextMate grammar → registered with Starlight's code blocks
+// (Expressive Code) so spec `hale` fences are highlighted like the rest
+// of the site.
+const haleGrammar = JSON.parse(
+  readFileSync(new URL('./src/grammars/hale.tmLanguage.json', import.meta.url), 'utf8')
+);
 
 // https://astro.build/config
 export default defineConfig({
@@ -10,6 +18,13 @@ export default defineConfig({
       description: 'The Hale programming language documentation.',
       logo: { src: './public/favicon.svg', alt: 'Hale' },
       customCss: ['./src/styles/starlight.css'],
+      components: {
+        Header: './src/components/StarlightHeader.astro',
+      },
+      expressiveCode: {
+        themes: ['github-dark'],
+        shiki: { langs: [haleGrammar] },
+      },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/hale-lang' },
       ],
