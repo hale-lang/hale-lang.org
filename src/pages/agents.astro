@@ -39,9 +39,13 @@ const mechanisms = [
     <p>
       A handful of project-level rules the agent reads <em>before writing any
       locus</em> — the two-channel discipline, the six-pattern catalog, the
-      gotchas. <code>hale init --agent</code> drops a pre-filled
-      <code>AGENTS.md</code> / <code>CLAUDE.md</code> into your project, or copy a
-      template for Cursor.
+      gotchas. Drop one into your project (a future <code>hale init --agent</code>
+      will scaffold it for you):
+    </p>
+    <p>
+      <a class="btn btn-ghost" href="/agent/AGENTS.md" download>AGENTS.md</a>
+      <a class="btn btn-ghost" href="/agent/CLAUDE.md" download>CLAUDE.md</a>
+      <a class="btn btn-ghost" href="/agent/.cursorrules" download>.cursorrules</a>
     </p>
 
     <h3>2 · A living friction log</h3>
@@ -63,16 +67,39 @@ const mechanisms = [
       Unknown fields, unknown topics, and methods that return a managed entity are
       all hard errors — the hallucination-class bugs, stopped at build time.
     </p>
+    <p>
+      <strong>hale-mcp</strong> exposes the toolchain as MCP tools —
+      <code>hale_check</code> / <code>hale_build</code> / <code>hale_run</code> /
+      <code>hale_fmt</code> / <code>hale_fetch</code> and
+      <code>hale_docs_search</code> (grep the spec to ground a rule) — so an agent
+      compiles and verifies Hale without leaving the loop.
+    </p>
+    <div class="install" style="margin-bottom:0.6rem;">
+      <span class="sigil">$</span>
+      <span class="cmd">claude mcp add hale -- node /path/to/hale-mcp/src/index.js</span>
+    </div>
+    <p class="muted" style="font-size:0.92rem;">
+      <a href="https://github.com/hale-lang/hale-mcp">github.com/hale-lang/hale-mcp</a>
+      — set <code>HALE_BIN</code> to your <code>hale</code> binary; works with
+      Claude Code, Claude Desktop, and Cursor.
+    </p>
 
     <h2 id="context-pack">The context pack</h2>
     <p>
-      <code>hale-context.txt</code> — a single versioned file (spec + styleguide +
-      pattern catalog + gotchas) tuned for context windows, in full and slim
-      variants. This is what makes an assistant fluent in Hale.
+      A single file (essentials + the full language spec + real-world gotchas)
+      that makes an assistant fluent in Hale. The <strong>slim</strong> variant
+      (~14k tokens) is the essentials plus the two highest-signal spec docs — it
+      fits comfortably in a context window; the <strong>full</strong> variant is
+      the complete corpus.
     </p>
-    <div class="install" style="margin-bottom:1.5rem;">
+    <p>
+      <a class="btn btn-primary" href="/hale-context-slim.txt" download>Context pack — slim</a>
+      <a class="btn btn-ghost" href="/hale-context.txt" download>Full pack</a>
+      <a class="btn btn-ghost" href="/llms-full.txt" download>llms-full.txt</a>
+    </p>
+    <div class="install" style="margin:1rem 0 1.5rem;">
       <span class="sigil">$</span>
-      <span class="cmd">curl -fsSL https://hale-lang.org/hale-context.txt -o hale-context.txt</span>
+      <span class="cmd">curl -fsSL https://hale-lang.org/hale-context-slim.txt -o hale-context.txt</span>
     </div>
 
     <h2>Why the language helps</h2>
