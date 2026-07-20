@@ -227,7 +227,7 @@ fn main() {
     println("hale-play: listening on http://127.0.0.1:", port);
 
     std::io::tcp::Listener {
-        host: "127.0.0.1",
+        host: bind_host(),
         port: port,
         max_accepts: -1,
         on_connection: handle_request
