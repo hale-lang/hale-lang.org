@@ -110,6 +110,12 @@ type Reading {
     value: Int;
 }
 
+// A topic is a first-class, typed channel: the payload type is
+// declared once, here — not repeated at every subscribe site.
+topic Readings {
+    payload: Reading;
+}
+
 // Owns the state. Handlers are atomic: one message at a time
 // per locus, guaranteed by the runtime — no locks, no races.
 locus Station {
@@ -122,7 +128,7 @@ locus Station {
     }
 
     bus {
-        subscribe "station.readings" as on_reading of type Reading;
+        subscribe Readings as on_reading;
     }
 
     // birth() runs once, at instantiation.
@@ -141,7 +147,7 @@ locus Station {
 
 locus Producer {
     bus {
-        publish "station.readings" of type Reading;
+        publish Readings;
     }
 
     // run() is the locus's own activity; it starts when the
@@ -151,9 +157,9 @@ locus Producer {
     // browser build is single-threaded wasm, so everything
     // runs cooperatively on one scheduler.
     run() {
-        "station.readings" <- Reading { sensor: "thermal", value: 41 };
-        "station.readings" <- Reading { sensor: "pressure", value: 0 };
-        "station.readings" <- Reading { sensor: "thermal", value: 43 };
+        Readings <- Reading { sensor: "thermal", value: 41 };
+        Readings <- Reading { sensor: "pressure", value: 0 };
+        Readings <- Reading { sensor: "thermal", value: 43 };
     }
 }
 
