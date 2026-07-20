@@ -51,7 +51,7 @@ locus Pool {
 }`;
 
 const pLlm = `locus Cache {
-    // a model writes a method returning a managed entity:
+    // a method that hands out a managed entity:
     fn get(key: String) -> Entry {
         return self.lookup(key);
     }
@@ -76,10 +76,11 @@ const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', '
         <p class="eyebrow">general-purpose · memory-safe · supervised</p>
         <h1>Build a monolith. Deploy a distributed system.</h1>
         <p class="lede">
-          Hale is a general-purpose language built on one idea — the
-          <strong>locus</strong> — with Erlang-style supervision, memory freed by
-          structure (no GC, no borrow checker), and a compiler that enforces the
-          design principles we've always carried as conventions.
+          Hale collapses the linguistic layers between a domain and the
+          machine. One primitive — the <strong>locus</strong> — with Erlang-style
+          supervision, memory freed by structure (no GC, no borrow checker), and
+          a compiler that enforces the design principles we've always carried as
+          conventions.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/docs/getting-started/install">Get started</a>
@@ -196,30 +197,30 @@ const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', '
     </div>
   </section>
 
-  <!-- AGENTS BAND -->
+  <!-- TOOLING BAND -->
   <section class="container wide">
     <div class="band">
       <div class="split">
         <div>
           <p class="eyebrow" style="color:var(--jade-deep);">tooling</p>
-          <h2>Bring your editor — or your assistant.</h2>
+          <h2>One binary, the whole loop.</h2>
           <p>
-            <code>hale check</code> answers in ~10&nbsp;ms; the LSP wires it into
-            any editor, and an MCP server + context pack give coding assistants
-            the same loop. Either way the compiler is the oracle — it says
-            precisely what's wrong, whoever the author is.
+            <code>hale check</code> answers in ~10&nbsp;ms with structured,
+            location-precise diagnostics; the LSP wires it into any editor, and
+            build, test, fmt, doc, bench, and an MCP server all ship in the same
+            binary. The compiler is the oracle — it says precisely what's wrong,
+            whoever the author is.
           </p>
           <div class="hero-actions" style="margin-bottom:0;">
-            <a class="btn btn-primary" href="/agents#context-pack">Context pack</a>
-            <a class="btn btn-ghost" href="/agents#mcp">MCP server</a>
-            <a class="btn btn-ghost" href="/agents">Read more →</a>
+            <a class="btn btn-primary" href="/tooling">Tooling</a>
+            <a class="btn btn-ghost" href="/tooling#mcp">MCP server</a>
+            <a class="btn btn-ghost" href="/docs">Docs →</a>
           </div>
         </div>
         <div>
           <p class="seam-note" style="color:#8b95a7;">
-            read rules + context pack<br/>
-            → write a locus<br/>
-            → <code style="color:var(--jade-deep);background:none;">hale check</code> via MCP<br/>
+            write a locus<br/>
+            → <code style="color:var(--jade-deep);background:none;">hale check</code> (~10 ms)<br/>
             → structured diagnostic<br/>
             → fix → green
           </p>

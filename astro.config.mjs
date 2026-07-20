@@ -21,6 +21,7 @@ const haleGrammar = JSON.parse(
 // https://astro.build/config
 export default defineConfig({
   site: 'https://hale-lang.org',
+  redirects: { '/agents': '/tooling' },
   integrations: [
     starlight({
       title: 'Hale',

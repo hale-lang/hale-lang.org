@@ -15,7 +15,7 @@
 
 ## For agents and LLMs
 
-- [Hale for agents](https://hale-lang.org/agents): the rules-doc + compiler-oracle workflow.
+- [Tooling](https://hale-lang.org/tooling): LSP, MCP server, context packs, machine-readable docs.
 - [Context pack](https://hale-lang.org/hale-context.txt): single-file spec + styleguide + gotchas, tuned for context windows.
 - [llms-full.txt](https://hale-lang.org/llms-full.txt): the concatenated documentation corpus.
 

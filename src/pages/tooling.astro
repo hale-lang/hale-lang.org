@@ -1,0 +1,85 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+
+const reject = `// you write:
+locus Reader {
+    bus { publish Frame; }
+}
+// hale check:
+//   error: publish references unknown topic 'Frame'
+//   (no 'topic Frame' declaration in this file)`;
+---
+<Base title="Hale tooling — one binary, the whole loop">
+  <section class="container prose">
+    <span class="tag">/tooling</span>
+    <h1>One binary, the whole loop.</h1>
+    <p class="lede">
+      Everything ships in <code>hale</code>: build, run, test, format,
+      document, benchmark, verify — plus a language server and an MCP server.
+      The same fast, structured diagnostics reach every author: an editor, a
+      CI job, a coding assistant.
+    </p>
+
+    <h2>The compiler as the oracle</h2>
+    <p>
+      <code>hale check</code> answers in ~10&nbsp;ms with structured,
+      location-precise diagnostics — fast enough to run on every keystroke,
+      legible enough to act on without archaeology:
+    </p>
+    <Hale code={reject} title="hale-check" />
+    <p class="muted" style="font-size:0.92rem;">
+      Unknown fields, unknown topics, and methods that return a managed entity
+      are all hard errors — whole bug classes stopped at build time.
+    </p>
+
+    <h2>Editor integration</h2>
+    <p>
+      <code>hale lsp</code> speaks the Language Server Protocol: diagnostics
+      as you type, hover, go-to-definition, and completion in any
+      LSP-speaking editor. <code>hale fmt</code> keeps a canonical style;
+      <code>hale doc</code> renders API reference from <code>///</code>
+      comments (<code>--json</code> for machine consumption).
+    </p>
+
+    <h2 id="mcp">MCP server</h2>
+    <p>
+      <code>hale mcp</code> (built into the binary) exposes the toolchain over
+      the Model Context Protocol — <code>hale_check</code> /
+      <code>hale_build</code> / <code>hale_run</code> / <code>hale_fmt</code> /
+      <code>hale_fetch</code> and <code>hale_docs_search</code> — for any MCP
+      host, including shell-less ones.
+    </p>
+    <div class="install" style="margin-bottom:0.6rem;">
+      <span class="sigil">$</span>
+      <span class="cmd">claude mcp add hale -- hale mcp</span>
+    </div>
+
+    <h2 id="context-pack">Machine-readable docs</h2>
+    <p>
+      The documentation ships in forms built for programmatic consumption:
+      <a href="/llms.txt">llms.txt</a> (index) and
+      <a href="/llms-full.txt">llms-full.txt</a> (the full spec corpus), plus
+      bundled context packs — essentials, spec, and real-world gotchas in one
+      file. The <strong>slim</strong> pack (~14k tokens) fits comfortably in a
+      context window.
+    </p>
+    <p>
+      <a class="btn btn-primary" href="/hale-context-slim.txt" download>Context pack — slim</a>
+      <a class="btn btn-ghost" href="/hale-context.txt" download>Full pack</a>
+      <a class="btn btn-ghost" href="/llms-full.txt" download>llms-full.txt</a>
+    </p>
+
+    <h2>Project rules files</h2>
+    <p>
+      Ready-made rules files distilled from the style guide — the two-channel
+      discipline, the pattern catalog, the gotchas — in the formats coding
+      tools pick up automatically:
+    </p>
+    <p>
+      <a class="btn btn-ghost" href="/agent/AGENTS.md" download>AGENTS.md</a>
+      <a class="btn btn-ghost" href="/agent/CLAUDE.md" download>CLAUDE.md</a>
+      <a class="btn btn-ghost" href="/agent/.cursorrules" download>.cursorrules</a>
+    </p>
+  </section>
+</Base>
