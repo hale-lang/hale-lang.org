@@ -31,9 +31,12 @@ simplifies tooling.
 
 - Line comment: `// ...` to end of line.
 - Block comment: `/* ... */`. Block comments do not nest in v0.
-- Doc comment: `///` (line) or `/** */` (block) attached to the
-  following declaration. Doc comments are preserved by the lexer
-  for tooling consumption.
+- Doc comment: `///` lines directly above a declaration attach to
+  it (decorator lines like `@hot` may sit between). Rendered by
+  `hale doc` into the seed's API reference (spec/testing.md).
+  Tooling recovers doc text positionally from the source — the
+  lexer itself skips all comments. `/** */` stays reserved for a
+  future block form; `hale doc` v1 reads `///` only.
 
 ## Identifiers
 
@@ -68,10 +71,17 @@ coercion design (same gap as tuple-of-`LocusRef` escape).
 
 ```
 params          contract        bus             capacity
+as_parent_for   indexed_by
 ```
 
 `capacity` introduces an F.22 `capacity { ... }` block carrying
 zero or more `pool X of T;` / `heap Y of T;` slot declarations.
+`as_parent_for` and `indexed_by` are **hard keywords** used only
+in slot-clause position inside a capacity block: `pool P of T
+as_parent_for ChildL;` (v1.x-4 — share the slot's allocator with
+a child locus's same-named slot at accept time) and `pool P of T
+indexed_by field;` (v1.x-FORM-4 — names the hashmap key field on
+a `@form(hashmap)` cell type).
 The slot-kind words `pool` and `heap` are **contextual idents** —
 they lex as ordinary Idents and the parser recognizes them only
 in slot-decl head position inside a capacity block. So
@@ -92,7 +102,7 @@ drain           dissolve        on_failure
 bulk            harmonic        resolution
 ```
 
-`mode` is a **contextual keyword** (2026-05-22): recognized only
+`mode` is a **contextual keyword**: recognized only
 at locus-member position (as the leading token of a `mode_decl`
 production in `grammar.ebnf` § 11). Outside that position it
 lexes as an ordinary Ident, so `cam.mode: Int` and similar
@@ -111,17 +121,29 @@ projection      rich            chunked         recognition
 ### Placement keywords (F.31)
 
 ```
-placement       cooperative     pinned          pool        core
+placement       cooperative     pinned          pool        core        cores
+topology        node            l3              reserve     replicas
 ```
 
 `placement` introduces the `placement { }` block on `main
-locus` (F.31). `cooperative` / `pinned` are placement-spec
-keywords inside that block. `pool` and `core` are
-**contextual idents** — recognized only as kwarg names inside
-`cooperative(pool = X)` / `pinned(core = N)` placement
-specs. Outside those positions, all five lex as ordinary
-Idents and can name fns / vars / fields. Same F.10-style
-narrowing the closure / mode keyword families use.
+locus` (F.31); `topology` introduces the `topology { }` block
+(topology Phase 1b). `cooperative` / `pinned` are
+placement-spec keywords inside `placement { }`. `pool`, `core`,
+and `cores` are **contextual idents** — recognized only as
+kwarg names inside `cooperative(pool = X)` /
+`pinned(core = N)` / `pinned(cores = A..B | A..=B | {a, b, c})`
+placement specs (topology Phase 1a). Phase 1b adds
+`pinned(node = N)` / `pinned(l3 = name)`, plus the `topology`,
+`node`, `l3`, and `reserve` block keywords. Phase 1c adds
+`replicas` (a second `pinned(...)` kwarg, e.g. `pinned(cores =
+A..B, replicas = K)`). All are contextual idents — outside their
+positions they lex as ordinary Idents
+and can name fns / vars / fields (same F.10-style narrowing the
+closure / mode keyword families use). Note L3-domain names go
+through the identifier rule, so a **hard** keyword (e.g. `bulk`)
+can't name a domain — use a plain identifier. `cores` range
+bounds and set elements are integer literals; the range reuses
+the expression tokens `..` (exclusive) / `..=` (inclusive).
 
 The pre-F.31 `schedule` keyword is gone — the `: schedule
 cooperative | pinned` per-locus annotation no longer exists.
@@ -185,8 +207,23 @@ subscribe       publish         on              of
 ### Perspective keywords
 
 ```
-stable_when     serialize_as
+stable_when     serialize_as    serves          reperspective
 ```
+
+`serves` (Phase 2a) is a **contextual keyword** —
+recognized only in a locus header's post-`:` list, as the
+`serves P` conformance clause (`locus RouterV1 : serves Router`).
+`reperspective` (Phase 2b) is a **contextual keyword**
+recognized only as a statement head followed by `self`
+(`reperspective self.<field> as <Impl>;`). Outside those positions
+both lex as ordinary Idents, so `fn serves(...)` /
+`let reperspective = ...` stay admissible. Same F.10-style
+narrowing the placement / closure keyword families use.
+
+`perspective` (a **hard** declaration keyword) doubles as a type
+constructor: `perspective(P)` in type position is a handle to the
+contract `P`. The parser recognizes it by the `perspective`
+token followed by `(`.
 
 ### Statement / expression keywords
 
@@ -211,8 +248,13 @@ parse error.
 ```
 Int             Uint            Float           Decimal
 String          Bool            Time            Duration
-Bytes
+Bytes           BytesView       StringView      BytesMut
 ```
+
+`BytesView` / `StringView` (F.30) are non-owning views over a
+`BytesBuilder`'s buffer; `BytesMut` (#3) is a raw `{ptr, len}`
+writable/readable window (a `Topic.write` ring slot or a
+`MirrorRing` window). See `spec/types.md`.
 
 PascalCase per the type-name convention. The lexer emits these
 as `Ident` tokens; the parser recognizes them by name in **type
@@ -235,7 +277,7 @@ macro
 
 (`with` is no longer in this list — v1.x-VIOLATE recognizes it
 as a contextual keyword inside the `violate_stmt` production.
-`where` is no longer in this list either — Form K (2026-05-20)
+`where` is no longer in this list either — Form K
 recognizes it as the suffix keyword on `binding_entry` carrying
 operational constraints.)
 
@@ -243,7 +285,7 @@ operational constraints.)
 cooperative yield point; lowers to a bus-queue drain in
 codegen. Listed under cooperative-scheduler keywords.
 
-`terminate` (2026-05-30) is a statement keyword — ends the
+`terminate` is a statement keyword — ends the
 current locus's lifecycle from inside one of its own methods
 (the locus analogue of `return`). Only valid inside a locus
 method body. See spec/semantics.md § "terminate".
@@ -281,10 +323,14 @@ admissible.
   path, attaching the expression as the typed payload.
   Symmetric to `return`.
 - **`or`** — recognized as a postfix on any expression of
-  fallible type (the `or_clause` production). Three RHS forms:
+  fallible type (the `or_clause` production). Four RHS forms:
   `or raise` (propagate one frame up the call stack),
-  `or <expression>` (substitute), `or <handler-call>` (hand
-  off).
+  `or discard` (swallow the error and substitute Unit —
+  rejected at typecheck on calls whose success type is non-Unit;
+  sugar for the old `or noop(err)`), `or fail <expr>` (B3 / G6 —
+  diverge like `raise` but with a fresh payload of the enclosing
+  fallible fn's declared error type), `or <expression>`
+  (substitute), `or <handler-call>` (hand off).
 - **`raise`** — recognized only as the immediate RHS of `or`.
   Diverges the expression by re-entering the fallible-return
   shape of the enclosing `fallible(E)` fn, with the payload

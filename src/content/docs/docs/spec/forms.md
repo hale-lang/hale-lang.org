@@ -10,14 +10,14 @@ declaration that picks an efficient lowering for the locus's
 storage and synthesizes a standard method set. Forms are the
 mechanism Hale uses in place of parametric collection types
 (`Map<K, V>`, `Vec<T>`, etc.). See
-[`notes/agent-onboarding/hale-design-philosophy.md`](https://github.com/hale-lang/hale/blob/main/notes/agent-onboarding/hale-design-philosophy.md)
-for the design philosophy and `spec/design-rationale.md` for The
-Design's grounding (F.0 form-before-parameter, F.22 capacity).
+`spec/decisions.md` for The Design's grounding (F.0
+form-before-parameter, F.22 capacity).
 
 This document specifies the form annotation system in general
 (syntax, contract, verification) and the `@form(vec)` contract
-in detail. Subsequent forms (`@form(hashmap)`, `@form(ring_buffer)`)
-get their own sections as they're committed.
+in detail. Subsequent forms (`@form(hashmap)`,
+`@form(ring_buffer)`, `@form(lru_cache)`) get their own sections
+as they're committed.
 
 ## Annotation syntax
 
@@ -42,7 +42,7 @@ locus ItemList<T> {
   user-defined forms are deferred to a future release.
 - **`form_arg`** — keyword arguments specific to the form. Used
   for tuning knobs that don't change storage discipline (e.g.
-  `max = 100` for `@form(lru_cache)`).
+  `cap = 100` for `@form(lru_cache)` / `@form(ring_buffer)`).
 - **One form per locus.** Composition (`@form(vec) @form(ordered)`)
   is rejected in v1.
 
@@ -126,7 +126,7 @@ locus CmdRegistry {
 }
 
 // Policy / tuning — annotation argument.
-@form(lru_cache, max = 100, ttl = 60s)
+@form(lru_cache, cap = 100)
 locus SessionCache {
     capacity { pool sessions of SessionEntry indexed_by id; }
 }
@@ -139,7 +139,10 @@ commitment — it changes the pool's layout and access path.
 
 A locus without `@form(...)` gets the **literal F.22 default
 lowering**: pool slots become `lotus_pool_t*` chunked free-list;
-heap slots become `lotus_heap_t*` doubling buffer. The user's
+heap slots become a `lotus_heap_t*` doubly-linked live list
+(individual O(1) alloc/free, wholesale-freed at dissolve — the
+contiguous doubling buffer is the `@form(vec)` specialization,
+not the default). The user's
 own methods run as written; no synthesis, no shape verification
 beyond the normal capacity-slot machinery.
 
@@ -218,9 +221,18 @@ different bands:
 > the fallible-ABI plumbing. **No 10% commitment at v1**;
 > isolated-microbench numbers may show 10–50× behind C. The
 > contract is that fallible primitives are correct, predictable,
-> and competitive when amortized (the (b) band) — closing the
-> isolated gap waits on either IR-level inlining of the
-> `lotus_*` primitive's logic at codegen time or LTO.
+> and competitive when amortized (the (b) band).
+>
+> **Update: the isolated gap is largely closed.**
+> `@form(vec)` `.get` / `.set` / `.pop` / `.push` are now inlined
+> directly at codegen — bounds-check + typed GEP + load/store,
+> no `lotus_*` C-call boundary. `.get` indexed by a counted-loop
+> variable (`for i in 0..v.len()`, the vec unmutated in the body)
+> additionally drops the bounds check entirely — it's provably
+> in-bounds — so the read vectorizes. The remaining cross-boundary
+> calls (arena allocation, etc.) inline under opt-in `LOTUS_LTO=1`
+> (see `runtime.md`). The "IR-level inlining or LTO" this band
+> once deferred to is shipped.
 
 These bands track the same underlying performance reality at
 different observer-perspectives (per The Design's
@@ -230,14 +242,25 @@ measures the codegen-pattern overhead per primitive call.
 `@form(vec)` is the canonical benchmark target (see "Bench
 protocol" under the `@form(vec)` section below).
 
-**Current standing (2026-05-13):**
+**Current standing (2026-06-28, vs Go at matched iteration counts):**
 
 | Bench | Hale vs Go | Band | Status |
 |---|---|---|---|
-| `form_vec_push` (1M isolated push) | 1.00× | (a) | met ✓ |
-| `vec_amortized` (push + fold) | 0.42× | (b) | 2.4× — outside 2× band |
-| `form_vec_get` (1M isolated get) | 0.026× | (c) | as expected; deferred |
-| `fn_scratch_work` (calls with work) | 0.92× | (b) | met ✓ |
+| `form_vec_push` (500k push) | 4.83× | (a) | beats Go ✓ |
+| `vec_amortized` (push + fold, 200k) | 3.75× | (b) | beats Go ✓ |
+| `form_vec_get` (200k get) | 2.60× | (c) | beats Go ✓ |
+| `fn_scratch_work` (1k calls w/ work) | 7.05× | (b) | beats Go ✓ |
+
+`Hale vs Go` = Go time ÷ Hale time (> 1 → Hale faster). The earlier
+(2026-05-13) snapshot put `form_vec_get` at 0.026× and `vec_amortized`
+at 0.42×; those were a benchmark **iteration-count mismatch** — the
+Hale variants ran 20–25× more work than the `.go`/`.js`/`.py`
+siblings (see the bench repo's N-audit) — compounded by
+pre-optimization codegen. At matched N, with the `.get`/`.set`/`.pop`/
+`.push` inlines + counted-loop bounds-check elimination + native-CPU/O3
+defaults, Hale leads Go on all four. The formal within-10%/2×-of-**C**
+verification for bands (a)/(b) still awaits the C twins noted in the
+bench harness.
 
 If a form fails its applicable band, the lowering is redesigned
 before shipping more forms. The point of the form machinery is
@@ -617,10 +640,20 @@ not behave the same under `@form(vec)`.
 Spec-level questions not blocking the current `@form(vec)`
 contract; will be answered as workloads surface demand.
 
-1. **Iteration surface.** A `for x in vec.items { ... }` form
-   is natural, but the loop construct's lowering depends on
-   what the existing `for` over F.22 heap slots does. Deferred
-   until the implementation pass.
+1. **Iteration surface — SHIPPED 2026-07-02.** `for x in
+   v.items { ... }` iterates a `@form(vec)` (fully inline buf
+   walk: len + buf loaded once, one GEP + load per element, no
+   C calls — vectorizes for scalar cells) and `for e in
+   m.entries { ... }` iterates a `@form(hashmap)` (cluster-aware
+   slot-cursor walk via `lotus_hashmap_iter_next`: O(cap) for a
+   full walk, where the index-based `key_at`/`entry_at` rescan
+   from slot 0 per call — O(cap×len)). The loop variable is a
+   per-iteration COPY for hashmap entries and a REFERENCE to the
+   vec-owned cell for vec struct cells (scalars are copies by
+   value). Mutating the form inside the body is unsupported (a
+   grow rehashes/reallocs under the cursor). `break`/`continue`
+   work. Ring-buffer iteration is still deferred (wrap-aware
+   oldest-first walk).
 2. **Bulk operations.** `extend(other: @form(vec))`, `clear()`,
    `truncate(n: Int)`. Useful but not foundational. Add after
    the core methods land.
@@ -755,7 +788,7 @@ The `lockfree` discipline (F.32-1γ) drops the rwlock
 entirely. `cap = N` is an optional initial-size hint (was
 required pre-γ-v2 session 3 before grow shipped; now grows
 transparently when load factor crosses 0.6). Under γ-v1
-`remove` was a no-op; under γ-v2 session 1 (2026-05-26)
+`remove` was a no-op; under γ-v2 session 1
 `remove` is supported via tombstones (4-state cell machine:
 EMPTY → CLAIMED → COMMITTED → TOMBSTONE). Pure CAS on the
 occupancy byte; no kernel-mediated synchronization on the
@@ -1156,40 +1189,9 @@ reference, so this isn't reachable from user code today.
 Future iteration APIs that surface entry references will need
 to gate against indexed-by-field mutation.
 
-## Open questions deferred to a future milestone
-
-These are spec-level questions that don't block FORM-4 because
-the core surface above is independent of them.
-
-1. **Iteration surface.** `for entry in registry { ... }` is
-   natural but the loop construct's lowering depends on what
-   the existing `for` over capacity slots does — and a hashmap
-   iteration that visits each occupied slot once needs cluster-
-   aware traversal. Deferred.
-2. **Bulk operations.** `clear()`, `extend(other)`,
-   `take(key) -> S fallible(KeyError)` (get + remove fused).
-   Useful but not foundational. Add after a workload demands.
-3. **Additional key types.** `Bytes`, custom structs with a
-   hashable derivation, enum tags. Each adds a `key_type_tag`
-   to the runtime ABI. Workload-driven.
-4. **Capacity hints.** `@form(hashmap, cap = 64)` is rejected
-   in v1; no tuning knobs. Add when a workload demonstrates
-   the 0 → 8 → 16 → ... grow cascade is costing measurable
-   time.
-5. **Set type.** A `@form(set)` would be a hashmap-without-
-   value variant (the cell IS the key). Not part of FORM-4;
-   revisit if a workload needs it.
-
----
-
-# `@form(ring_buffer)`
-
-A fixed-capacity FIFO with push-back and pop-front semantics.
-The Hale analogue of a bounded circular buffer — same shape as
-a Go channel of capacity N, or a Java `ArrayBlockingQueue`, but
-without the synchronization machinery (the cooperative scheduler
-already serializes access). Shipped as the third form in v1
-via v1.x-FORM-5.
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).
 
 ## Required capacity shape
 
@@ -1399,19 +1401,139 @@ no `grow` or `shrink_to_fit`. Apps that need a growable bounded
 buffer should pick a generous cap up front, or use
 `@form(vec)` if growth is the right semantic.
 
-## Open questions deferred to a future milestone
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).
 
-1. **Iteration surface.** `for x in recent { ... }` is natural
-   but iteration over a ring buffer must respect head/tail wrap
-   — needs the `for` lowering to know about ring shapes.
-   Deferred.
-2. **Bulk operations.** `clear()`, `peek() -> T fallible`,
-   evict-oldest-on-full mode (cyclic-overwrite as a tuning
-   knob). Useful but not foundational; add when a workload
-   demonstrates demand.
-3. **Iteration in pop order without removing.** A "drain" or
-   "iter_pop" that visits elements oldest-first as a one-shot.
-4. **Bench protocol.** A `micro/form_ring_buffer_*` family
-   in `hale-lang/bench`, parallel to vec's and hashmap's.
-   Ships as a separate milestone after a consumer workload
-   surfaces.
+## Required capacity shape
+
+The locus MUST declare exactly one `pool` slot with an
+`indexed_by <fieldname>` clause over a user-declared struct cell —
+the same key surface as `@form(hashmap)` — AND the annotation arg
+`cap = N`. `lru_cache` is the one form that needs BOTH a key and a
+cap.
+
+```hale
+type SessionEntry { id: Int; token: String; }
+
+@form(lru_cache, cap = 1000)
+locus SessionCache {
+    capacity { pool sessions of SessionEntry indexed_by id; }
+}
+```
+
+Rules verified at typecheck:
+
+- Exactly one slot, of kind `pool`. Zero slots, more than one
+  slot, or a `heap` slot is rejected.
+- The slot MUST declare `indexed_by <fieldname>`; the named field
+  must exist on the cell struct and becomes the cache key type
+  `K` (Int or String at v1). The cell struct is the value type
+  `S`.
+- `cap = N` is required and must be a positive integer literal.
+  v1 doesn't const-evaluate expressions for form args.
+- The slot MUST NOT declare `as_parent_for` — form-lowered slots
+  own their own allocator.
+- The cell type MAY NOT be a locus reference — same restriction
+  as the other forms.
+
+## Synthesized methods
+
+```
+fn put(x: S) -> ()                          # infallible; silent LRU evict
+fn get(k: K) -> S fallible(KeyError)        # lookup + recency touch
+fn contains(k: K) -> Bool                   # membership, NO recency touch
+fn len() -> Int                             # infallible; count <= cap
+```
+
+`get`'s miss payload is the synthesized `KeyError` (shared with
+`@form(hashmap)`); no new payload type is introduced.
+
+### `put`
+
+```
+fn put(x: S) -> ()
+```
+
+Insert or update by the `indexed_by` key extracted from `x`. If
+the key is already present, its value is overwritten and its
+recency is refreshed. If the key is new and the cache is at
+capacity, the least-recently-used entry is silently evicted first.
+`put` is **infallible** — over-cap is a normal, silent operation
+(eviction), not a failure. This matches the "never flagged /
+bounded" contract: there is no `FullError`, unlike
+`@form(ring_buffer).push` which returns a Bool.
+
+Both insert and update mark the touched entry as recently used.
+
+### `get`
+
+```
+fn get(k: K) -> S fallible(KeyError)
+```
+
+Looks up the value for key `k`. On a hit it returns the value
+**and** marks the entry as recently used (a recency touch) — this
+is what makes the policy LRU rather than FIFO: a `get` on an entry
+saves it from an eviction that a purely-oldest-inserted policy
+would take. On a miss it raises `KeyError`, addressed at the
+call site's `or` clause.
+
+### `contains`
+
+```
+fn contains(k: K) -> Bool
+```
+
+Membership test. Returns `true` if `k` is present. Unlike `get`,
+`contains` does **NOT** touch recency — a `contains` on an entry
+leaves it exactly as recently-used as it was. This distinction is
+observable: after `contains(k)`, the entry `k` remains eligible
+for eviction if it was the LRU entry.
+
+### `len`
+
+```
+fn len() -> Int
+```
+
+Current live entry count, always `<= cap`. Infallible.
+
+## Lowering strategy
+
+`@form(lru_cache)` lowers the pool slot to an inline header struct
+plus a single heap-allocated open-addressed table, managed by the
+`lotus_lru_*` C runtime:
+
+```
+struct lotus_lru_t {
+    size_t   cap;           // fixed live-entry cap (never grows)
+    size_t   len;           // current live entries (<= cap)
+    size_t   key_size;
+    size_t   value_size;
+    int      key_type_tag;  // Int / String key ABI (shared w/ hashmap)
+    uint64_t tick;          // monotonic access counter
+    size_t   table_cap;     // power-of-two slot count (>= 2*cap)
+    char    *slots;         // table_cap * (occupied + tick + key + value)
+}
+```
+
+It deliberately does **not** reuse the `lotus_hashmap_*` family:
+that family auto-grows and has no recency notion, both of which
+break the cap invariant. The table is sized to the next power of
+two `>= 2*cap` (load factor `<= 0.5`, so a probe always meets an
+empty terminator). Each slot carries an access tick; eviction
+removes the occupied slot with the minimum tick (the LRU entry)
+via backward-shift compaction (no tombstones), keeping the table
+reusable under unbounded insert/evict churn. Ticks are globally
+unique per access, so the LRU entry is unambiguous.
+
+The backing table is pre-allocated at locus birth
+(`lotus_lru_init`) and freed at dissolve (`lotus_lru_free`); the
+inline header lives in the locus struct and dies with the arena —
+the same inline-header / heap-buffer split as `@form(vec)`,
+`@form(hashmap)`, and `@form(ring_buffer)`.
+
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).

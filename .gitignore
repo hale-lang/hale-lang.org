@@ -3,3 +3,8 @@ dist/
 .astro/
 .DS_Store
 *.log
+
+# compile-service build artifacts (the source lives in service/*.hl)
+service/main
+service/*.wasm
+service/*.mjs

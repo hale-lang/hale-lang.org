@@ -12,8 +12,16 @@ discipline (closure tests, k_max bounds, projection-class
 invariants, multi-perspective stability commit-rules) needs
 testing infrastructure to be enforced.
 
-This document specifies the *design* of the testing pipeline.
-Implementation follows once the compiler exists.
+`hale test` (Layer 1 + Layer 2), `hale bench` (Layer 3
+single-language), `hale fmt`, and `hale doc` all ship in the CLI
+today (`lex` / `parse` / `check` / `run` / `build` / `test` /
+`bench` / `verify` / `fmt` / `doc` / `fetch` / `lsp` /
+`mcp`). Only
+`hale bench -compare` remains design-only below. `hale verify`
+runs `check`'s exact analysis surface but GATES: any finding —
+advisory or error — exits 1, making it the CI discipline gate
+(where `check` stays the fast advisory oracle: warnings print,
+only errors fail).
 
 ## Three layers of correctness
 
@@ -181,12 +189,102 @@ tests by suffix (`_test.hl`) regardless of location.
 | `hale check` | Static checks: parse, typecheck, framework discipline |
 | `hale test` | Run all `*_test.hl` files in the project |
 | `hale test -run pattern` | Run matching tests only |
-| `hale bench` | Run all `*_bench.hl` files |
-| `hale bench -compare` | Build and run external equivalents alongside |
-| `hale verify` | Layer-2 discipline checks specifically (no execution) |
-| `hale fmt` | Canonical formatter (Go-style: zero config) |
+| | (`hale test` applies the same `hale.toml [ffi]` csrc/link pickup as `hale build`, so tests importing FFI-bearing libs link — 2026-07-18) |
+| `hale bench` | Run all `*_bench.hl` files (see below) |
+| `hale bench -compare` *(planned)* | Build and run external equivalents alongside |
+| `hale verify` | Layer-2 discipline gate: `check`'s full analysis, ANY finding fails (no execution) |
+| `hale fmt` | Canonical formatter (Go-style: zero config; see below) |
+| `hale doc` | API reference from `///` doc comments (Markdown / `--json`; see below) |
 
-`hale test` runs Layer 1 + Layer 2. `hale bench` runs Layer 3.
+`hale test` runs Layer 1 + Layer 2 today; `hale bench` runs
+Layer 3's single-language half.
+
+## `hale bench` — the Layer-3 runner
+
+`hale bench [file | dir]` discovers `*_bench.hl` files (dir walk,
+`vendor/` and dot-dirs skipped); every **zero-param free fn named
+`bench_*`** is a benchmark. The runner appends a synthesized
+driver `main` (a bench file must not define its own), compiles at
+the release profile with the same `hale.toml [ffi]` pickup as
+build/test, and runs it. The driver self-calibrates Go-style:
+batch sizes grow ×10 until one batch takes ≥100 ms, then the
+final batch reports **ns/op** and **allocs/op**
+(`std::diag::heap_alloc_count` deltas; shown as `-` in sanitizer
+builds where the counting shim is absent). `-run <substr>`
+filters by bench name; `--json` emits one record per bench
+(`file`/`name`/`iters`/`ns_per_op`/`allocs_per_op`) for CI.
+Benchmarks may print their own output — non-report lines pass
+through.
+
+Still planned from the original design: stored baselines with
+tolerance bands as a CI gate, and `-compare` external-language
+equivalents. The `fn bench_*` magic-name convention (Go's
+`Benchmark*` shape) is the resolved answer to the "grammar
+extension or magic name?" question above — no grammar change.
+
+## `hale doc` — the API-reference generator
+
+Zero config. `hale doc [file | dir]` renders a seed's API
+reference from `///` doc comments (the convention in
+spec/tokens.md): every public top-level declaration — fns, loci
+(with params and their documented methods), types, topics,
+interfaces, consts — with its signature and doc text. Markdown to
+stdout by default; `-o <path>` writes it; `--json` emits one
+record per declaration (`file`/`kind`/`name`/`signature`/`doc`/
+`members`) for tooling and agents. `__`-prefixed names and `main`
+are internal and skipped; a file that doesn't parse is reported
+and skipped with exit 1. Doc text is recovered positionally (the
+lines directly above the declaration, stepping over decorator
+lines), so the lexer and AST are untouched.
+
+`hale doc --stdlib` renders the `std::` surface instead: the
+rename table supplies public paths, the bundled stdlib source
+supplies decl shapes + `///` docs (mangled param types demangled;
+internal-typed params hidden), and the typecheck signature table
+supplies the C-primitive-backed free fns that have no `.hl` decl.
+The spec/stdlib.md tables remain the canonical CONTRACT; the
+generated reference is the browsable companion, and stdlib
+declarations grow `///` docs namespace-by-namespace (metrics,
+log, and BytesBuilder are done).
+
+## `hale fmt` — the canonical formatter
+
+Zero config, Go-style: there are no options that change the output.
+`hale fmt [paths]` formats `.hl` files in place (no path = the
+current directory tree; `vendor/` and dot-directories are skipped);
+`--check` lists files that would change and exits 1 (the CI gate);
+`--diff` previews without writing; `--stdin` filters stdin→stdout
+for editor integration.
+
+What canonical form means (a token-stream formatter — the author's
+line-break structure is PRESERVED, gofmt-style; there is no
+max-line-length enforcement):
+
+- **Indentation** — 4 spaces per bracket depth. A closing bracket
+  returns to its opener's line indent; brackets opened together on
+  one line indent their contents once. Bracket-less continuation
+  lines (a leading `&&`/`.`, a trailing binary operator on the
+  previous line) get one extra level.
+- **Spacing** — canonical pair rules: binary operators spaced,
+  unary `-`/`!` tight to their operand, `.`/`::`/`..` tight,
+  nothing inside `(` `)` `[` `]`, literal braces spaced
+  (`Rec { key: 1 }`, `{ }`), `:` tight-left (except the spaced
+  `locus X : serves P` conformance colon, per this spec's own
+  examples), generic angles tight (`Holder<Int>`), lifecycle
+  parens tight (`run()`).
+- **Blank lines** — collapsed to at most one; none at file start;
+  exactly one trailing newline. Intra-line alignment padding
+  (`let x   = 1;`) collapses to single spaces.
+- **Comments** — preserved verbatim in position: own-line comments
+  indent with the code, trailing comments sit one space after it.
+
+Safety: the formatter re-lexes its own output and refuses to write
+unless the semantic token stream is byte-identical to the input's —
+a formatter bug can mangle whitespace, never what the compiler
+sees. Files that don't lex are reported and left untouched.
+Formatting is idempotent; the corpus test
+(`hale-syntax/tests/fmt_corpus.rs`) holds every fixture example and
+stdlib source to both properties.
 
 ## Test assertion library
 
@@ -232,7 +330,7 @@ the same `.hl` programs unchanged.
 | `assert_closure(name, tolerance)` | not shipped — needs closure-test introspection |
 | `mock_locus<T>(...)` | not shipped |
 | `bench_iter(n, f)` | not shipped |
-| `hale test` CLI runner | not shipped — Rust harness fills the role today |
+| `hale test` CLI runner | shipped — discovery→compile→run→report driver over `*_test.hl` (`-run`, `--json`) |
 
 ## Property-based testing
 
@@ -258,7 +356,7 @@ Actions annotations, etc.) are downstream conversions.
 ## What writing this surfaces (for resolution)
 
 1. **`bench` annotation: keyword, attribute, or naming convention?**
-   Go uses `BenchmarkName`. Rust uses `#[bench]`. Lotus has
+   Go uses `BenchmarkName`. Rust uses `#[bench]`. Hale has
    neither attributes nor magic-name conventions yet. Decision
    pending; probably an attribute (`@bench fn ...`) added to
    the grammar in v0.2.

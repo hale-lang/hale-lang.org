@@ -51,6 +51,33 @@ Going the other way loses information, so it's explicit:
 let n = Int(3.9);        // 3 — truncates toward zero
 ```
 
+When you'd rather name the conversion — or need it mid-expression
+where the implicit widening doesn't reach — `std::math` has both
+directions as functions:
+
+```hale
+let f = std::math::int_to_float(42);     // 42.0
+let m = std::math::float_to_int(3.99);   // 3 — round toward zero
+```
+
+They're the same `sitofp` / `fptosi` conversions as the casts,
+just callable anywhere — so numeric code never has to launder a
+value through `to_string` + `parse_float` to change its type.
+
+When you want a Float *rounded* to an `Int` rather than
+truncated — building an integer field out of a Float quantity,
+say — reach for `round`; `trunc` is the toward-zero sibling:
+
+```hale
+let a = std::math::round(3.7);          // 4   (Int)
+let b = std::math::round(2.5);          // 3   — half away from zero
+let c = std::math::round(0.0 - 2.5);    // -3
+let d = std::math::trunc(3.7);          // 3   — toward zero, like float_to_int
+```
+
+Both return an `Int` directly. (`floor` / `ceil` below return a
+`Float`; wrap them in `float_to_int` if you need an `Int`.)
+
 The standard library covers the rest: `std::math::sqrt`,
 `exp`, `log`, `pow`, `floor`, `ceil`, the trig functions, and
 so on.

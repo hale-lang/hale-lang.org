@@ -45,6 +45,46 @@ The `subscribe L2Updates as on_update;` handler is the *same line
 of source* it would be over a Unix socket — the substrate picks
 the zero-copy lowering from the binding, not from the locus code.
 
+## Per-record vs. batch: the handler's param picks the mode
+
+By default the substrate calls your handler once per record:
+
+```hale
+fn on_update(u: Update) {   // per-record
+    self.total = self.total + u.px;
+}
+```
+
+On a high-rate cross-process feed that per-record call — plus the
+per-call handler scratch — is exactly the overhead that loses to a
+bare consumer loop in C or Go. Hale's fix is the **drain** handler:
+change the parameter type to `Drain<T>` and the substrate calls the
+handler **once per available batch**, handing you a handle you
+consume with a tight inline loop.
+
+```hale
+locus Agg {
+    params { total: Int = 0; }
+    bus { subscribe Quotes as on_quotes; }   // SAME subscribe line
+    fn on_quotes(feed: Drain<Tick>) {         // param type → batch mode
+        for t in feed {                       // zero-copy inline loop
+            self.total = self.total + t.px;   // no per-record call
+        }
+    }
+}
+```
+
+There is no new keyword — the `subscribe` clause is unchanged; the
+parameter type alone selects the dispatch mode. Inside `for t in
+feed`, each `t` is read straight through the ring slot (so `t.px`
+reads the mapped shared memory in place, never a copy), and the
+consumer cursor advances once per batch instead of once per record.
+
+`Drain<T>` is only spellable as a batch handler's parameter and as
+the thing you iterate; it is not a general value type. Batch
+handlers on a foreign (`layout:`) ring aren't supported yet — use a
+per-record handler there.
+
 ## The `where` clause is a checked contract
 
 `where intra_machine, zero_copy` is two things at once: your
@@ -209,6 +249,74 @@ body's tail yields. The `std::bytes::write_*` family mirrors the readers
 (bounds-checked, `fallible(IndexError)`). The reserve and commit are
 scoped to the block, so the view can't escape and the commit can't be
 forgotten.
+
+### Naming the fields (`repr:` tags)
+
+Hand-writing `read_u32_le(b, 12)` per field is error-prone — the offsets
+are implicit and drift as the record changes. Tag a struct's fields with
+their wire representation and the offsets are computed for you, with typed
+accessors generated from the layout:
+
+```hale
+type L2 {
+    kind:  Int `repr:"u8"`;       // 1 byte  @ 0
+    price: Int `repr:"u32_le"`;   // 4 bytes @ 1
+    qty:   Int `repr:"u32_le"`;   // 4 bytes @ 5
+}
+```
+
+Now the consumer reads fields by name and the producer writes them by
+name — both compose with everything above:
+
+```hale
+fn on_rec(v: BytesView) {
+    let p = L2::price(v) or raise;       // read u32_le @ 1
+    ...
+}
+
+fn emit(level: L2) {
+    Recs.write(9) { w =>
+        L2::set_kind(w, 2)            or raise;
+        L2::set_price(w, level.price) or raise;
+        L2::set_qty(w, level.qty)     or raise;
+        9
+    };
+}
+```
+
+`Type::field(v)` and `Type::set_field(w, x)` desugar to the matching
+`std::bytes::read_*` / `write_*` call at the field's computed offset — so
+they're exactly as cheap (and as bounds-checked) as writing the primitive
+by hand. Offsets run in declaration order over the tagged fields; pin one
+for a padded foreign format with `repr:"u32_le,at=4"`. The tag itself is
+general `key:"value"` metadata — `repr:` is the binary-pack consumer;
+other keys (e.g. `json:`) are free for later tools.
+
+### Per-record headers and wire timestamps
+
+Real external feeds often prefix each record with a small fixed
+header — a sequence number, a producer-side wire-arrival timestamp —
+before the variable payload. Declare it in the `ring_layout` with
+`record_header_bytes` (and `pad_field` for any alignment padding),
+and the subscriber reads those header fields *for the record it's
+currently handling* through `std::shm`:
+
+```hale
+fn on_rec(v: BytesView) {
+    let seq = std::shm::last_record_seq();        // header sequence no.
+    let wire_ns = std::shm::last_record_kernel_ns(); // producer wire time
+    // ... decode v as before ...
+}
+```
+
+These read like the errno-style timestamp getters on a socket recv:
+call them inside the handler, and they describe the record being
+delivered. Each returns `0` when the layout declares no such field.
+The layout's `recheck post_copy` guard re-validates the header after
+the copy, so a record torn by a producer lapping the ring is never
+surfaced with a half-written header. (A native fixed-stride ring uses
+`framing slots` instead of length-prefixed `byte_records` — same
+`layout:` machinery, a different framing kind.)
 
 ## The same shape, one tier down
 

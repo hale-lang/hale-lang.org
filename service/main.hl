@@ -1,0 +1,228 @@
+// hale-lang.org — playground compile service, written in Hale.
+//
+// The static tour (/play on the site) only runs canned, pre-compiled
+// examples. To let newcomers write & run *their own* code we need a
+// backend: Hale has no interpreter — `hale run` compiles through LLVM —
+// so arbitrary client-side execution is impossible. This service takes
+// untrusted source, compiles it to wasm32, and hands the wasm back; the
+// browser instantiates and runs it in its own sandbox. Untrusted code is
+// only ever *compiled* server-side, never executed.
+//
+// Dogfooding: the service is itself a Hale program (same posture as the
+// fathom/Causality servers), built on the std HTTP/TCP/process/fs/crypto
+// substrate.
+//
+// Routes:
+//   GET  /          -> the editor page (service/editor.html)
+//   POST /compile   -> body is Hale source; returns
+//                        {"ok":true,"bytes":N,"wasm":"<base64>"}
+//                      or {"ok":false,"error":"<diagnostics>"}
+//   OPTIONS *        -> CORS preflight (so the storefront can call it)
+//
+// Config (env, all optional):
+//   HALE_BIN          path to the hale compiler  (default below)
+//   HALE_PLAY_CACHE   content-addressed wasm cache dir (default /tmp/hale-play-cache)
+//   HALE_PLAY_HTML    path to editor.html        (default ./service/editor.html)
+//   PORT (argv[1])    listen port                (default 8080)
+//
+// Limits (v0, matching the in-tree docs-server fixture):
+//   - one recv per request; assumes the request fits in the buffer below.
+//   - compile runs in the host namespace under a `timeout` wall only — NOT
+//     containerized. Run behind a sandbox (nsjail/container) before exposing
+//     it publicly.
+
+fn hale_bin() -> String {
+    if std::env::var_exists("HALE_BIN") { return std::env::var("HALE_BIN"); }
+    return "/home/riley/code/hale-lang/hale/target/release/hale";
+}
+
+fn cache_dir() -> String {
+    if std::env::var_exists("HALE_PLAY_CACHE") { return std::env::var("HALE_PLAY_CACHE"); }
+    return "/tmp/hale-play-cache";
+}
+
+fn editor_path() -> String {
+    if std::env::var_exists("HALE_PLAY_HTML") { return std::env::var("HALE_PLAY_HTML"); }
+    return "service/editor.html";
+}
+
+// Compile wall-clock budget, in seconds (passed to coreutils `timeout`).
+fn timeout_secs() -> String {
+    return "20";
+}
+
+// Max bytes read for a single request (request line + headers + body).
+fn recv_cap() -> Int {
+    return 262144;
+}
+
+// --- JSON helpers -----------------------------------------------------
+
+fn json_escape(s: String) -> String {
+    let mut r = s;
+    r = std::str::replace(r, "\\", "\\\\");
+    r = std::str::replace(r, "\"", "\\\"");
+    r = std::str::replace(r, "\n", "\\n");
+    r = std::str::replace(r, "\r", "\\r");
+    r = std::str::replace(r, "\t", "\\t");
+    return r;
+}
+
+fn ok_json(wasm_b64: String, nbytes: Int) -> String {
+    return "{\"ok\":true,\"bytes\":" + to_string(nbytes)
+         + ",\"wasm\":\"" + wasm_b64 + "\"}";
+}
+
+fn err_json(msg: String) -> String {
+    return "{\"ok\":false,\"error\":\"" + json_escape(msg) + "\"}";
+}
+
+// Strip server-internal paths out of compiler diagnostics so the user
+// sees a clean `playground.hl:LINE:COL` reference, not a temp path.
+fn clean_diag(raw: String, hl_path: String) -> String {
+    let mut r = raw;
+    r = std::str::replace(r, hl_path, "playground.hl");
+    r = std::str::replace(r, cache_dir() + "/", "");
+    return r;
+}
+
+// --- content-addressed cache ------------------------------------------
+
+// key = url-safe base64 of sha256(source). Stable per source, filename-safe
+// (url_encode never emits '/'), so a cache hit is a single file stat.
+fn cache_key(src: String) -> String {
+    let digest = std::crypto::sha256(std::bytes::from_string(src));
+    return std::text::base64::url_encode(digest);
+}
+
+// --- the compile path -------------------------------------------------
+
+fn compile_to_json(src: String) -> String {
+    let dir = cache_dir();
+    std::io::fs::mkdir(dir) or discard;
+
+    let key = cache_key(src);
+    let wasm_path = dir + "/" + key + ".wasm";
+
+    // Cache hit: return the wasm we already built for this exact source.
+    if std::io::fs::file_exists(wasm_path) {
+        let cached = std::io::fs::read_bytes(wasm_path) or {
+            return err_json("cache read failed");
+        };
+        return ok_json(std::text::base64::encode(cached), len(cached));
+    }
+
+    // Stage the source next to where the .wasm will land.
+    let hl_path = dir + "/" + key + ".hl";
+    std::io::fs::write_file(hl_path, src) or {
+        return err_json("could not stage source");
+    };
+
+    // Compile under a wall-clock timeout. `--wrap-main` lets a bare
+    // `fn main() { .. }` target wasm without the user writing an
+    // `@export locus` (wrapping happens on the AST, span-preserving).
+    let argv = "timeout\n" + timeout_secs() + "\n"
+             + hale_bin() + "\nbuild\n" + hl_path
+             + "\n--target\nwasm32\n--wrap-main\n";
+    let out = std::process::run(argv) or {
+        return err_json("compiler failed to launch");
+    };
+
+    if out.code != 0 {
+        // 124 is coreutils `timeout`'s "killed on deadline" code.
+        if out.code == 124 {
+            return err_json("compile timed out (limit " + timeout_secs() + "s)");
+        }
+        let mut diag = clean_diag(out.stderr, hl_path);
+        if len(diag) == 0 { diag = clean_diag(out.stdout, hl_path); }
+        if len(diag) == 0 { diag = "compile failed (no diagnostics)"; }
+        return err_json(diag);
+    }
+
+    if !std::io::fs::file_exists(wasm_path) {
+        return err_json("compiler reported success but produced no wasm");
+    }
+    let wb = std::io::fs::read_bytes(wasm_path) or {
+        return err_json("could not read compiled wasm");
+    };
+    return ok_json(std::text::base64::encode(wb), len(wb));
+}
+
+// --- HTTP -------------------------------------------------------------
+
+// CORS so the hale-lang.org storefront (a different origin) can POST here.
+fn cors_headers() -> String {
+    return "Access-Control-Allow-Origin: *\r\n"
+         + "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+         + "Access-Control-Allow-Headers: Content-Type";
+}
+
+fn handle_request(s: std::io::tcp::Stream) {
+    let raw = s.recv(recv_cap());
+    let req = std::http::parse_request(raw);
+
+    if req.method == "" {
+        std::http::write_response(s, std::http::Response {
+            status: 400, content_type: "text/plain", body: "malformed request\n"
+        });
+        return;
+    }
+
+    // CORS preflight.
+    if req.method == "OPTIONS" {
+        std::http::write_response(s, std::http::Response {
+            status: 204, content_type: "text/plain", headers: cors_headers(), body: ""
+        });
+        return;
+    }
+
+    // The editor page.
+    if req.method == "GET" && req.path == "/" {
+        let html = std::io::fs::read_file(editor_path()) or "";
+        if len(html) == 0 {
+            std::http::write_response(s, std::http::Response {
+                status: 500, content_type: "text/plain",
+                body: "editor.html not found (set HALE_PLAY_HTML)\n"
+            });
+            return;
+        }
+        std::http::write_response(s, std::http::Response {
+            status: 200, content_type: "text/html; charset=utf-8", body: html
+        });
+        return;
+    }
+
+    // Compile endpoint.
+    if req.method == "POST" && req.path == "/compile" {
+        let body = compile_to_json(req.body);
+        std::http::write_response(s, std::http::Response {
+            status: 200, content_type: "application/json",
+            headers: cors_headers(), body: body
+        });
+        return;
+    }
+
+    std::http::write_response(s, std::http::Response {
+        status: 404, content_type: "text/plain", body: "Not Found\n"
+    });
+}
+
+fn main() {
+    let mut port: Int = 8080;
+    if std::env::args_count() > 1 {
+        let parsed = std::str::parse_int(std::env::arg(1)) or 0;
+        if parsed > 0 { port = parsed; }
+    }
+
+    std::io::fs::mkdir(cache_dir()) or discard;
+    println("hale-play: compiler = ", hale_bin());
+    println("hale-play: cache    = ", cache_dir());
+    println("hale-play: listening on http://127.0.0.1:", port);
+
+    std::io::tcp::Listener {
+        host: "127.0.0.1",
+        port: port,
+        max_accepts: -1,
+        on_connection: handle_request
+    };
+}

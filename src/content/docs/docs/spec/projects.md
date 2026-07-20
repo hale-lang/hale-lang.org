@@ -26,7 +26,7 @@ that compose into a logical structure at parse time. Two
 projects with identical import graphs can ship totally
 different on-disk layouts; the lotus shape lives in the code.
 
-See `spec/design-rationale.md` F.19 and F.25 for the design
+See `spec/decisions.md` F.19 and F.25 for the design
 rationale; `notes/v1.x-IMPORT-handoff.md` for the v1.x-IMPORT
 milestone history.
 
@@ -262,7 +262,7 @@ The mangling shape mirrors the existing hand-spelled
 stdlib and moa seeds carry; cross-seed imports extend the same
 discipline automatically.
 
-### Scoped imports (A4, 2026-05-17)
+### Scoped imports (A4)
 
 If library A imports library B, B's decls become reachable
 **inside A's body only** under the alias A chose for B. A's own
@@ -277,6 +277,16 @@ work in the v1 IMPORT milestone — A4 lifts the v1 strict barrier
 to unblock the `pond/_util/*` retrofit (libraries that share
 internal helper libs without forcing every consumer to vendor
 them).
+
+"Reachable inside A's body" is full reach, including **expression
+and return position**: A may name a B type as a field/param/return
+type, call B's free fns, *and* instantiate B's types and loci by
+qualified literal — `b::Thing { ... }`, `b::SomeLocus { ... }` —
+inside A's own fns, even when A is itself only reached two hops
+down (`app → A → B`) and across A's multiple files. (This is the
+"G34" shape; verified at HEAD, WS3.4 2026-06-11. The re-export
+rule below still holds — the *app* cannot name `b::Thing` unless
+it imports B itself.)
 
 **No re-exports.** B's decls are not visible to A's importers
 unless they declare their own dependency on B. The `<lib_id>`
@@ -352,14 +362,21 @@ sentinel for non-Cargo trees.
 
 ## `hale run` interaction
 
-`hale run` and `hale build` share the same codegen path, so a
-single source file's `import "..." as ...;` directives resolve
-identically under both. The gap is the *ad-hoc directory* form
-(`hale run ./dir`): it bundles the directory's files without
-threading the per-build path-rename table, so `alias::Name` paths
-across git-dependency seeds won't resolve. Use `hale build ./dir`
-(or `hale build` on the entry file) for a multi-seed project with
-cross-seed imports.
+`hale run` and `hale build` share the same codegen path, and as
+of WS3.3 they also share the same *import* path: both
+the single-file form and the directory form (`hale run ./dir`)
+resolve `import "..." as ...;` directives, build the per-build
+path-rename table, and rewrite qualified `alias::Name` references
+identically. A directory `hale run` now produces the same
+merged-and-resolved program as `hale build ./dir` — it execs it
+instead of writing a binary.
+
+(Previously the directory `hale run` form bundled the directory's
+files *without* threading the path-rename table, so cross-seed
+`alias::Name` references — and a topic decl referenced from a
+sibling file — failed under `run` though they worked under
+`build`. That gap is closed; the two commands no longer diverge on
+imports.)
 
 ## Git-based dependency fetching (`hale fetch`)
 
@@ -387,12 +404,14 @@ Explicit non-features of the v1 project / import system. A
 future milestone may relax some of them when concrete friction
 demonstrates the need.
 
-- **No transitive deduplication.** A library reached through two
-  different import paths ships as two compiled copies — per-
-  importer mangling, no shared identity. The recursive resolution
-  added in A4 (2026-05-17) follows each library's own imports
-  scoped to that library, but does not unify references across
-  importers.
+- **Deduplication is by canonical path, not content.** A library
+  reached through two different importers gets ONE shared identity
+  — its `<lib_id>` is derived from its canonical path and
+  deduplicated in the resolver's visited set (the 2026-05-22
+  change; see § "No re-exports" above), so the same source yields
+  the same symbols across consumers. What's *not* done is
+  content-level unification: two libraries vendored at different
+  paths are distinct symbols even if byte-identical.
 - **No registry / version ranges / semver.** Dependency pins
   are exact git refs. See `spec/packages.md` § "What's NOT in
   v1" for the full list of package-management non-features.
@@ -425,3 +444,13 @@ End-to-end coverage lives in
 `tests/fixtures/lib-toy/` (two-file library) and
 `tests/fixtures/import-toy-consumer/main.hl` (consumer with
 `import "../lib-toy" as toy;`).
+
+## Build flags + environment
+
+| Surface | Effect |
+|---|---|
+| `hale build --dev` / `HALE_DEV=1` | Latency mode: LLVM O1 pipeline + Less machine codegen instead of the O3/`target-cpu=native` release default. For edit-build-run loops. |
+| `hale check --json` | NDJSON diagnostics on stdout, one object per line (`file`/`line`/`col`/`severity`/`kind`/`message`) — editor/LSP consumption. `hale check` runs in ~10 ms on the largest apps. |
+| `HALE_TIME=1` | Per-phase build wall times on stderr (front-end+codegen, llvm-passes, obj-emit, emit+link). |
+| `--no-warn-unbounded-alloc` | Opts a run out of the default-on memory-bound survey (see verification.md). |
+| `--target-cpu native\|baseline` | Backend CPU tuning (native = host, default; baseline = portable x86-64-v3). |

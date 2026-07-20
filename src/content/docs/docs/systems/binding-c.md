@@ -98,5 +98,11 @@ conventionally live in [pond](/docs/libraries); the
 `agents/binding-packages.md` brief covers the recommended file
 layout.
 
-Next: state that outlives one process — [Cross-process &
-hot-load](/docs/systems/cross-process).
+> **On the wasm target,** `@ffi("c")` has a sibling: `@ffi("js")`
+> declares a function the JavaScript loader provides instead of a
+> linked C symbol, and `@export` sends Hale functions *out* to the
+> host. Same declare-and-bind shape, different boundary — see
+> [WebAssembly & the browser](/docs/systems/webassembly).
+
+Next: running it in production — [Operations &
+debugging](/docs/systems/operations).

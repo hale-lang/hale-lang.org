@@ -3,6 +3,10 @@ title: "Introduction"
 ---
 
 
+**A concurrent systems language with a model-checked, GC-free
+runtime — typed message-bus concurrency, data-race-free by
+design.**
+
 *One language. Four altitudes.*
 
 Most languages pick a level and live there. Python and
@@ -17,6 +21,9 @@ can read like a script at the top and like a systems program at
 the bottom. There is one primitive — the **locus** — and the
 only thing that changes as you descend is how much of it you
 choose to see.
+
+> **Try it now:** the [playground](https://hale-lang.github.io/hale/play/) runs real Hale,
+> compiled to WebAssembly, right in your browser — no install.
 
 This guide is built around that idea. It introduces Hale at four
 levels, each one self-contained:

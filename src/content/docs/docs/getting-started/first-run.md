@@ -74,3 +74,41 @@ Hale program is built from.
 > run ./dir`), which bundles the directory's files without
 > cross-seed import resolution — use `hale build ./dir` for a
 > multi-file project that imports libraries.
+
+## Build modes, diagnostics, and debugging
+
+A few switches worth knowing from day one:
+
+- **The rest of the loop:** `hale fmt` keeps your code canonical
+  (zero config), `hale test` runs `*_test.hl`, `hale verify` is
+  `check` with teeth (any advisory fails — what CI runs), and
+  `hale doc` renders API references from `///` comments. Agent
+  hosts without a shell get all of it via `hale mcp`.
+- **Faster iteration:** `hale build --dev` (or `HALE_DEV=1`) uses a
+  lighter optimization pipeline — noticeably quicker builds while
+  you're in an edit-run loop. Release builds default to `-O3`
+  tuned for your CPU.
+- **Where did the build time go?** `HALE_TIME=1 hale build app.hl`
+  prints per-phase wall times.
+- **Editor & agent integration:** `hale lsp` is a stdio Language
+  Server — point any LSP-speaking editor (or agent harness) at it
+  and you get live diagnostics: type errors as errors, the
+  advisory analyses (unbounded-alloc survey, hot-path lint,
+  placement warnings) as warnings, re-checked whole-program on
+  every keystroke because the check runs in ~10 ms. Hover shows
+  signatures with their contracts (fallibility, `@hot`/`@budget`
+  status, a topic's routing key), completion covers `self.`
+  members, the `std::` surface, and your seed's symbols,
+  go-to-definition and references work across the seed, and the custom requests `hale/busGraph`,
+  `hale/placement`, and `hale/allocSummary` return the pub/sub
+  topology, the thread/pool map, and the allocation survey's leak
+  sites. No configuration. Prefer plain JSON?
+  `hale check app.hl --json` emits one object per diagnostic
+  (file, line, col, severity, message) on stdout — a save-hook is
+  all a minimal integration needs.
+- **Real debugging:** binaries carry full DWARF by default —
+  `gdb ./app`, `break app.hl:42`, backtraces with real file:line,
+  `info locals` / `print x` with typed values (Strings print their
+  text),
+  and ASAN reports that point at the exact source line. Zero
+  runtime cost; opt out with `LOTUS_NO_DEBUGINFO=1`.

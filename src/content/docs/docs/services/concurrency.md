@@ -78,8 +78,113 @@ main locus App {
   The runtime spawns one OS worker per pool name it sees.
 - `pinned` / `pinned(core = N)` gives the locus its own thread,
   optionally pinned to a CPU core.
+- `pinned(cores = 4..8)` (or `4..=7`, or `{4, 5, 6, 7}`) pins
+  the thread to a core *set* instead of one core: the OS
+  schedules it freely within the set, so a range carves out an
+  isolation domain ("this locus lives on these cores, away from
+  everything else") without hand-picking a single CPU. Ranges
+  follow the usual rules — `..` excludes the upper bound, `..=`
+  includes it.
+- `pinned(node = 0)` / `pinned(l3 = fast)` target a NUMA node or
+  cache domain *by name* instead of raw core numbers — see the
+  `topology { }` block below.
 - Unmentioned top-level loci default to `cooperative(pool =
   main)` — the program's main thread.
+
+Core affinity (`core =`, `cores =`, and the `node =` / `l3 =`
+forms below) is a Linux optimization and best-effort: indices
+that don't exist on the box are skipped, and on other platforms
+(macOS) the thread simply runs unpinned. Your program behaves
+identically either way — affinity only affects *where* the
+scheduler may run the thread.
+
+## Describing the machine: `topology { }`
+
+Raw core numbers work, but on a big box you'd rather say "put
+this on the fast cache domain" than memorize which cores share
+an L3. A `topology { }` block on `main` describes the host's
+core partition once, and placement entries target it by name:
+
+```hale
+main locus App {
+    topology {
+        reserve cores 0..2;              // hands-off for the OS / main
+        node 0 {
+            l3 fast { cores 4..8; }      // a CCD / shared-L3 group
+            l3 slow { cores 8..12; }
+        }
+        node 1 {
+            l3 heavy { cores 12..16; }
+        }
+    }
+    params {
+        matcher: Matcher = Matcher { };
+        region:  Region  = Region  { };
+    }
+    placement {
+        matcher: pinned(l3 = fast);   // affinity = the `fast` domain, {4..8}
+        region:  pinned(node = 0);    // affinity = node 0's cores, {4..12}
+    }
+}
+```
+
+- `pinned(node = N)` masks the thread to node `N`'s cores — the
+  union of the node's L3 domains.
+- `pinned(l3 = name)` masks it to that one cache domain, so
+  cooperating loci sharing an L3 keep their cross-locus bus
+  traffic hot in that cache.
+- `reserve cores` holds cores back for the OS / main; a domain
+  may not claim a reserved core.
+
+The block is **declare-only** and checked at compile time: node
+ids must be unique, L3 names must be unique (so `pinned(l3 =
+name)` is unambiguous), a core belongs to at most one domain,
+and every `pinned(node/l3)` must name a domain you declared.
+L3-domain names are ordinary identifiers, so a reserved word
+(like `bulk`) can't be a domain name — pick a plain name.
+
+**Thread *and* memory co-location.** `pinned(node = N)` binds
+more than the thread: the locus's arena — and its per-call
+method scratch — is allocated on that NUMA node's memory (via
+`mbind`), so its working set lives next to the thread that uses
+it. That's the point of NUMA targeting: cross-node memory access
+is what kills big-box performance, and a node-pinned locus
+avoids it on both axes. `pinned(l3 = fast)` binds the arena to
+the node containing that cache domain. Like affinity, memory
+binding is a Linux optimization and best-effort — it falls back
+to normal allocation where the node can't be honored, and it
+costs nothing (no extra dependency, the ordinary allocation
+path) for loci that don't ask for a node.
+
+## Parallelism: `replicas = K`
+
+To run a locus in parallel, you don't get a multi-worker pool —
+that would break the single-consumer invariant everything rests
+on (one cooperative pool is one thread; the lock-free rings and
+bus devirtualization assume it). Instead you fan it into **K
+single-threaded instances**:
+
+```hale
+placement {
+    // 8 workers, replica i on core 4+i, each its own thread
+    workers: pinned(cores = 4..12, replicas = 8);
+}
+```
+
+Each replica is a full instance on its own core, still
+single-threaded — parallelism comes from more units, not from
+sharing a thread, so every invariant survives per replica. With
+more replicas than cores the assignment wraps round-robin; with
+no `cores` the K instances are OS-scheduled. `replicas` composes
+with the topology targets — `pinned(node = 0, replicas = 4)` fans
+4 workers across node 0's cores, each with its arena on node 0.
+
+The replicas are **workers, not handles**: there's no
+`workers[i]` to call. They pull work — typically by subscribing a
+bus topic (all K register, so the topic fans out to every
+replica) or by running their own loop. `replicas` is pinned-only;
+`cooperative(..., replicas = K)` is rejected (K loci on one pool
+would share a thread, which isn't parallel).
 
 Placement keys on the *field name*, not the locus type, so two
 instances of the same locus type can live on different threads —
@@ -151,7 +256,7 @@ placement {
 The pool's worker runs an event loop (epoll under the hood), and
 blocking I/O calls inside loci on that pool — `recv`, `accept`,
 `send` — *park and resume* instead of holding the thread. Your
-locus code stays synchronous-shaped: `stream.recv(4096)` is the
+locus code stays synchronous-shaped: `stream.recv(4096) or ""` is the
 same call either way; the substrate picks the parking lowering at
 the syscall boundary. This is how you get async-style throughput
 without async-style function coloring.

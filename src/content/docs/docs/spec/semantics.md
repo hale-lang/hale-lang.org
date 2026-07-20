@@ -51,7 +51,7 @@ let-binding type ascriptions: `let nf: Float = self.n;`
 where `self.n: Int` succeeds. The widening is **one-way
 only** — `Float → Int` narrowing remains explicit, and
 `Decimal` never participates in implicit cross-type
-conversion. Phase 2c (2026-05-11). See F.23 in
+conversion. Phase 2c. See F.23 in
 `spec/design-rationale.md` and the Phase 2c entry in
 `spec/stdlib.md`.
 
@@ -67,9 +67,9 @@ discarded — semantically equivalent to having added the `;`.
 
 `if cond { ... } else { ... }` is dual-position:
 
-- **As statement** (`if` not at let-RHS / argument / arm-body):
-  no value; trailing expressions in either arm are evaluated
-  for side effects.
+- **As statement** (`if c { foo(); }` — no `else`, or any arm
+  whose block has no trailing expression): no value; trailing
+  expressions in either arm are evaluated for side effects.
 - **As expression** (e.g., `let x = if cond { i } else { j };`):
   the then- and else-arms' trailing expressions are
   phi-merged at the join basic block. The else branch is
@@ -77,12 +77,51 @@ discarded — semantically equivalent to having added the `;`.
   arms may carry their own let-bindings before the tail (the
   bindings are scoped to the arm).
 
+The two positions are distinguished by **shape, not syntactic
+context** (WS3.2). A trailing `if` — the last item
+of a block, with no `;` — becomes that block's tail expression
+when it is **value-producing**: every arm (then, else, and each
+`else if`) must end in a trailing expression. This is what lets
+an `if` nest as a block value:
+
+```hale
+let x = if a { if b { p } else { q } } else { r };
+//          \__ then-arm block whose tail is the inner if __/
+```
+
+The inner `if` is the then-arm block's tail, so the outer
+`if`'s then-value is the inner `if`'s value. A trailing `if`
+that is **not** value-producing (no `else`, or an arm with no
+tail) stays a statement — it has no value to carry, and forcing
+it into the value path would leave a tail-less arm with nothing
+to yield.
+
 `else if` chains carry through the value path —
 `ElseBranch::ElseIf` recurses and the innermost arm's tail
 feeds the phi at the outermost merge.
 
-Phase 2b (2026-05-11). See F.24 in `spec/design-rationale.md`
-and the Phase 2b entry in `spec/stdlib.md`.
+Phase 2b introduced `if`-as-expression; WS3.2
+(2026-06-11) made a value-producing trailing `if` compose as a
+block tail. See F.24 in `spec/decisions.md` and the
+Phase 2b entry in `spec/stdlib.md`.
+
+`match` is dual-position too (Gap C, 2026-07-17):
+
+- **As statement**: arm bodies are evaluated for side effects;
+  heterogeneous arm-body types are legal (values discarded).
+- **As expression** (`let x = match n { 0 -> 10, _ -> 20, };`):
+  every arm body's value is phi-merged at the join block, so
+  all value-producing arms must agree on one type (checked at
+  typecheck with the match's span; `match` expression works with
+  every pattern form the statement supports — literal / binding /
+  wildcard / tuple / enum-constructor patterns, guards, and
+  block arm bodies with trailing expressions). F.18
+  exhaustiveness applies in both positions. The only reachable
+  no-arm-matched case in expression position is a match whose
+  arms are all guarded and every guard is false at runtime; it
+  yields the zero value of the result type (`0` / `0.0` /
+  `false` / empty for pointer-shaped types), mirroring the
+  statement form's silent-no-op fallthrough.
 
 ## Binary data — Bytes and conversion
 
@@ -97,8 +136,9 @@ Producing a `Bytes`:
 - `std::io::fs::read_bytes(path) -> Bytes fallible(IoError)` (m89;
   IoError flip 2026-05-16). Caller addresses with
   `or raise` / `or fallback(err)`.
-- `Stream.recv_bytes(max: Int) -> Bytes` — binary-safe TCP
-  receive (Phase 2g).
+- `Stream.recv_bytes(max: Int) -> Bytes fallible(IoError)` —
+  binary-safe TCP receive (Phase 2g; fallible since #209 —
+  EOF/timeout return empty, only genuine errors fail).
 - `std::bytes::from_string(s: String) -> Bytes` — copies the
   strlen-measured body into a length-prefixed blob (Phase 2g).
 - `std::bytes::slice(b, lo, hi) -> Bytes` — half-open range
@@ -111,7 +151,8 @@ Consuming a `Bytes`:
   (0..255). Address out-of-bounds via `or` clause (Phase 2g;
   IoError flip 2026-05-16 swapped the pre-flip `-1` sentinel for
   the fallible channel).
-- `Stream.send_bytes(b)` — length-preserving TCP send (m89).
+- `Stream.send_bytes(b)` — length-preserving TCP send (m89;
+  `fallible(IoError)` with Unit success since #209).
 - `std::str::from_bytes(b) -> String` — copies into a
   NUL-terminated buffer; embedded NULs persist but downstream
   strlen-based String operations truncate at the first
@@ -127,10 +168,25 @@ plumbing.
 `LocusName { params }`:
 
 1. Compute params (overrides applied to declared defaults).
-2. Locus type's `accept(c)` (if instantiated inside a parent's
-   lifecycle method) runs first; if it rejects, instantiation
-   fails (no region allocated).
-3. Region allocated as sub-region of enclosing locus's region;
+   `self` resolves **lexically**: inside a *default* expression —
+   including the field inits of a nested locus literal written in
+   that default — `self.X` reads the locus being instantiated
+   (earlier-declared siblings only; a default that reads a
+   later-declared sibling is a compile error, since defaults run
+   in declaration order). Inside an *override* expression, `self`
+   belongs to the code that wrote the literal — the enclosing
+   method's locus, or the enclosing params block when the literal
+   itself sits in a default (F.4 call-site rule). This holds
+   regardless of where the instantiation executes (fn main, a
+   params-init, or another locus's method body — 2026-07-14 fix).
+2. The nearest enclosing ancestor that declares `accept(c: I)`
+   for the child's interface is the **owner** (innermost-wins —
+   interest-based ownership / accept bubbling; see below and
+   `runtime.md`). Its `accept(c)` runs first; if it rejects,
+   instantiation fails (no region allocated). With no accepting
+   ancestor the child is a transient throwaway (no owner).
+3. Region allocated as a sub-region of the **owner's** region
+   (the accepting ancestor — not necessarily the direct parent);
    size determined by projection class.
 4. `birth(args)` runs synchronously.
 5. Bus subscriptions wire up.
@@ -138,6 +194,18 @@ plumbing.
 7. If `run` declared, scheduled to run on the locus's
    scheduler.
 8. Expression returns the locus handle.
+
+**Accept bubbling.** The owner in step 2 need not be the direct
+parent. An `I{}` instantiated anywhere in a subtree bubbles to
+the nearest enclosing ancestor that declares `accept(I)`
+(innermost-wins); resolution is entirely static (the closed-world
+instantiation graph fixes every owner edge at compile time). The
+owner may live in a different tower or on a different pool: a
+cross-pool owner is served by an async handoff over the bus, so a
+cross-pool `I{}` is **fire-and-forget** — it may only appear as a
+bare statement, and using the instance as a value is rejected at
+compile time. See `runtime.md` "Interest-based ownership (accept
+bubbling)."
 
 ### Dissolve timing rules
 
@@ -151,7 +219,7 @@ Three shapes, three timings (m82 — "locus all the way down"):
   **deferred to the enclosing fn's scope-exit flush**. The
   user-visible binding `h` is the handle; the locus instance
   lives until `h` goes out of scope. This is what makes
-  `let s = Stream { conn_fd: fd }; s.send(msg);` work — `s`
+  `let s = Stream { conn_fd: fd }; s.send(msg) or raise;` work — `s`
   stays valid for the method call because dissolve hasn't
   fired yet.
 - **Long-lived** (locus has `bus subscribe`): always deferred,
@@ -173,7 +241,7 @@ free fn whose return is the per-iteration boundary (see
 
 ### `terminate`
 
-`terminate;` (2026-05-30) ends the current locus's lifecycle
+`terminate;` ends the current locus's lifecycle
 from inside one of its own methods — the locus analogue of
 `return` (which ends a fn). It is only valid inside a locus
 method body. It does **not** free anything directly: it sets
@@ -201,12 +269,12 @@ a still-executing frame. (A child that `terminate`s mid-`run()`
 exits `run()` immediately, like `return`; code after `terminate`
 in the same method does not execute.)
 
-**Validity (typecheck, 2026-06-01).** `terminate;` in a free
+**Validity (typecheck).** `terminate;` in a free
 function is a typecheck error — there is no enclosing locus whose
 lifecycle to end. It is accepted in any locus method body
 (lifecycle method or member `fn`).
 
-**From a bus handler (2026-06-01).** `terminate;` is no longer
+**From a bus handler.** `terminate;` is no longer
 limited to `run()`. A subscriber can end its own life from inside
 a bus handler (e.g. `on_close` receives a shutdown message and
 calls `terminate;`). The reclaim runs when the handler returns —
@@ -217,7 +285,7 @@ the resident-subscriber analogue of the connection child that
 
 ### `release(c)` and flow children
 
-`release(c: Child) { ... }` (2026-05-30) is the death-side
+`release(c: Child) { ... }` is the death-side
 bookend, symmetric to `accept(c: Child)`. Declaring it on a
 parent has two effects:
 
@@ -247,13 +315,13 @@ parent has two effects:
 `release` has the same shape as `accept` — one typed child
 param — and the same fn signature `(parent_self, child_self)`.
 
-**Validity (typecheck, 2026-06-01).** A `release(c: T)` with no
+**Validity (typecheck).** A `release(c: T)` with no
 matching `accept(c: T)` on the same locus is a typecheck error: a
 locus that never accepts a `T` child can never release one, so
 the declaration is dead (almost always a wrong child type or a
 forgotten `accept`).
 
-**Parent-dissolve reclaim (2026-06-01).** When a parent that
+**Parent-dissolve reclaim.** When a parent that
 `accept`s children dissolves, it reclaims each accept'd child it
 still tracks — running the child's full teardown (drain →
 dissolve → arena reclaim) before the parent's own arena (which
@@ -334,6 +402,14 @@ self.reg.counter("ticks").inc();   // would leak per call
 
 The `counter()` method declaration is the rejection site. The
 diagnostic names three canonical alternatives:
+
+**Mode keywords in contract names:** mode names
+(`bulk` / `harmonic` / `resolution`) are admitted in expose-entry
+position — `expose bulk: Float;` — making the exposed-mode pull
+rule below expressible (it was a parse error before). The exposed
+type is checked against the mode's declared return; expose entries
+in general must bind a real params field, mode, or fn member at a
+matching type (M3 stage 4).
 
 1. **Parent-child + contract reads.** `Counter` becomes an
    accepted child of `Registry`; `Registry` reads counter
@@ -558,15 +634,18 @@ class slot-handle values.
 
 ### Slot 0 parent-override
 
-When a locus is accepted by a parent whose projection class is
-**Chunked** or **Recognition**, the child's slot 0 (arena) is
-allocated either as a sub-region of the parent's arena (Chunked,
-via `lotus_arena_create_subregion`) or out of the parent's
-recpool (Recognition with the matching sub-mode, via
+When a locus is accepted by an owner (the accepting ancestor —
+see "Accept bubbling," not necessarily the direct parent) whose
+projection class is **Chunked** or **Recognition**, the child's
+slot 0 (arena) is allocated either as a sub-region of the owner's
+arena (Chunked, via `lotus_arena_create_subregion`) or out of the
+owner's recpool (Recognition with the matching sub-mode, via
 `lotus_recpool_fixed_acquire` / `lotus_recpool_slab_acquire`).
-The child is freed wholesale when the parent dissolves.
-**Rich**-class parents do not sub-region-allocate; accepted
-children get their own top-level arenas. See `memory.md`
+The child is freed wholesale when the owner dissolves.
+**Rich**-class owners do not sub-region-allocate; accepted
+children get their own top-level arenas. When bubbling crosses a
+pool, the child is born in — and reclaimed by — the owner's
+thread via an async bus handoff (`runtime.md`). See `memory.md`
 Per-projection-class allocation table.
 
 F.22 names this as "projection class governs parent-override
@@ -663,6 +742,37 @@ The handler may:
 
 Default on_failure: `bubble(err)`. The runtime root's default
 is process exit with stack trace.
+
+### Reassigning a locus-typed field (WS1#4)
+
+Assigning a fresh locus literal to a locus-typed field —
+`self.<field> = SomeLocus { … };` — is a **lifecycle
+transition**, not a value store. It is lowered **break-before-make**:
+
+1. The instance currently in the field is reclaimed — its full
+   teardown spine runs (drain → dissolve → arena freed), so its
+   resources are released: `@ffi` handles closed, child loci
+   cascaded, region returned. This is the same teardown a child
+   gets when its parent dissolves.
+2. A new instance is constructed from the literal **into self's
+   own arena**, owned by the field (not scope-bound) — so it
+   outlives the enclosing method and is reclaimed through the
+   field when self later dissolves, exactly like a field-default
+   child from params-init.
+3. The field is repointed at the live new instance.
+
+The old and new instances do not coexist: the old is fully torn
+down before the new is constructed. (Treating the assignment as a
+plain value store — the naive lowering — would leave the field
+pointing at a scope-dissolved temporary: closed handles, freed
+arena, use-after-free on next use. The transition lowering exists
+to prevent exactly that.)
+
+For "same instance, reconfigure," use **in-place mutation**
+(`self.<field>.<x> = v;`), which stays the cheap path and triggers
+no teardown. v1 scope: the new instance inherits the parent's pool;
+reassigning a *pinned*-placed field does not re-apply the pinned
+placement.
 
 ## Mode invocation
 
@@ -813,8 +923,11 @@ Transport surface:
   timeouts, point-to-point role for p2p shapes). The grammar
   distinguishes substrate vs adapter by the head's case
   (lowercase keyword `unix` vs capitalized locus name).
-  Inbound dispatch from an adapter into the local handler set
-  awaits the `__bus_local_dispatch` opening (deferred).
+  Inbound dispatch from an adapter into the local handler set is
+  handled by `std::bus::__local_dispatch(subject, bytes)` (m105):
+  it reconstructs the payload against the subject's registered
+  deserialize fn and fans into local subscribers via
+  `lotus_bus_dispatch_wire`.
 
 - `shm_ring("/name", slot_count: N, on_overflow: <policy>)` —
   POSIX SHM ring substrate backing the zero-copy route. Name
@@ -843,7 +956,7 @@ Transport surface:
   [[slot-locus-design]]) for the zero-memcpy path is
   post-v1; the implicit `<-` path covers the common case.
 
-  **Subscribers (Form K6b, 2026-05-20).** Hale-side
+  **Subscribers (Form K6b).** Hale-side
   `bus subscribe` for shm_ring-bound topics is wired.
   Codegen emits a `lotus_bus_register_subscriber_shm_ring(...)`
   call at the subscriber locus's birth lifecycle; the C
@@ -852,6 +965,36 @@ Transport surface:
   the user's `fn on_foo(p: T)` handler with `p` pointing
   directly into the ring slot (no memcpy on the subscriber
   side).
+
+  **Batch / drain dispatch (`Drain<T>`).** The
+  dispatch mode is selected by the handler's PARAMETER TYPE,
+  using the *same* `subscribe Topic as on_x;` keyword:
+
+  - `fn on_x(t: T)` — per-record (above). The reader thread
+    calls the handler once per committed slot.
+  - `fn on_x(feed: Drain<T>)` — BATCH. The reader thread calls
+    the handler ONCE per available batch, passing a `Drain<T>`
+    handle. The handler consumes the batch with an inline
+    `for t in feed { ... }` loop — there is NO per-record
+    function call, and no per-call handler arena scratch. This
+    is the throughput path for high-rate cross-process feeds,
+    where the per-record call + scratch overhead is what loses
+    to a bare consumer loop.
+
+  `Drain<T>` is a built-in 1-arg type constructor (not a user
+  generic). It is only spellable as a batch handler's single
+  param and as the iterable of `for t in feed`; the loop binds
+  `t` to each record read zero-copy through the ring slot —
+  `t.field` accesses GEP directly into the mapped slot, exactly
+  like the per-record handler's payload param. A batch handler
+  registers through
+  `lotus_bus_register_subscriber_shm_ring_batch(...)` (which
+  spawns `shm_ring_batch_reader_thread`) instead of the
+  per-record registration; the handle's runtime ABI is
+  `{ void* ring, int64_t start_seqno, int64_t end_seqno }`. The
+  consumer cursor is release-stored once per batch (not per
+  record). Batch handlers on a `layout:`-bound (foreign) ring
+  are not supported yet — use a per-record handler there.
 
   **Threading constraint.** The handler runs on the reader
   thread, NOT the cooperative scheduler. Handlers must be
@@ -868,7 +1011,7 @@ Transport surface:
   returns NULL). Post-v1 work will generalize F.30b's
   stamped-epoch guard for per-field read checks.
 
-  **Back-pressure (Form K7, 2026-05-20).** `on_overflow:`
+  **Back-pressure (Form K7).** `on_overflow:`
   is required on every shm_ring binding — there's
   intentionally no default. Three policies:
 
@@ -908,7 +1051,7 @@ Transport surface:
   different process and exists before the publisher
   process starts.)
 
-**Foreign rings via `ring_layout` (Proposal B, 2026-06-06).**
+**Foreign rings via `ring_layout` (Proposal B).**
 The shm_ring transport above reads/writes the *native* Lotus
 ring (the `LRSRNG1` header + equal-sized slots). To read a ring
 defined by *another* program — an externally-defined binary
@@ -942,6 +1085,30 @@ main locus App {
 The `layout:` reference must resolve to a declared `ring_layout`
 (else a typecheck diagnostic). A binding with no `layout:` is the
 native ring, unchanged.
+
+*Record headers (`record_header_bytes`).* The default `byte_records`
+shape is `[len_prefix][payload]` — the prefix is the whole per-record
+overhead. A real foreign producer often prepends a fixed header
+(sequence number, kernel timestamps, opcode) before the payload. Set
+`record_header_bytes N` on the `byte_records` framing to describe it:
+the payload then starts `N` bytes into the record and the stride is
+`N + align(len)` (the `len` field is still read at record offset 0 with
+`len_prefix`). `N` must be a multiple of `align`. A producer that marks
+a tail pad with a header *field* rather than a `len` sentinel (e.g. a
+`kind` byte where `1` means padding) declares
+`pad_field_offset` / `pad_field_width` / `pad_field_value`; a record
+whose field equals that value is skipped to the wrap. The in-band
+header scalars are surfaced to the handler by declaring their offsets
+(`seq_offset` / `seq_width`, `kernel_ns_offset` / `kernel_ns_width`,
+`user_ns_offset` / `user_ns_width`): the reader decodes them per record
+into thread-locals the subscribe handler reads via
+`std::shm::last_record_{seq, kernel_ns, user_ns}()` — the errno-style
+idiom of `recv_stamped`'s `last_recv_*_ns`. The payload itself is still
+delivered as the `BytesView` / typed value.
+`recheck post_copy` adds a torn-read guard: each record is copied out,
+an acquire fence taken, and the cursor re-read; if a free-running
+producer lapped the record during the copy it is discarded rather than
+handed to the handler.
 
 *Slot rings (`framing slots`).* The example above is a variable-length
 `byte_records` ring. A `slots` framing describes a fixed-stride slot
@@ -1039,6 +1206,36 @@ payload picks the consumer mode:
   the mapped ring with no intermediate buffer. The reserve and commit are
   scoped to the block, so the view can't escape and the commit can't be
   forgotten.
+- A struct field may carry a Go-style backtick metadata tag after its
+  type (`price: Int `repr:"u32_le"`;`) — free-form `key:"value"` metadata
+  stored on the field. A `repr:"<wire-type>"` key makes the struct a
+  binary layout: `Type::field(v)` reads that field from a `Bytes` /
+  `BytesView` and `Type::set_field(w, x)` writes it into a `BytesMut`, at
+  the field's offset (computed in declaration order over the tagged
+  fields, or pinned with `,at=N`). These desugar to the matching
+  `std::bytes::read_*` / `write_*` call, so they share the primitives'
+  bounds-checking and cost.
+- A `json:"<key>"` tag is the second tag consumer: a struct with at least
+  one `json:` tag gets a generated `Type::from_json(s) -> Type
+  fallible(JsonError)` that parses the object in a single pass (driving
+  the `std::json` object cursor), dispatching each key to the matching
+  field and reading the value by the field's declared scalar type
+  (`Int` / `Float` / `Bool` / `String`). The key is the tag value, else
+  the field name; unmatched keys (and nested objects/arrays under them)
+  are skipped. A missing field raises `JsonError { kind, field }` unless
+  the field declares a literal default (`= "USD"`), which fills it.
+  `from_json` is `fallible`, so callers must address it. The same tags
+  drive emit: `Type::to_json(v) -> String` serializes a value back (bare
+  numbers/bools, escaped strings, nested structs recursed), round-tripping
+  with `from_json`; it is not fallible. A field whose
+  type is another generated JSON struct is parsed recursively (the nested
+  object's raw text is handed to that type's parser; a nested failure
+  propagates). Array fields are **not** supported by design — Hale
+  sequences are locus-owned (there is no heap-owning value collection),
+  so a JSON array is read by walking the array cursor and pushing into a
+  `@form(vec)` locus cell, not parsed into a struct value field (see
+  `notes/value-collections.md`). Further tag keys remain reserved for
+  future consumers (validation, db mapping).
 
 Any other payload (with `String`, `Bytes`, or variable-size fields and
 not itself `BytesView`) is rejected.
@@ -1099,16 +1296,19 @@ handling is lossy + safe: if the producer runs more than `capacity`
 bytes ahead, the missed bytes are gone, so the reader resyncs to the
 producer's cursor (a commit boundary) and resumes rather than
 reading a torn record. Handlers run on the reader thread (same
-constraint as the native subscriber). The `slots` framing kind, the
-zero-copy writable producer view (A1 — the producer copies the
-payload once today), and multi-cursor back-pressure are post-v1.
+constraint as the native subscriber). The `slots` (fixed-stride)
+framing kind ships for *consumers*, and the zero-copy writable
+producer view ships as `Topic.write(max) { w => … }` (A1 — fields
+written directly into the reserved slot, no intermediate copy). What
+remains post-v1: a `slots` *producer* with parameterized slot
+geometry, and multi-cursor back-pressure.
 
 **In-memory delivery is absence-of-entry.** A topic with no
 binding entry is delivered same-process via the cooperative
 queue. There is no `in_memory` variant — the runtime default
 covers the case and explicit syntax would be ceremony.
 
-**Operational constraints (Form K, 2026-05-20).** A binding
+**Operational constraints (Form K).** A binding
 entry may carry an optional `where` clause listing
 constraint keywords the dev team asserts the route must
 satisfy:
@@ -1129,7 +1329,7 @@ Constraints split into two orthogonal axes:
   requires the payload type to satisfy `is_flat_shapeable`).
 
 The typechecker validates three classes of constraint issue
-(Form K4a, 2026-05-20):
+(Form K4a):
 
 1. **Intra-constraint consistency.** At most one scope
    keyword per binding (`intra_machine` + `intra_process` is
@@ -1151,10 +1351,21 @@ The typechecker validates three classes of constraint issue
 
 3. **Payload-shape compatibility.** `zero_copy` requires the
    topic's payload to satisfy `is_flat_shapeable` — every
-   leaf must be a fixed-layout primitive, fixed-size array of
-   flat-shapeable, or struct whose fields are all
-   flat-shapeable. String, Bytes, BytesView, StringView, and
-   unbounded arrays are variadic and fail the predicate.
+   leaf must be a fixed-layout primitive or a struct whose
+   fields are all flat-shapeable. String, Bytes, BytesView,
+   StringView fail the predicate (heap-shaped / fat-pointer),
+   and so do **arrays — fixed- or unbounded-size**: codegen
+   stores an array field out-of-line (the field is a pointer,
+   not the inline bytes), so a raw memcpy of the value would
+   share a pointer that dangles across the zero-copy / shm
+   boundary — a cross-process use-after-free. The binding is
+   rejected at typecheck with a diagnostic naming the offending
+   shape, rather than compiling to a runtime segfault. (Inlining
+   array fields for flat payloads — which would let fixed-size
+   arrays be `zero_copy`-eligible again — is a future codegen
+   change; until then, use only fixed-size scalar fields in a
+   `zero_copy` payload, or send variable data as `Bytes`/a
+   `layout:`-bound `BytesView` raw frame.)
 
 Slot-locus codegen and the `shm_ring(...)` transport variant
 that actually satisfies `zero_copy` land in subsequent K
@@ -1246,14 +1457,13 @@ Out of scope for v1 (fall through to bus dispatch unchanged):
 A bound topic is never optimized: the binding may publish to
 remote subscribers that aren't visible at compile time.
 
-### Phase 3: routing keys (v0.1 proposal, 2026-05-25)
+### Phase 3: routing keys (v0.1 proposal)
 
 Phase 3 extends topic declarations with a per-message **routing
 key** so the bus can shard dispatch by key value at the
 `(subject, key)` granularity, rather than fanning every published
-message to every subscriber on the subject. Motivated by the
-fathom `apps/mdgw/kraken` workload (handoff
-`handoff-compiler-hashmap-bigcell-leak-2026-05-25.md`): one
+message to every subscriber on the subject. Motivated by a
+downstream market-data workload: one
 reader thread publishes book frames for N symbols; N per-symbol
 loci each want only their own symbol's frames. Without routing
 keys, every BookSignal would receive every L2Data frame and have
@@ -1273,9 +1483,9 @@ type L2Data {
     asks:     [BookLevel; 100];
 }
 
-topic KrakenL2 {                            // (1) topic-decl additions
+topic MarketL2 {                            // (1) topic-decl additions
     payload:      L2Data;
-    subject:      "kraken.l2";
+    subject:      "market.l2";
     keyed_by      sym_id;                   //  ←  new
     on_unmatched: swallow;                  //  ←  new (default if absent)
 }
@@ -1283,13 +1493,13 @@ topic KrakenL2 {                            // (1) topic-decl additions
 locus BookSignal {
     params { sym_id: Int = 0; ... }
     bus {                                   // (2) subscribe-clause filter
-        subscribe KrakenL2 as on_l2
+        subscribe MarketL2 as on_l2
                   where key == self.sym_id; //  ←  new
     }
     fn on_l2(d: L2Data) { /* d.sym_id == self.sym_id, statically */ }
 }
 
-main locus Mdgw {                           // (3) per-instance bindings
+main locus Ingest {                           // (3) per-instance bindings
     params {
         btc: BookSignal = BookSignal { sym_id: 1 };
         eth: BookSignal = BookSignal { sym_id: 2 };
@@ -1309,12 +1519,23 @@ storage at v0.1:
 | `Time`, `Duration` | u64 (ns since epoch) | one i64 cmp |
 | no-payload `enum` | u64 (i32 tag zero-extended) | one i64 cmp |
 | `Decimal` | u128 (i64 pair) | two i64 cmps |
+| `String` | u64 hash + owned copy | one i64 cmp; full compare on hash match |
 
 The bus runtime stores both halves of a u128 uniformly
 (`key_lo: u64, key_hi: u64`) — narrower types zero-extend. Apps
 that need compound keys (`(sym_id, venue, side)`) pack them into
 a `Decimal` field themselves; the language does not bake compound-
 key derivation at v0.1.
+
+`String` keys (2026-07-17) hash-gate the per-entry compare: the
+registry stores the subscriber key's 64-bit hash plus its own
+copy of the string (capture-by-value — see "Key stability"
+below), the publish site hashes the payload's `keyed_by` field,
+and only a hash match pays the full string compare, so a
+mismatched key still costs one i64 compare per entry. `StringView`
+and `Bytes` are not key-eligible. Remote fanout stays unkeyed at
+v0.1 for String keys just as for scalars — no key material
+crosses a process boundary.
 
 **`where key == EXPR` — what EXPR can be.**
 
@@ -1323,10 +1544,12 @@ point where its `params` defaults are resolved), and the resulting
 key value is captured into the bus registry alongside the
 handler's self pointer. v0.1 restricts EXPR to:
 
-1. An integer / decimal literal: `where key == 42`
+1. An integer / decimal / string literal: `where key == 42`,
+   `where key == "lobby"`
 2. A const identifier resolving to a scalar of the topic's key type
 3. A `self.<field>` path read, where `<field>` is a `params`-block
-   field of the subscribing locus
+   field of the subscribing locus (for a String-keyed topic, a
+   `String` field — e.g. `where key == self.name`)
 
 Higher-shape expressions (`self.a + self.b`, method calls in the
 filter, cross-locus reads) are reserved for later. The
@@ -1465,7 +1688,7 @@ and the dispatch dispatches uniformly. Existing programs need
 no source change to keep working; new programs opt in
 per-topic.
 
-**v0.2 (2026-05-26) — err-payload Send dispositions.**
+**v0.2 — err-payload Send dispositions.**
 
 On `on_unmatched: fail` topics, all four `or` disposition shapes
 are now supported:
@@ -1535,7 +1758,7 @@ The `placement { }` block on `main locus` controls per-locus
 thread placement, parallel to `bindings { }` for bus topology.
 Placement is a deployment seam — same library, different
 placement entries, different binary behavior. See
-`spec/design-rationale.md` § F.31 for the intrinsic-vs-
+`spec/decisions.md` § F.31 for the intrinsic-vs-
 deployment axis the block sits on, and `spec/runtime.md` §
 "Placement classes" for the runtime semantics.
 
@@ -1544,14 +1767,14 @@ deployment axis the block sits on, and `spec/runtime.md` §
 ```hale
 main locus App {
     params {
-        gateway_kraken:   Gateway = Gateway { venue: "kraken" };
-        gateway_coinbase: Gateway = Gateway { venue: "coinbase" };
+        gateway_a:   Gateway = Gateway { venue: "venue-a" };
+        gateway_b: Gateway = Gateway { venue: "venue-b" };
         metrics:          MetricsServer = MetricsServer { port: 9100 };
         ui:               Renderer = Renderer { };
     }
     placement {
-        gateway_kraken:   pinned(core = 1);
-        gateway_coinbase: pinned(core = 2);
+        gateway_a:   pinned(core = 1);
+        gateway_b: pinned(core = 2);
         metrics:          cooperative(pool = io);
         ui:               cooperative(pool = render);
         // unspecified main-locus params → cooperative(pool = main)
@@ -1681,6 +1904,59 @@ main locus App {
     cross-compared). The fix is to declare a `topic` (one payload
     type, fixed in one place) or align the `of type` annotations.
     (GH #18 #4.)
+13. **Empty / degenerate `pinned(cores = …)` (error).** A cpuset
+    affinity spec that selects no cores is rejected statically: an
+    exclusive range whose upper bound is `≤` its lower (`4..4`,
+    `8..4`), an inclusive range that runs backwards (`8..=4`), or a
+    set with a duplicated element (`{2, 4, 2}`). Bounds/elements are
+    integer literals — placement is closed-world — so the selected
+    core list is known at compile time and a spec that reduces to
+    "no cores" (or a redundant one) is an authoring error, not a
+    deploy-box question. Whether the selected cores *exist* on the
+    target stays best-effort at runtime (out-of-range indices are
+    skipped, exactly as `pinned(core = N)` degrades on a smaller
+    machine). Linux-only affinity; a no-op on other hosts.
+    (Topology Phase 1a, 2026-07-04.)
+14. **`topology { }` consistency + `pinned(node/l3)` resolution
+    (error).** The declare-only `topology { }` block is validated
+    statically: NUMA `node` ids must be unique; L3-domain names
+    must be globally unique (they're referenced by `pinned(l3 =
+    name)` without node qualification); each `cores` spec must be
+    well-formed (rule 13); a core may belong to at most one L3
+    domain (overlap is ambiguous affinity); and a domain core may
+    not overlap a `reserve`d range (reserved cores are held back
+    for the OS / main). A `pinned(node = N)` / `pinned(l3 = name)`
+    placement entry must reference a domain the block declares —
+    using either with no `topology { }` block, or naming an
+    undeclared node/domain, is an error. Resolution is
+    closed-world (ids and domain cores are literals), so the
+    selected core set is known at compile time. Whether those
+    cores exist on the deploy box stays best-effort at runtime.
+    A `pinned(node/l3)` locus gets **thread + memory
+    co-location**: its thread is affinity-masked to the domain's
+    cores (Phase 1a cpuset path) *and* its arena — including
+    method-scratch sub-regions — is `mbind`-bound to the node, so
+    its working set lives on the node its thread runs on.
+    Node binding is a raw `mbind` syscall (no libnuma dependency),
+    Linux-only and best-effort (falls back to first-touch when
+    the node can't be honored); non-node arenas are unchanged.
+    (Topology Phase 1b, 2026-07-05.)
+15. **`replicas = K` (error on `K < 1`; pinned-only).** A
+    `pinned(..., replicas = K)` entry fans the field into K
+    single-threaded instances — replica `i` pinned to one core of
+    the affinity set (round-robin), each on its own OS thread.
+    `K` must be `>= 1` (`0` / negative is rejected). `replicas` is
+    valid only on `pinned`: K cooperative loci on one pool would
+    share a single thread (not parallel), so `cooperative(...,
+    replicas = K)` is rejected at parse with guidance toward the
+    pinned form. The point is that parallelism comes from *more
+    single-threaded units*, never a multi-worker pool — each
+    replica is its own single consumer, so the lock-free rings, bus
+    devirtualization, and single-threaded-method guarantee all hold.
+    Replicas compose with `node`/`l3` (each replica's arena binds to
+    the target node) and are non-addressable (no `field[i]` surface;
+    they are bus-subscribing or run-loop workers). All K are joined
+    and dissolved at parent teardown. (Topology Phase 1c, 2026-07-05.)
 
 ### Single-threaded-method invariant
 
@@ -1689,7 +1965,7 @@ owns the locus's placement's pool. This is enforced at
 typecheck via a static call-graph walk starting from each
 top-level placement entry:
 
-1. Seed each placement entry with its pool: `gateway_kraken`
+1. Seed each placement entry with its pool: `gateway_a`
    → pinned (own thread), `metrics` → cooperative pool `io`,
    etc.
 2. For each method call expression `recv.foo(args)`, determine
@@ -2000,7 +2276,125 @@ bodies, bus-handler methods (`subscribe X as foo` → `fn foo`),
 `run()`, lifecycle methods (`birth()`, `dissolve()`, `drain()`),
 mode-method bodies. The same body shape gets the same primitive.
 
+## Perspectives: contract, `serves`, and the slot (Phase 2a)
+
+A `perspective P { ... }` is a **contract** — a set of bodyless
+`fn` signatures that form a stable ABI boundary — plus a
+program-global, live-rebindable **slot** that holders dispatch
+through. Phase 2a ships the contract, conformance,
+the slot type, and dispatch; the live swap (`reperspective`)
+followed in Phase 2b + 3 (see "The live swap" below).
+
+```hale
+perspective Router {
+    fn route(code: Int) -> Int;   // bodyless contract signature
+    fn health() -> Int;
+}
+
+locus RouterV1 : serves Router {  // declares conformance
+    fn route(code: Int) -> Int { return code + 100; }
+    fn health() -> Int { return 1; }
+}
+
+locus Gateway {
+    params { router: perspective(Router) = RouterV1 { }; }  // holds the slot
+    fn handle(c: Int) -> Int { return self.router.route(c); } // calls through it
+}
+```
+
+**`serves` conformance (error).** A `locus L : serves P` must
+provide every contract method P declares — matching arity, param
+types, and return type — **and** (Phase 2c) every bus edge P's
+contract declares: a `bus { subscribe/publish ... }` block in the
+perspective is part of the ABI, so a serving impl must subscribe /
+publish each named subject. A missing or mismatched method, a
+missing bus edge, or `serves` naming an unknown / non-perspective
+symbol, is a typecheck error. Live-swapping a bus-backed
+perspective (re-pointing its subscriptions) is a follow-up; until
+then `reperspective` on such a perspective is rejected. This is the perspective analog of interface
+structural satisfaction (and reuses its shape). The synthesized
+`is_stable` (from `stable_when`) is not a contract method the impl
+must provide.
+
+**The slot type `perspective(P)`.** A holder programs against
+`perspective(P)`, never a concrete impl. It is a handle: at the
+LLVM level a single pointer stored in the holder's field, but
+dispatch does **not** read that field.
+
+**One global slot (1-1, not 1-N).** Each perspective P has exactly
+one program-global slot — a `{ data, vtable }` cell (the interface
+fat-pointer layout) named `__persp.<P>`. Every holder of
+`perspective(P)` funnels through it: `self.router.route(x)` loads
+the global slot, indexes the vtable at the contract-method
+position, and indirect-calls with `data` (the current impl's
+self) as the implicit receiver. Because the interop is closed-
+world and 1-1, the compiler sees every call site and there is
+exactly one target — which is what makes the Phase-2b swap a
+single atomic store that redirects the whole program. (Contrast
+`interface`, which is a *per-value* fat pointer, many impls, no
+global slot.)
+
+**Designation.** A `perspective(P) = Impl { }` field default
+*designates* the slot: it instantiates `Impl` (an owned child of
+the holder, torn down normally) and stores `{ impl_self, vtable(Impl,
+P) }` into the global slot. The field itself stores the impl's
+self-pointer for ownership; the slot holds the same pointer plus
+the vtable for dispatch.
+
+**Cost.** Steady state is one load + one predicted indirect call
+per call into a perspective — near-direct. The mechanism is
+Linux/native-agnostic (no new runtime dependency); a program that
+declares no perspectives pays nothing.
+
+### The live swap: `reperspective` (Phase 2b + 3)
+
+`reperspective self.<field> as <Impl>;` is the live redeploy. It
+re-points the perspective's global slot — identified by the
+`self`-field's `perspective(P)` type — at `Impl` (which must
+`serve P`). Because every holder funnels through the one slot, the
+swap redirects **every** call site at once: the same
+`self.router.route(...)` resolves to the new impl immediately after.
+
+- **State-preserving (Phase 3).** The slot is `{ data, vtable }`:
+  `data` is the running state (an arena-backed struct), `vtable` is
+  the code. They are already separate, so the swap is a single store
+  of the new impl's vtable into the slot — `data` is untouched and
+  the new impl's methods continue on the **same live state** (the
+  note's layout-identity "zero migration"). No re-instantiation, no
+  birth defaults, nothing to tear down.
+- **Footprint identity (soundness).** The vtable swap is layout-safe
+  only if the new impl's field offsets match the retained state, so
+  the typechecker requires **every** impl of a perspective to share
+  one footprint (same params, by name and type, in order). A
+  footprint *change* is the `migrate` case — rejected for now with an
+  actionable diagnostic rather than silently reinterpreting bytes.
+- **Rebind authority.** The statement runs on the locus that owns
+  the slot (`self.<field>`), never a mere caller — the ownership
+  tree is the redeploy authority. The typechecker requires the field
+  to be a `perspective(P)` param of the current locus and the new
+  impl to `serve P`.
+- **Bus edges swap too (Phase 2c-runtime).** When the perspective
+  declares a bus surface, the swap also re-points its subscriptions:
+  it tombstones the current impl's registrations on the shared slot
+  `data` (`lotus_bus_quarantine_self`) and re-registers the new
+  impl's handlers on that same `data`. A message published after the
+  swap dispatches to the new handler, operating on the carried
+  state. Cooperative dispatch is deferred (a publish captures the
+  handler current at that moment; handlers run at drain), so the
+  swap boundary is respected per message. Perspective impls are
+  designated (never `placement`-pinned), so they are cooperative —
+  the re-registration routes through the global queue, no mailbox
+  hand-off. (Cost: tombstoned entries are skipped, not compacted — a
+  bounded per-swap cost.)
+
 ## Perspective hot-load
+
+> **Status:** Phase 2b + 3 + 2c ship the `reperspective` swap
+> (above): the atomic slot re-point, state-preserving across impls
+> of one footprint, re-pointing sync dispatch AND bus subscriptions.
+> A footprint-changing `migrate`, and the bus-arrival / decode /
+> `stable_when` / drain flow below (transport-driven redeploy from
+> the wire), remain the aspirational path.
 
 For each `perspective P { ... }` instance currently active:
 
@@ -2158,7 +2552,7 @@ Hale carries two **orthogonal** failure channels:
 The two channels meet at exactly one place: the implicit main
 locus's root boundary (see "Process exit" below). Everywhere
 else, the channels are independent. See
-`notes/agent-onboarding/hale-design-philosophy.md` § 2.
+`spec/design-rationale.md`.
 
 ### Where each channel lives (declaration sites)
 
@@ -2374,7 +2768,7 @@ for-loop vars, pattern bindings, generic params) shadow
 top-level names per ordinary lexical scope; the mangler's
 scope-aware walker leaves shadowed references unrewritten.
 
-**Per-importer scoped imports (A4, 2026-05-17).** Imports
+**Per-importer scoped imports (A4).** Imports
 declared inside imported library files **are** followed
 transitively by the resolver, but each library's imports land
 under that library's own alias namespace — they do not become
@@ -2387,11 +2781,14 @@ unblocks composition without leaking dependency identity. See
 `spec/projects.md` for the rationale and per-alias scoping rules.
 
 **`hale run` interaction.** `hale run` compiles through the same
-codegen path as `hale build`, so a single file's imports resolve
-identically. The ad-hoc directory form (`hale run ./dir`) bundles
-files without threading the per-build path-rename table, so
-programs with cross-seed imports should be built and executed via
-`hale build`.
+codegen path as `hale build`, and — as of WS3.3 —
+the same *import* path: both the single-file and directory forms
+(`hale run ./dir`) resolve cross-seed imports, build the per-build
+path-rename table, and rewrite qualified `alias::Name` references
+identically. A directory `run` produces the same resolved program
+as the corresponding `build` and execs it. (Previously the
+directory `run` form bundled files without the rename table, so
+cross-seed imports only worked under `build`; that gap is closed.)
 
 ## Region lifetime guarantees
 
@@ -2403,15 +2800,6 @@ Per `memory.md`:
 - No pointer-into-a-freed-region is reachable after region
   release (compile-time-checked + region-lifetime-checked).
 
-## What's deferred
-
-- **Formal small-step semantics.** Engineering-grade prose for
-  v0; formal operational rules in v1+ if needed for compiler
-  correctness proofs.
-- **Concurrency-correctness proofs.** Cooperative scheduler
-  + per-locus arena makes most concurrency questions trivial,
-  but full formal modeling deferred.
-- **Memory-model formalization** as a happens-before relation.
-  Currently informal; formal in v1+.
-- **Async / await semantics.** Reserved keywords; no operational
-  semantics in v0.
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).

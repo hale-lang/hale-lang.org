@@ -1,30 +1,48 @@
 ---
 import Base from '../layouts/Base.astro';
-import Hale from '../components/Hale.astro';
-const sample = `locus Greeter {
-    params { name: String = "world"; }
-    run() { println(f"hello, {self.name}"); }
-}
-
-fn main() { Greeter { name: "hale" }; }`;
 ---
 <Base title="Hale playground">
   <section class="container prose">
     <span class="tag">/playground</span>
     <h1>Playground</h1>
     <p class="lede">
-      Edit, <code>check</code>, and <code>run</code> Hale in the browser — share a
-      link, or export a snippet with context straight to your AI assistant.
+      Run real Hale in your browser. Each example is compiled to
+      <code>WebAssembly</code> with <code>hale build --target wasm32</code> and runs
+      fully client-side — the runtime is the same compiler you install locally.
     </p>
-    <Hale code={sample} title="scratch.hl" />
-    <p class="muted" style="margin-top:1.25rem;">
-      The interactive playground is in progress. The plan: compile the Hale
-      toolchain to WebAssembly so it runs fully in-browser (a
-      <code>hale-js</code> build), with a server-side <code>hale check</code>
-      fallback in the meantime.
-    </p>
-    <div class="hero-actions">
+
+    <div class="play-frame">
+      <iframe src="/play/" title="Hale playground" loading="lazy"></iframe>
+    </div>
+
+    <div class="hero-actions" style="margin-top:1.25rem;">
+      <a class="btn btn-ghost" href="/play/" target="_blank" rel="noopener">Open full screen ↗</a>
       <a class="btn btn-ghost" href="/docs/getting-started/install">Install locally instead →</a>
     </div>
+
+    <p class="muted" style="margin-top:1.5rem;">
+      <strong>Next:</strong> write &amp; share <em>your own</em> code. Hale has no
+      interpreter — <code>hale run</code> compiles through LLVM — so an arbitrary-code
+      playground needs a small server that compiles your source to wasm and hands it
+      back for the browser to run in its sandbox. That compile service is written in
+      Hale itself (dogfooding) and validated end-to-end; hosting it is the remaining
+      step.
+    </p>
   </section>
 </Base>
+
+<style>
+  .play-frame {
+    margin-top: 1.5rem;
+    border: 1px solid var(--border, #2a2f3a);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0d1117;
+  }
+  .play-frame iframe {
+    display: block;
+    width: 100%;
+    height: 640px;
+    border: 0;
+  }
+</style>

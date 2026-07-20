@@ -28,10 +28,15 @@ the model: runtime is automatic; stdlib is explicit.
   on dissolution. Bump allocation within a region; no per-object
   metadata; no GC. The framework's lotus structure provides the
   scope; the allocator just respects it.
-- **Per-method scratch (2026-05-21).** Each locus method body
+- **Per-method scratch.** A locus method body
   (lifecycle / user-fn / mode) opens a per-call subregion of
-  `self.__arena` at entry and destroys it at every return.
-  Transient allocations made inside the body — `to_string`,
+  `self.__arena` at entry and destroys it at every return —
+  *unless* the body provably allocates nothing and returns a
+  by-value scalar (or Unit), in which case the scratch is elided
+  (2026-06-28; an optimization with no observable effect — there's
+  nothing to reclaim, so skipping the subregion just removes a
+  `malloc`/`free` per call). Transient allocations made inside the
+  body — `to_string`,
   `String` concat, `std::str::*` / `std::json::*` / `std::bytes::*`
   results, format-string composition — route through the
   scratch via `current_arena_ptr()` and get reclaimed at method
@@ -113,6 +118,31 @@ the model: runtime is automatic; stdlib is explicit.
   dissolve` per locus; invokes `accept` on coordinatee
   attachment; invokes `on_failure` on child failure with the
   parent's policy.
+- **Interest-based ownership (accept bubbling)**.
+  `accept(c: I)` collects not only a *direct* child but the
+  nearest such acceptor for an `I{}` instantiated anywhere in the
+  subtree: when a locus instantiates `I{}` and its direct
+  enclosing locus does not `accept(I)`, ownership *bubbles* to the
+  nearest enclosing ancestor that does (innermost-wins).
+  Resolution is entirely static — there is no polymorphic locus
+  instantiation, so the closed-world instantiation graph fixes
+  every owner edge at compile time; no runtime ancestor walk.
+  Backward-compatible by construction: innermost-wins selects the
+  direct parent whenever it accepts, so no existing parent↔child
+  edge changes; bubbling only *adds* an owner where a child would
+  otherwise be a transient throwaway. An `I{}` with no accepting
+  ancestor stays transient — ownership is opt-in via `accept`, and
+  the absence of an owner is never an error. Same-tower bubbling
+  costs nothing beyond the direct-parent case (the owner pointer is
+  a constant for a singleton owner, or threaded down the birth
+  chain for multiple owner instances — giving each owner instance
+  its own isolated collection — then the ordinary accept path). A
+  cross-pool owner (e.g. a `main locus` registry collecting
+  entities spawned on a worker pool) is served by an async handoff
+  over the bus queue: the child is born on the owner's thread and
+  reclaimed by the owner's same-thread cascade, so a cross-pool
+  `I{}` is **fire-and-forget** — it may only be a bare statement;
+  using the instance as a value is rejected at compile time.
 - **State machine enforcement.** A locus can't accept after
   drain has begun, can't run before birth completed, etc. The
   runtime tracks state; transitions are rejected if they
@@ -134,7 +164,7 @@ the model: runtime is automatic; stdlib is explicit.
   OWN run-completion / `terminate` when it is a flow (see
   "Per-child reclamation" below) rather than waiting for the
   parent's cascade.
-- **Per-child reclamation** (2026-05-30). An `accept`'d child's
+- **Per-child reclamation**. An `accept`'d child's
   `run()` is posted to its pool as a coro, run through a
   synthesized `__coop_pool_run_<L>` wrapper. When that run()
   completes, the wrapper reclaims the child — drain → (for a
@@ -159,7 +189,7 @@ the model: runtime is automatic; stdlib is explicit.
   refinement), and the process is exiting anyway. Per-child
   reclamation proper (terminate / flow run-completion) never
   needs this: there the coro returns from `run()` on its own.
-- **Classic-pool blocking-accept shutdown (2026-06-01).** A
+- **Classic-pool blocking-accept shutdown.** A
   *classic* (non-`async_io`) pool worker blocked in a blocking
   `accept(2)` inside a locus's `run()` (e.g. `std::http::Server`
   or `std::io::tcp::Listener` placed on a plain
@@ -225,6 +255,12 @@ Specifically:
 - **Cooperative yield points**: between handler invocations,
   between lifecycle transitions, on bus message dispatch, on
   explicit `yield` (rare, for long-running computations).
+  Plain fn exit is NOT a yield point — and since 2026-07-02 a
+  proven-non-allocating fn's exit provably skips the queue drain
+  (a non-allocating body cannot have published; payload copies
+  allocate). A cooperative compute-only loop that leaned on
+  helper-call returns for delivery never had that guarantee and
+  must use an explicit `yield;`.
 - **No preemption within a scheduler.** A locus's handler runs
   to completion or an explicit yield.
 - **Cross-scheduler is bus.** No shared memory; no locks.
@@ -238,21 +274,21 @@ Specifically:
 Just as **projection class** governs a locus's memory strategy,
 **placement class** governs its execution strategy. Placement
 is a *deployment seam*, not an intrinsic property of the locus
-(see `spec/design-rationale.md` § F.31). Placement entries
+(see `spec/decisions.md` § F.31). Placement entries
 live in a `placement { }` block on `main locus` only, parallel
 to `bindings { }` for bus topology:
 
 ```hale
 main locus App {
     params {
-        gateway_kraken:   Gateway = Gateway { venue: "kraken" };
-        gateway_coinbase: Gateway = Gateway { venue: "coinbase" };
+        gateway_a:   Gateway = Gateway { venue: "venue-a" };
+        gateway_b: Gateway = Gateway { venue: "venue-b" };
         metrics:          MetricsServer = MetricsServer { port: 9100 };
         ui:               Renderer = Renderer { };
     }
     placement {
-        gateway_kraken:   pinned(core = 1);
-        gateway_coinbase: pinned(core = 2);
+        gateway_a:   pinned(core = 1);
+        gateway_b: pinned(core = 2);
         metrics:          cooperative(pool = io);
         ui:               cooperative(pool = render);
         // unspecified main-locus params → cooperative(pool = main)
@@ -267,7 +303,7 @@ loop) or it owns its own OS thread. There is no third position.
 | Class | Yield discipline | Resource |
 |---|---|---|
 | **`cooperative(pool = X)`** (default for unspecified main-locus params, with `X = main`) | Yields between substrate cells (handler exit, lifecycle transition, bus dispatch, `time::sleep`, explicit `yield`). `time::sleep` slices into ≤100ms intervals and folds in `lotus_bus_queue_drain` for the locus's pool after each slice, so cells posted by other threads deliver mid-loop even during a long keep-alive sleep. Handler bodies are atomic. | Shares pool `X`'s OS thread with other cooperative loci placed on the same pool. |
-| **`pinned`** / **`pinned(core = N)`** | No yield to siblings; owns its OS thread. Bus events to/from cross-thread boundaries via formal mailbox post. | Dedicated OS thread, optionally pinned to CPU core `N`. |
+| **`pinned`** / **`pinned(core = N)`** / **`pinned(cores = A..B \| A..=B \| {a, b, c})`** / **`pinned(node = N)`** / **`pinned(l3 = name)`** / **`pinned(..., replicas = K)`** | No yield to siblings; owns its OS thread. Bus events to/from cross-thread boundaries via formal mailbox post. | Dedicated OS thread. `core = N` pins it to one CPU; `cores = ...` (Phase 1a) sets its mask to a core *set*; `node = N` / `l3 = name` (Phase 1b) set the mask to a NUMA node / cache domain from `topology { }` (and bind the arena there); `replicas = K` (Phase 1c) fans into K single-threaded instances, one per core. The OS schedules freely within the mask. Linux-only; best-effort no-op elsewhere. |
 
 **Pool inference rule.** The cooperative pool set is inferred
 from `cooperative(pool = X)` references in the `placement { }`
@@ -288,6 +324,81 @@ runs on a different pool than its parent" — that would require
 the nested-instantiation expression to carry placement, which
 would re-mix the deployment and intrinsic layers F.31 separates.
 
+**Topology block (Phase 1b).** A `main locus` may
+also declare a `topology { }` block — a **declare-only**
+description of the host's core partition, a sibling deployment
+seam to `placement { }` / `bindings { }`:
+
+```hale
+topology {
+    reserve cores 0..2;              // held back for the OS / main
+    node 0 {
+        l3 fast { cores 4..8; }      // a CCD / shared-L3 group
+        l3 slow { cores 8..12; }
+    }
+    node 1 {
+        l3 heavy { cores 12..16; }
+    }
+}
+```
+
+A `placement { }` entry then targets a domain: `pinned(node =
+0)` sets the thread's affinity mask to node 0's core set (the
+union of its L3 domains — here `{4..12}`), and `pinned(l3 =
+fast)` sets it to the named domain's cores (`{4..8}`). The
+compiler resolves the domain to a concrete core set at compile
+time (closed-world: node ids and domain cores are literals),
+reusing the same cpuset affinity mechanism as `pinned(cores =
+...)`. Validation (unique node ids, globally-unique L3 names,
+non-overlapping domains, no domain/reserved overlap, and every
+`pinned(node/l3)` referencing a declared domain) is static. L3
+domain names go through the identifier rule, so a hard keyword
+(e.g. `bulk`) can't name a domain.
+
+**Replicas (Phase 1c).** `pinned(..., replicas = K)` is the
+parallelism sugar: it fans the field into **K single-threaded
+instances**, replica `i` pinned to one core of the affinity set
+(round-robin — `pinned(cores = 4..12, replicas = 8)` puts replica
+`i` on core `4 + i`; more replicas than cores wraps; with no
+affinity the K instances are OS-scheduled). This is deliberately
+*not* a multi-worker pool — a cooperative pool is one consumer
+thread, and the lock-free rings, bus devirtualization, and
+single-threaded-method guarantee all rest on that invariant.
+Parallelism instead comes from more single-threaded units, each
+its own single consumer, so every invariant survives. `replicas`
+is **pinned-only** (K cooperative loci on one pool would share a
+thread, which isn't parallel) and composes with the topology
+targets (`pinned(node = 0, replicas = 4)` fans across node 0's
+cores with each replica's arena bound to node 0). Codegen emits K
+instantiations at the field's init site; all K register their bus
+subscriptions (a subscribed topic fans out to every replica) and
+all K are joined + dissolved at parent teardown via the deferred-
+dissolve frame. The replicas are non-addressable — there is no
+`field[i]` surface; they are workers that pull from the bus or run
+their own loop.
+
+**Thread + memory co-location.** A `pinned(node = N)` /
+`pinned(l3 = name)` locus binds not just its thread but its
+*memory*: its arena is created via
+`lotus_arena_create_labeled_on_node`, which flags the arena's
+NUMA node, and every chunk that arena grows is `mmap`'d
+(page-aligned) and bound to the node with the `mbind` syscall
+(`MPOL_BIND`) before first touch — so pages fault in on the
+node regardless of which thread touches them first (the locus
+struct is instantiated on `main` but runs on its own pinned
+thread). Sub-regions inherit the node, so a node-pinned locus's
+**method scratch** — the dominant per-invocation allocation —
+lands on its node too. `mbind` is invoked as a raw syscall, so
+this adds **no libnuma dependency**; the whole feature is
+zero-cost for programs that don't opt in (an unbound arena, the
+default, takes the ordinary malloc / chunk-pool path
+byte-for-byte). Best-effort and Linux-only, exactly like
+`pinned(core = N)`: an `mbind` the box can't honor (node absent,
+capability denied) falls back to first-touch, and on non-Linux
+hosts the arena allocates normally. (Huge-page-backed chunks
+and node binding don't currently combine — a node-bound arena
+uses regular pages; a follow-up.)
+
 **Single-threaded-method invariant.** A locus's methods may
 be invoked only on the OS thread that owns its placement's
 pool. Cross-pool method calls and lateral field accesses go
@@ -300,6 +411,17 @@ going through the bus. This is the substrate enforcement that
 makes M:N safe — without it, multi-pool deployments would
 silently race on locus arenas (which are unsynchronized bump
 allocators).
+
+The single shared **bus payload arena** is the deliberate
+exception to "one owning thread per arena": it is reachable
+concurrently from any pool, because some stdlib primitives
+allocate their result there directly rather than into a
+per-locus arena (e.g. `std::io::tls::recv_bytes`, which always
+targets it regardless of the caller's per-thread scratch). That
+arena therefore carries an internal lock on its bump — two
+pinned loci calling such a primitive at once do not corrupt each
+other's allocations. Per-locus arenas keep the lock-free bump;
+only this one shared arena pays for the lock.
 
 #### Why no "greedy" class
 
@@ -364,7 +486,7 @@ combination is what the dead-bus-receiver rule rejects (see
 "Type-check rules" in `spec/semantics.md`), **not** non-`main`
 placement on its own.
 
-**Long sleeps no longer starve main-pool handlers (2026-05-29).**
+**Long sleeps no longer starve main-pool handlers.**
 Before the slicing, the drain happened only *after the whole sleep
 returned*, so the natural keep-alive idiom
 
@@ -387,6 +509,43 @@ of how long `main` is asleep.
 The pinned-mailbox path is unchanged: pinned subscribers wake
 on `lotus_mailbox_post`'s condvar broadcast regardless of what
 the cooperative scheduler is doing.
+
+#### Owner-executed handlers (2026-07-15, downstream handoff)
+
+Two runtime rules restore the single-threaded-locus invariant
+(F.31) *dynamically* — the compiler already enforces it for
+direct calls, but two bus paths used to violate it under load
+(reproduced as a SIGSEGV in a 10k msg/s ingest bench):
+
+1. **The global cooperative queue is drained only by its owner
+   thread** (`main`, recorded at queue creation). The scope-exit
+   flush emitted at the end of every fn/method body — and the
+   sleep-slice / `yield` drains — call `lotus_bus_queue_drain` on
+   whatever thread ran the body; on any thread but the owner the
+   call is now a no-op. Previously a pinned publisher's flush
+   would execute a main-pool subscriber's handler on the
+   publisher's thread, concurrently with `main`'s own drains (the
+   locked drain releases the queue mutex before each handler
+   invocation) — two threads inside one locus.
+2. **Payload deserialization happens on the subscriber's owner
+   thread.** The non-flat dispatch paths deserialize each
+   published payload into the subscriber's arena (Task-11 arena
+   routing); for a target owned by a different thread this write
+   used to happen on the *publisher's* thread — an unlocked
+   cross-thread write into a foreign arena. Now a cross-thread
+   publish enqueues the *wire bytes* plus the deserialize fn in
+   the cell, and the owner materializes (deserializes into its
+   own arena) at drain, just before invoking the handler.
+   Same-thread targets keep the deserialize-at-dispatch fast
+   path, so single-pool programs are unchanged.
+
+Consequences: a main-pool subscriber's handlers run **only on
+`main`** (at sleep-slice / yield / scope-exit drains — worst-case
+~100ms after a cross-thread publish, per the slicing above);
+pool subscribers run only on their pool's worker; pinned
+subscribers only on their own thread. Flat (pointer-free POD)
+payloads are exempt from rule 2 — a verbatim byte copy writes no
+arena. Delivery and FIFO order per subscriber are unchanged.
 
 **Item B from the 2026-05-21 friction log** (a cooperative
 publisher's `<-` to a pinned subscriber) is **resolved as of
@@ -454,7 +613,7 @@ inheritance rule (children share their parent's pool by
 construction). Nested long-running children are an antipattern
 under F.31: hoist to main-locus siblings.
 
-**Typecheck enforcement (2026-05-28).** The compiler rejects
+**Typecheck enforcement.** The compiler rejects
 the antipattern at typecheck. A non-main locus with a non-trivial
 `run()` body holding a `params` field of a locus type whose own
 `run()` is also non-trivial — including `std::http::Server` and
@@ -493,6 +652,33 @@ inside the locus is unchanged — `recv_bytes(stream)` reads the
 same line of source whether the pool is `async_io` or not; the
 substrate picks the right lowering at the syscall boundary.
 
+Because parking yields the shared worker, N reader loci that each
+park on their own fd — the F.35 one-reader-per-signal shape —
+are serviced concurrently by a single pool. Two invariants make
+that multiplexing correct: (1) the drain loop starts a queued
+`run()` the moment the running coro *parks*, not only when it
+completes, so a long-lived reader never starves the readers
+queued behind it; and (2) each coro's caller-arena — the
+thread-local that decides where its stdlib allocations (recv
+result blobs, string builders) land — is snapshotted across the
+park and restored on resume, so a coro that resumes after a
+sibling ran (and perhaps dissolved) never allocates through an
+arena the sibling has since torn down. Every blocking-recv
+primitive on the pool honors invariant (1) by parking rather than
+blocking `recvfrom`/`read` (the `std::io::udp` recv family joined
+the `tcp`/`tls` siblings here in the 2026-07-15 downstream
+handoff).
+
+Each bus delivery to a subscriber on an `async_io` pool runs its
+handler on a coroutine (a struct + a 64 KiB stack). Rather than
+allocate and free that pair per delivery, the pool keeps a bounded
+per-worker free-list (cap 64) of completed coro slots and reuses
+them — a warm fan-out skips the per-dispatch stack allocation
+entirely (2026-07-16). The free-list is worker-thread-local (no
+lock) and drained at pool teardown, so a busy async pool retains up
+to 64 × 64 KiB (~4 MiB) of coro stacks at steady state. Transparent
+to user code — a pure allocation optimization, no behavior change.
+
 Typecheck rules:
 
 - All placement entries on the same named cooperative pool must
@@ -505,7 +691,7 @@ Typecheck rules:
   runs inline on the binary's primary thread, with no dedicated
   worker to integrate epoll into.
 
-See `spec/design-rationale.md § F.35` (forthcoming) for the
+See `spec/decisions.md § F.35` (forthcoming) for the
 green-I/O substrate design + perf-axis trade-offs.
 
 (Compare: rich / chunked / recognition projection classes are
@@ -732,6 +918,27 @@ scheduling rather than refusing to run the binary. The
 underlying bimodality is unchanged — `pinned(core = N)` is a
 refinement WITHIN the pinned mode, not a third position.
 
+**Topology Phase 1a (cpuset affinity):**
+`pinned(cores = A..B)` / `pinned(cores = A..=B)` /
+`pinned(cores = {a, b, c})` generalize the single core to a
+core **set**: the thread's affinity mask is the whole set and
+the OS schedules it freely within it — a range carves out an
+isolation domain rather than picking one CPU. Bounds are
+integer literals (placement is a closed-world deployment
+seam), so the compiler expands the spec statically — sorted,
+deduplicated — into a constant array and emits one call to
+`lotus_set_core_affinity_set(tid, cores, count)` after
+`pthread_create`. Range inclusivity follows expression
+ranges: `..` excludes the upper bound, `..=` includes it. The
+typechecker rejects a spec that selects no cores (`4..4`,
+`8..=4`) and a duplicated set element; whether the cores
+exist on the deploy box stays best-effort at runtime — the
+C helper skips out-of-range indices and applies the mask only
+if at least one valid core remains. CPU affinity is
+Linux-only: on other hosts (macOS) both helpers are compiled
+as no-ops and the loci run unpinned. `pinned(core = N)`
+continues to route through the single-core helper unchanged.
+
 Linker dependency: clang invocation now passes `-lpthread`
 unconditionally; small fixed cost in the resulting binary
 (libpthread is on every modern Linux).
@@ -813,7 +1020,7 @@ bytes, and fans into local subscribers via
 thread path; out-of-band recv loops (any code holding wire
 bytes for a bound subject) can use this too.
 
-**SHM ring substrate (Form K5, 2026-05-20).** POSIX shared-
+**SHM ring substrate (Form K5).** POSIX shared-
 memory ring backing the zero-copy bus route. Six C primitives in
 `runtime/lotus_shm_ring.c`, linked unconditionally so user
 programs that bind a topic to a zero_copy route resolve cleanly:
@@ -839,7 +1046,7 @@ atomic seqno) followed by N slots of `slot_size` bytes each.
 Header magic + sizes are validated on attach to catch ABI
 mismatches across binaries pinned to the same ring name.
 
-**Foreign-layout consumer (Proposal B, 2026-06-06).** Two more
+**Foreign-layout consumer (Proposal B).** Two more
 primitives read an *externally*-defined ring described by a
 `ring_layout` (see semantics.md § "Foreign rings"), rather than
 the native LRSRNG1 shape:
@@ -882,7 +1089,7 @@ modes, and named-ring registry are post-v1. The Hale-side
 `fallible(ClaimError)` signature is reserved for those; v1's
 `claim()` never actually fails.
 
-**Lifecycle / cleanup (2026-05-20).** Both
+**Lifecycle / cleanup.** Both
 `lotus_bus_register_shm_ring` (publisher) and
 `lotus_bus_register_subscriber_shm_ring` (subscriber) register
 a single `atexit` hook on first call. The hook:
@@ -941,7 +1148,7 @@ zero_copy binding produces.
   failures (OOM, divide-by-zero, null-deref from
   miscompilation) — those terminate the process directly
   without the ClosureViolation routing path. See
-  design-rationale §F.9.
+  decisions §F.9.
 - **Recovery-event interaction.** `persists_through(...)` and
   `resets_on(...)` clauses are honored at recovery time; the
   accumulator is preserved or zeroed per declaration. The
@@ -951,15 +1158,24 @@ zero_copy binding produces.
 
 ### Perspective infrastructure
 
-- **Stable-perspective tracking.** For each `perspective T`,
-  the runtime tracks how many independent perspectives have
-  validated; `stable_when` is invoked to determine commit
-  status.
-- **Hot-load.** The runtime accepts a serialized
-  `T`-perspective from a transport, verifies the type
-  signature against the locally-compiled `T`, and atomically
-  installs it. Old perspective is preserved until the new one
-  is committed (no torn read).
+- **The global slot.** Each `perspective P` has one program-global
+  `{ data, vtable }` slot (`__persp.<P>`). Every holder of
+  `perspective(P)` dispatches through it — a load plus a predicted
+  indirect call, near-direct cost. A program that declares no
+  perspectives pays nothing.
+- **Live swap (`reperspective`).** Re-points the slot at a new
+  `serves P` impl with a single atomic store, redirecting every
+  call site at once. State-preserving across impls of one footprint:
+  the `{ data, vtable }` split means `data` — the live, arena-backed
+  state — is untouched and only the vtable changes. When the
+  perspective declares a bus surface, the swap also re-points its
+  subscriptions on that same `data`. (See `spec/semantics.md`
+  § Perspectives.)
+- **Wire hot-load (aspirational).** Transport-driven redeploy —
+  decode a serialized perspective against the compiled-in schema,
+  gate on `stable_when`, atomically install with no torn read — is
+  specified but not yet shipped. See `spec/semantics.md`
+  § "Perspective hot-load".
 
 ### Failure handling
 
@@ -1069,7 +1285,7 @@ zero_copy binding produces.
   the next mutation on the source builder. `free` disposes
   the malloc-backed buffer.
 
-  **F.30 (2026-05-20) type promotion.** The Hale-visible
+  **F.30 type promotion.** The Hale-visible
   method surface returns `BytesView` / `StringView`
   (typecheck-distinct from `Bytes` / `String`). The view-to-
   owned upgrade paths (`std::bytes::clone`, `std::str::clone`)
@@ -1147,12 +1363,12 @@ zero_copy binding produces.
   they're the C externs called by the
   `std::bytes::BytesBuilder` stdlib locus
   (`crates/hale-codegen/runtime/stdlib/bytes_builder.hl`).
-  See `spec/design-rationale.md` § F.28 for the rationale
+  See `spec/decisions.md` § F.28 for the rationale
   and the locus's method shape. The locus-side calls reach
   these via internal `std::bytes::builder::__*` path-call
   dispatch.
 
-  **ABI notes (2026-05-19).** `_new` takes `int64_t
+  **ABI notes.** `_new` takes `int64_t
   initial_cap` (previously zero-arg, hardcoded 64) — values
   `<= 0` are treated as the legacy default. `_append`
   returns `int64_t status` (1=ok, 0=fail on realloc-NULL
@@ -1180,8 +1396,17 @@ zero_copy binding produces.
   headroom; bumps the builder's len by the count read.
   Return semantics mirror POSIX read(2): `> 0` bytes
   appended, `= 0` peer closed cleanly (TCP) / zero-length
-  datagram (UDP), `< 0` fatal error. EINTR retried
-  internally. No allocation in `g_bus_payload_arena` —
+  datagram (UDP), `< 0` error. EINTR retried internally.
+  **A `SO_RCVTIMEO` timeout is distinguished from a fatal
+  error: `-2` = "would-block / timed out, retryable"; `-1`
+  = fatal** (TCP: `EAGAIN`/`EWOULDBLOCK`; TLS: `SSL_read`
+  → `SSL_ERROR_WANT_READ`/`WANT_WRITE`). The `-2` only
+  arises when the caller has set a recv timeout (opt-in via
+  `set_recv_timeout`), so it's backward-compatible — a caller
+  that treats all `< 0` as error keeps working; a liveness
+  loop checks for `-2` to run its ping/pong instead of
+  tearing the connection down. No allocation in
+  `g_bus_payload_arena`. No allocation in `g_bus_payload_arena` —
   closes the residual ~80% of the pond/websocket recv-loop
   leak that Phase 0's in-place builder ops surfaced (the
   syscall layer's own `[i64 len][body]` blob per call).
@@ -1237,7 +1462,7 @@ zero_copy binding produces.
   write to either stream without deadlocking; 16 MiB cap per
   stream.
 
-### stdout buffering (2026-05-17)
+### stdout buffering
 
 stdout is **line-buffered** for the lifetime of the program,
 regardless of whether it's attached to a TTY or a pipe. The
@@ -1501,6 +1726,45 @@ Defined in `crates/hale-codegen/runtime/lotus_arena.c`
   contract is "fixed cap; if init can't allocate, the buffer
   is permanently empty."
 
+## Native codegen defaults
+
+What the compiler emits for a native `hale build`:
+
+- **Host-CPU tuning + O3 by default.** Native builds tune to the
+  host CPU (`target-cpu`/`target-features` from the build
+  machine) and run LLVM's aggressive (O3) pipeline — both the
+  module passes and the backend codegen level. This unlocks
+  autovectorization across all generated code (e.g. AVX-512 on a
+  capable host). **Consequence:** a native binary is **not
+  portable across microarchitectures** — it may use instructions
+  absent on an older CPU.
+- **`--target-cpu native | baseline`.** `native` (default) is the
+  host-tuned build above. `baseline` pins a portable
+  **`x86-64-v3`** target (AVX2 + BMI2 + FMA) for **distributed
+  artifacts** that must run on any modern x86-64 CPU. The
+  emitted module self-describes its subtarget via per-function
+  `target-cpu`/`target-features` attributes, so the choice is
+  carried into bitcode (it survives LTO).
+- **`LOTUS_LTO=1` — opt-in full-LTO.** Read at *build time*.
+  Emits the Hale module as LLVM bitcode and compiles the lotus C
+  runtime TUs with `-flto`, so the final `clang -flto -O3
+  -fuse-ld=lld` link inlines the runtime hot paths (arena
+  bump-allocator, string helpers, shm_ring framing) **across the
+  TU boundary** into the Hale-generated callers — a boundary
+  that's otherwise opaque. Worth a few percent on
+  allocation/coordination-heavy code; neutral on
+  already-vectorized loops (the host tuning is preserved under
+  LTO via the function attributes above). **Off by default:** the
+  LTO link is ~3–4× slower and requires `lld` on PATH. Native,
+  non-sanitizer builds only; `wasm32` and sanitizer builds keep
+  the ordinary non-LTO link. The `-Wl,--wrap` malloc/syscall
+  shims (and the `LOTUS_ARENA_LOG_BIG_CHUNKS` /
+  `std::diag::syscall_count` features that ride them) are
+  preserved under LTO — `lld` resolves `--wrap` before LTO
+  codegen.
+- **`wasm32` is unaffected** — it stays `generic`/O2 (the browser
+  bundle is size/compat-sensitive).
+
 ## Diagnostic + tuning env vars
 
 A small set of env vars toggle runtime instrumentation and
@@ -1518,9 +1782,11 @@ the runtime quiet.
 | `LOTUS_ARENA_RESIDENCY=1` | Registers every top-level arena (locus `__arena`s, `g_bus_payload_arena`, the program-wide global) into a side-table at creation time with a 24-frame construction backtrace. `std::process::dump_arena_residency()` walks the live set and emits one line per arena to stderr — bytes / chunks / parent / label, sorted by bytes desc — with the construction backtrace. Subregions (method scratch) are skipped; they destroy at method exit and don't accumulate residency. Atexit also dumps, but post-dissolve fires after all loci tear down — useful only for the global arena's final state. Long-running daemons should call `dump_arena_residency` from a heartbeat / checkpoint tick so locus arenas are sampled while still alive. |
 | `LOTUS_CHUNK_POOL_PREFILL=<N>` | Per-thread chunk-pool pre-fill on first touch. Default 32 (= 2 MiB resident per scheduler thread). Set 0 to disable. Bumps the pool's steady-state floor so brief bursts don't drain to zero and miss into malloc; the trade-off is per-thread resident memory. |
 | `LOTUS_TSAN=1` | Read at *build time* (by the codegen's `build_executable`, not at runtime). When set, the emitted clang command passes `-fsanitize=thread` for both the C runtime compile and the binary link, and skips the `-Wl,--wrap=malloc/realloc/calloc/mmap` shim surface (TSAN intercepts malloc itself; the wrap'd `LOTUS_ARENA_LOG_BIG_CHUNKS` diagnostic is silently no-op under TSAN). The resulting binary runs ~5-15× slower; use only for race-hunting workloads. The C runtime embeds an empty `__tsan_default_suppressions` hook at link time so no external suppression file is needed; all originally-flagged substrate races (bus queue drain, arena destroy, coop pool worker, env-var lazy-init) have been fixed and the suppression list is empty. Opt-in tests live behind `#[ignore]` and the env var (see `crates/hale-codegen/tests/form_hashmap_lockfree_tsan.rs`). |
+| `LOTUS_LTO=1` | Read at *build time*. Opt-in full-LTO native build: the Hale module is emitted as bitcode and the lotus runtime TUs compile with `-flto`, so the `clang -flto -O3 -fuse-ld=lld` link inlines the runtime hot paths (arena / string / shm_ring) across the TU boundary into the Hale callers. A few percent on allocation/coordination-heavy code, neutral on vectorized loops (host tuning preserved via per-function `target-features`). Off by default — ~3–4× slower link, requires `lld`. Native non-sanitizer only; `--wrap` shims survive (lld resolves them before LTO codegen). See *Native codegen defaults* above. |
 | `LOTUS_BUS_LOG_UNMATCHED=1` | Surfaces silent no-key-match drops in `lotus_bus_local_dispatch_keyed` (Phase 3 routing keys). When set, each publish that matches no `where key == ...` subscriber for the topic emits a single stderr line citing subject, key, and the per-topic subscriber counts (specific vs unkeyed). Off by default — the silent-drop is correct for `on_unmatched: swallow` topics in steady state, but during bring-up the lack of any signal is load-bearing on debug cycles. Implied by `LOTUS_BUS_LOG_DROP=1`. |
 | `LOTUS_BUS_LOG_DESERIALIZE_DROP=1` | Surfaces silent drops in the udp:// reader thread when (a) no deserializer is registered for the inbound subject, or (b) the deserializer returns `<= 0` (size mismatch, bounded-read failure). Emits one stderr line per drop naming the subject, the payload size, and (when applicable) the deserializer's return value. Off by default; the silent-skip on cross-routed multicast noise is the correct steady-state behavior. Same env-gated pattern as `LOTUS_BUS_LOG_UNMATCHED` for keyed-dispatch misses. Implied by `LOTUS_BUS_LOG_DROP=1`. |
-| `LOTUS_BUS_LOG_DROP=1` | Broad superset for diagnosing "publish appears to succeed but handler doesn't fire" symptoms. Implies `LOTUS_BUS_LOG_UNMATCHED` + `LOTUS_BUS_LOG_DESERIALIZE_DROP` AND covers additional silent-drop sites the narrower vars miss: `lotus_bus_dispatch`'s serialize-fn-returns-<=0 case, the local-fanout (`lotus_bus_dispatch_wire` + `lotus_bus_local_dispatch`) zero-matching-subscribers case, per-entry deserialize-returns-<=0 on the local-fanout path, and the no-post-target case (mailbox / coop_pool / global queue all NULL on a matched entry). Each line names the call site, subject, and relevant size / index info so a fathom-shaped repro can identify exactly which silent-skip is firing. Reach for this first when investigating bus-drop friction; the narrower vars stay supported for their specific bring-up scenarios. |
+| `LOTUS_BUS_QUEUE_CAP=<N>` | Caps the cooperative bus dispatch queue, each per-pinned-locus mailbox, and each cooperative pool's queue at `N` cells (default 8192; floor 64; rounded up to a power of two; read once). **v0.9.0 footprint change:** the pinned mailbox and cooperative-pool queues are now lock-free MPSC rings (Vyukov bounded ring + signal-only-when-parked wake), and a fixed-size lock-free ring **pre-allocates its cap up front** rather than growing to it — so each pinned subscriber mailbox and each cooperative pool now costs ~4.3 MB resident at the default cap (vs the prior grow-as-needed). With the typical handful of pinned loci / pools this is a few-to-low-tens of MB; **lower `LOTUS_BUS_QUEUE_CAP` for pinned-/pool-heavy programs** to shrink it (the rings honor it identically). When a producer hits the cap it *back-pressures* instead of growing without bound (GH #125) — every message is still delivered. The mechanism: a **single-threaded** producer on the cooperative queue **inline-drains** it to free space; a **cross-thread** producer to a full ring **blocks** (a fenced producers-waiting handshake) until the single consumer drains a slot; a handler self-publishing to its own full ring spills to a consumer-thread-local overflow list (it can't block on itself). The cross-*cooperative*-pool *shared* queue path (multiple drainers, no single consumer) is the remaining non-lock-free path — a follow-on. Lower the cap to tighten the bound / footprint; raise it to reduce drain bursts at the cost of resident memory. |
+| `LOTUS_BUS_LOG_DROP=1` | Broad superset for diagnosing "publish appears to succeed but handler doesn't fire" symptoms. Implies `LOTUS_BUS_LOG_UNMATCHED` + `LOTUS_BUS_LOG_DESERIALIZE_DROP` AND covers additional silent-drop sites the narrower vars miss: `lotus_bus_dispatch`'s serialize-fn-returns-<=0 case, the local-fanout (`lotus_bus_dispatch_wire` + `lotus_bus_local_dispatch`) zero-matching-subscribers case, per-entry deserialize-returns-<=0 on the local-fanout path, and the no-post-target case (mailbox / coop_pool / global queue all NULL on a matched entry). Each line names the call site, subject, and relevant size / index info so a bus-heavy repro can identify exactly which silent-skip is firing. Reach for this first when investigating bus-drop friction; the narrower vars stay supported for their specific bring-up scenarios. |
 
 Every top-level arena is created via `lotus_arena_create_labeled(name)` and carries an immutable human-readable label string. The codegen passes the locus name (e.g. `WsClient`, `__lib_metrics_metrics_MetricMap`); the program-wide global is labeled `lotus.arena.global`; `g_bus_payload_arena` labels itself. The label is the load-bearing identifier in the residency dump; backtraces resolve via `-rdynamic` for cases where the label alone isn't enough.
 

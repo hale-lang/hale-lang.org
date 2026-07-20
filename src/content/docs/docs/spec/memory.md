@@ -224,6 +224,32 @@ returns when:
 - Body's last statement completes, AND
 - All children of the implicit locus have dissolved.
 
+### Value allocations vs. the free-fn implicit locus
+
+The free-fn implicit locus governs the lifetime of **child loci
+and bound handles** instantiated in the body — those dissolve at
+the function's return. It does **not** give the function a
+value-allocation arena of its own.
+
+Ordinary **value allocations** (struct / record literals,
+`String` concatenation, array and `Bytes` literals) made in a
+free `fn` body bump into the nearest enclosing **locus's** region
+and are reclaimed only when that locus dissolves — **not** when
+the function returns. A value allocated inside a helper `fn`
+called from a hot loop therefore accumulates in the caller's
+region exactly as if it had been written inline; the function
+boundary is not a reclamation boundary for values.
+
+The practical consequence: a value allocation inside an
+unbounded loop (a `run()` / bus-handler loop, a `while true`)
+grows the locus region without bound for the locus's lifetime —
+the recurring leak class behind several past OOMs. To bound it,
+either bound the loop, route the value over the bus (the payload
+arena reclaims per dispatch), or move the allocating work into a
+child locus that dissolves per iteration. The compile-time
+analysis that surfaces this is GitHub issue #18 item 1
+(memory-bound proofs); see `spec/verification.md`.
+
 ## Bookkeeping reclamation (per-arena defrag)
 
 Per F.3: within a parent's arena, dissolved-coordinatee
@@ -445,7 +471,7 @@ For each locus, the compiler generates:
 The runtime provides the underlying bump allocators, free-list
 machinery, scheduler integration, and lifecycle dispatcher.
 
-**Arena alignment contract (2026-05-20).** `lotus_arena_alloc(a,
+**Arena alignment contract.** `lotus_arena_alloc(a,
 size, align)` returns a pointer whose address (not the within-
 chunk offset) is aligned to `align`. The chunk header
 (`{next, used, cap}` = 24 bytes on x86_64 LP64) sits before the
@@ -457,10 +483,26 @@ side passes `align = 16` from `arena_alloc` to cover the widest
 scalar type (i128 / Decimal) — earlier the codegen passed 8 and
 the C side only aligned the offset, leading to `movaps` segfaults
 on Decimal stores into struct fields (i128-alignment segfault,
-root cause for two downstream repros, 2026-05-20). Both layers are necessary: the codegen
+root cause for two downstream repros). Both layers are necessary: the codegen
 must ask for the natural alignment of the widest scalar it can
 emit, and the C arena must honor that alignment at the pointer
 level, not the offset level.
+
+The same discipline governs the **bus payload path**, which uses
+distinct allocation sites. (a) The mailbox cell
+`lotus_bus_cell_t.payload_inline` is forced to 16-byte alignment
+via a struct attribute: a *pinned* subscriber is handed
+`&cell.payload_inline` directly (unlike a cooperative drain, which
+copies into a 16-aligned scratch), so an 8-aligned cell — its
+widest natural member is a pointer — traps a whole-`Decimal`-payload
+copy (an aligned `vmovaps`) even though at `-O3` LLVM scalarizes
+individual i128 *field* ops into misalignment-tolerant paired
+64-bit moves. (b) The wire *deserialize* allocations for nested
+`TypeRef` (struct) fields request `align = 16`, matching the
+fixed-size-array element path, since a nested struct may carry a
+`Decimal`. A payload/cell allocation must request the natural
+alignment of the widest scalar the struct can hold — never a
+hardcoded 8.
 
 ## Codegen ABI (v0)
 
@@ -679,7 +721,7 @@ ordered: returned/payload-routed → lazy global payload arena;
 **`parent_owns_via_field`** → the owning locus's arena (see
 below); otherwise → entry-block stack alloca.
 
-#### Owned param-field child allocation (2026-05-29)
+#### Owned param-field child allocation
 
 An F.29 owned param-field child (`parent_owns_via_field` — e.g.
 `locus PerConn { params { reader: ConnReader = ConnReader { }; } }`)
@@ -719,6 +761,41 @@ only when neither reclamation trigger applied; declaring the
 flow's `release` closes it. See spec/semantics.md § "release(c)
 and flow children".)
 
+#### Accept'd-child struct recycling
+
+The child's **locus struct** (as opposed to its `__arena`
+contents) lives in the OWNER's arena — that's what keeps
+`owner.__children` reads valid cross-lifecycle. Arena
+allocations are never individually freed, so per-child
+reclamation alone left ~sizeof(child struct) pinned in the
+owner's arena per child ever accepted: a churn daemon grew
+O(total children), violating F.3's O(peak-alive) intent
+(measured ~110 B/child; 443 MB at 4M children).
+
+The substrate closes this with an intrusive per-owner free-list
+of dead child structs, threaded through the owner's arena
+struct (`child_struct_free`, guarded by `subregion_lock` under
+multithreading):
+
+- `lotus_child_struct_release(owner_self, child, size)` — called
+  from the teardown chokepoint (`emit_locus_arena_destroy`)
+  after the `__arena` NULL-latch, exactly once per reclaimed
+  child (the latch gates it). Node layout inside the dead
+  struct: offset 0 is never written (it is the child's own
+  NULL'd latch), offset 8 holds `next`, offset 16 the block
+  size. Covers subregion-owning children AND arena-elidable
+  (empty-lifecycle) children, which share the parent's arena
+  pointer and latch on their (otherwise unused) `__arena` field.
+- `lotus_child_struct_alloc(owner_arena, size, align)` — the
+  instantiation front: pops a size-matched block (bounded
+  first-fit, ≤8 probes) before falling back to the bump
+  allocator. Alignment is **16** per the Arena alignment
+  contract (was 8 — a latent `Decimal`-param `movaps` trap).
+
+Steady-state churn (accept → run → reclaim per event) therefore
+reuses one struct slot per concurrent child, per type. Resident
+children don't route through mid-life reclaim and are unaffected.
+
 Bus dispatch implements the spec's copy-not-pointer semantic:
 
 ```
@@ -727,7 +804,7 @@ void lotus.bus_dispatch(ptr subject, ptr payload, i64 size):
      if strcmp(bus.entries[i].subject, subject) == 0:
        sub_self  = bus.entries[i].self
        sub_arena = load (sub_self + 0)
-       copy      = lotus_arena_alloc(sub_arena, size, 8)
+       copy      = lotus_arena_alloc(sub_arena, size, 16)
        memcpy(copy, payload, size)
        bus.entries[i].handler(sub_self, copy)
 ```
@@ -794,7 +871,7 @@ of the round-trip cost when the publisher controls all
 subscribers and can guarantee the payload's pointer-aliasing
 discipline.
 
-**Phase-3 Task 9 m70 per-subscriber arena routing (2026-05-20).**
+**Phase-3 Task 9 m70 per-subscriber arena routing.**
 `lotus_bus_dispatch_wire` no longer parks deserialized String /
 Bytes pointers in the program-lifetime g_bus_payload_arena.
 Instead it iterates the matching subscribers, sets the TLS
@@ -817,6 +894,37 @@ reclaim the global arena but to skip it entirely — the m20 spec
 ("each subscriber's arena outlives the payload pointer") now
 holds by construction because the deserialize-time allocator IS
 the subscriber's arena.
+
+**Cross-thread wire cell per-delivery reclaim (2026-07-15;
+refines Task 9 for the owner-routed path).** Task 9 deserializes
+into the subscriber's arena on the *publisher's* thread. When the
+target subscriber lives on a *different* thread (a `pinned`
+publisher fanning out to a `where async_io` pool subscriber),
+that write races the subscriber's own unlocked arena mutations —
+so the owner-routed dispatch instead posts a *wire cell* carrying
+the payload's wire bytes plus its deserializer, and the
+subscriber's own thread deserializes it just before invoking the
+handler (`lotus_bus_cell_materialize`). The first cut of that
+path deserialized directly into the subscriber's locus arena —
+correct for lifetime, but a per-delivery **leak**: on a
+long-lived subscriber whose `run()` is parked (the canonical
+server loop — an accept / recv that never returns), the locus
+arena never dissolves, so every delivery's payload fields
+(String / Bytes) piled up unboundedly (~one payload's heap per
+message; measured ~320 MiB over 20k 16-KiB deliveries). The fix
+deserializes each wire cell into a fresh **per-delivery
+subregion** of the subscriber's arena, destroyed the instant the
+handler returns (alongside the existing per-cell payload free).
+This gives the deserialized payload exactly the lifetime the
+same-thread (inline) delivery path already gives it — alive for
+the handler, reclaimed after — and is safe for the
+`self.current_kernel = msg` retention pattern because a
+locus-field store deep-copies nested String / Bytes fields into
+the *locus* arena (the only way user code can retain payload
+data: address-taking is disallowed, so the payload pointer itself
+never escapes the handler). A subscriber on the same thread as
+its publisher, or a payload with no owned fields, is unaffected
+(no wire cell, no subregion).
 
 **Phase-2 (4) `g_bus_payload_arena` reclaim investigation
 (2026-05-19; superseded by Phase-3 Task 9).**
@@ -853,12 +961,17 @@ subscribers; bounding it is forward work, not a follow-up to F.28
 "can we reclaim per dispatch?" finds the previously-investigated
 answer.
 
-**Phase-4 per-method scratch reclaim (2026-05-21).** Locus
+**Phase-4 per-method scratch reclaim.** Locus
 method bodies (lifecycle `birth` / `run` / `accept` / `drain` /
-`dissolve`, user-fn members, mode bodies) now open a per-call
+`dissolve`, user-fn members, mode bodies) open a per-call
 scratch subregion of `self.__arena` on entry, route transient
 allocations through it via `current_arena_ptr()`, and destroy
-the subregion at every return point. Before this, every
+the subregion at every return point — except a body proven to
+allocate nothing that returns a by-value scalar (or Unit), where
+the scratch is elided entirely. Eliding is sound
+because there is nothing to reclaim and no return value to
+deep-copy: it removes a `malloc`/`free` per call with no
+observable change to lifetimes or bounds. Before this, every
 allocation made by a long-running `run()` loop (JSON parse
 strings, format-string concats, metric-label entries, every
 stdlib primitive that lands on `lotus_caller_arena_or_global`)
@@ -932,7 +1045,7 @@ vec without the wrapping locus owning it would still
 dangle — same boundary the cross-seed-segv fix originally
 documented; the fix here doesn't widen or narrow it.
 
-**Phase-4 perf follow-ons (2026-05-21).** Three substrate
+**Phase-4 perf follow-ons.** Three substrate
 tunings that fell out of profiling the per-method scratch
 reclaim on a real-world long-running workload:
 
@@ -1015,11 +1128,35 @@ reclaim on a real-world long-running workload:
      unconditional deep-copy: cells with a fixed-size array
      field (e.g. `BookSignalState`'s two `[BookLevel; 100]`)
      allocated a fresh element buffer on every `set` of the
-     same key. Fathom's `apps/mdgw/kraken` long-burn surfaced
+     same key. A downstream market-data app's long-burn surfaced
      this as ~3 KB / set × ~100 sets/sec → OOM at the
      container cap in ~20 min; the field-level gate folded the
      RMW back to zero allocations once the previously-stored
      buffer is already in the hashmap's arena.
+
+     Cell single-owner (2026-07-18): the String/Bytes leaves of
+     the walk no longer use the plain clones' same-arena SKIP —
+     they route through `lotus_str_clone_cell_owned` /
+     `lotus_bytes_clone_cell_owned`, which force-copy a
+     same-arena input (statics still pass through; cross-arena
+     values clone exactly as before). And the walk operates on a
+     stack *snapshot* of the value struct rather than the source:
+     anchoring in place used to rewrite a self-storage source
+     (`m.set(self.rec)`) so the locus field and the cell ended up
+     pointing at the same blob — an in-place field overwrite then
+     mutated the cell silently, and anchor retirement could free
+     a blob the other owner still held. With snapshot +
+     owned-clone, a cell's top-level String/Bytes fields are
+     always exclusively owned. The compound-field gate (`Array`,
+     nested `TypeRef`, …) keeps its identity-skip — compounds
+     don't retire, so sharing there is a mutation-visibility
+     caveat, not a use-after-free (tracked in
+     notes/anchor-retirement.md). Note the RMW zero-allocation
+     claim above narrows accordingly: same-pointer String/Bytes
+     fields carried through a get-then-set now cost one owned
+     copy per set, served by the retire freelist (the replaced
+     generation recycles into the next), so steady-state memory
+     stays flat while compound fields keep the zero-copy skip.
 
   6. **In-place mutation at `self.X = Struct{...}` and
      `self.X[i] = Struct{...}` assigns.** Locus self-fields
@@ -1031,9 +1168,26 @@ reclaim on a real-world long-running workload:
      anchors the rhs's heap fields in `self.__arena` (same
      mechanism as #5), then memcpys the rhs's bytes over the
      existing struct's bytes via the slot's pointer. The slot's
-     pointer doesn't change; `self.__arena` doesn't grow under
-     repeated assigns to the same slot. Bounds locus arenas
-     under any assign frequency.
+     pointer doesn't change.
+
+     Since 2026-07-17 the store also runs a per-String-field
+     replace fixup (`lotus_str_field_replace_fixup`): each old
+     field pointer the memcpy overwrites is *retired* (pending
+     until the user-method activation-boundary flush, then
+     reusable — the same anchor-retirement machinery as
+     @form(hashmap) set/remove), and a same-arena rhs pointer
+     that the anchor walk passed through unchanged is force-
+     copied so two self-storage slots never share a blob
+     (single-owner; see #7's aliasing note). RMW round-trips
+     (`self.X = self.X`, a scratch copy with untouched fields)
+     keep their pointers and retire nothing. Net: repeated
+     whole-struct replaces with fresh String contents hold
+     `self.__arena` flat — previously each replace orphaned the
+     old clones for the locus lifetime. String fields only at
+     v0.1 (Bytes and pointer-shaped compound fields of the
+     replaced struct keep the pre-fix behavior); fields of
+     @form vec / bounded cells and stores from boundary-less
+     contexts (a `run()` loop) do not retire.
 
   7. **In-place String / Bytes reassignment at `self.X =
      heap_value`.** `lotus_str_assign_in_place(arena, old, new)`
@@ -1044,10 +1198,29 @@ reclaim on a real-world long-running workload:
      [payload]` Bytes header; when `new_len <= old_cap` it
      updates the prefix and memcpys the payload in place.
      Static-literal `old` falls through to the clone path
-     (`.rodata` isn't writable); same when new is longer than
-     old's buffer (the old buffer leaks like before, but only
-     on rare length-growth events rather than every
-     reassignment). The codegen emits the right helper at every
+     (`.rodata` isn't writable). When new is longer than old's
+     buffer, the abandoned buffer is *retired* (String since
+     2026-07-17, Bytes since 2026-07-18) — reusable after the
+     activation-boundary flush instead of leaking. The retire
+     freelist mixes align-1 String blocks and align-8 Bytes
+     blocks; pops are alignment-aware (a String request reuses
+     either kind, a Bytes request only 8-aligned blocks). Note
+     the capacity-collapse caveat below bounds what Bytes-grow
+     retire can reclaim: a single oscillating field's grow
+     requests are always larger than its own shrink-collapsed
+     retire records, so the recycled blocks pay off through
+     other same-arena allocations of matching sizes.
+
+     Single-owner rule (2026-07-17): on every path that stores
+     a replacement pointer, an incoming pointer that is already
+     inside `a` is another self-storage slot's blob (fresh
+     values live in method scratch; only self-storage reads
+     produce same-arena pointers here) and is force-copied
+     rather than shared. Pre-fix, `self.g = self.f` on the
+     non-fitting path stored `f`'s own pointer into `g`'s slot,
+     and `f`'s next in-place overwrite silently mutated `g` —
+     a value-semantics violation, and unsound to combine with
+     retirement. The codegen emits the right helper at every
      `self.X = String|Bytes` site inside a method-with-scratch.
      Closes the per-update heap-field-reassignment leak class
      — measured against a per-frame `self.last_ts = ts` pattern
@@ -1107,8 +1280,7 @@ into `__caller_arena` is now a same-arena memcpy in the common
 case (correct, marginally wasteful; can be elided in a
 follow-up).
 
-**Subregion elision for non-allocating bodies (FORM-3,
-2026-05-13).** Codegen classifies each user fn at declare time
+**Subregion elision for non-allocating bodies (FORM-3).** Codegen classifies each user fn at declare time
 via a conservative syntactic walk
 (`fn_body_definitely_non_allocating`). A body is non-
 allocating iff every expression in it lowers to a known-non-
@@ -1167,7 +1339,7 @@ locus accepts coordinatees:
   O(concurrent children alive), not O(total children ever
   accepted). Per F.3. The free-list + `next_slot` counter are
   protected by a per-arena `pthread_mutex_t subregion_lock`
-  (2026-05-26) — without it, two threads concurrently
+  — without it, two threads concurrently
   creating or destroying children of the same parent (common
   under cross-pool cooperative placement where a worker's
   handler-scratch sub-region sits under the App arena) would
@@ -1176,7 +1348,7 @@ locus accepts coordinatees:
   indices, lost pushes. The lock window is O(1) per
   create/destroy (a counter increment or a freelist push);
   steady-state allocations within a sub-region remain
-  lock-free. **Single-thread fast-path (2026-05-29):** the
+  lock-free. **Single-thread fast-path:** the
   lock/unlock and `pthread_mutex_destroy` are skipped — and
   init is a const `PTHREAD_MUTEX_INITIALIZER` copy rather than
   a `pthread_mutex_init` call — until the program spawns a
@@ -1241,25 +1413,6 @@ corrupt the recpool's bookkeeping. The codegen dispatch
 discriminator (`__recpool_release_kind`) is what keeps the
 right release function reachable at child dissolve.
 
-## Future work
-
-- **Hot-load preservation across perspective updates.** When a
-  perspective is hot-loaded, the receiving locus's arena state
-  is preserved across the swap; the new perspective's translation
-  functions replace the old. v0 specifies the perspective hot-
-  load mechanism (runtime.md); the memory-level interaction is
-  TBD.
-- **Region size hints.** Initial chunk sizes per locus are
-  taken from declared params. Per The Design's locus-as-region
-  invariant, the load-bearing property is *lifetime* (wholesale
-  free at dissolve), not *fixed size*. The C-runtime arena
-  grows linked-list chunks on demand: when the head chunk
-  can't fit a request, a fresh chunk is allocated and pushed
-  on the front. Declared params are sizing hints, not
-  ceilings — a locus that out-allocates its declared budget
-  doesn't panic, it just adds chunks. Compaction across
-  long-lived chunked loci stays deferred (see below).
-- **Compaction passes.** For long-running chunked-class loci
-  with high churn, periodic compaction may be needed. Currently
-  free-list reclamation is sufficient for v0; compaction passes
-  are deferred.
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).

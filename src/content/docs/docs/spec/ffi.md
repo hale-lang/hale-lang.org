@@ -31,8 +31,9 @@ absent — the declaration terminates with `;`. The compiler
 synthesizes an empty body internally so downstream passes keep
 the same `FnDecl` shape; user code MAY NOT write a `{...}` block.
 
-The ABI string is the literal `"c"`. Other ABI strings are
-reserved for future extensions and are rejected at parse time.
+The ABI string is the literal `"c"` (native C-ABI binding) or
+`"js"` (a WASM host import — see [§ WASM host interface](#wasm-host-interface)).
+Any other ABI string is rejected at parse time.
 
 ## Position
 
@@ -80,7 +81,7 @@ matching C-ABI representation at the call boundary:
 | `Int` | `i64` | `int64_t` | 64-bit signed throughout. |
 | `Float` | `double` | `double` | 64-bit IEEE 754. |
 | `Bool` | `i32` | `int32_t` | Hale's i1 zero-extends to i32 at the call, truncates back at the return. Avoids C `_Bool` cross-platform ambiguity. |
-| `String` | `ptr` | `const char *` | NUL-terminated. Caller owns; callee MUST NOT retain past the call. |
+| `String` | `ptr` | `const char *` | NUL-terminated. Caller owns; callee MUST NOT retain past the call. A `StringView` does **not** implicitly coerce to a `String` parameter — it isn't NUL-terminated, so a `char*`-expecting callee would `strlen` past its end. Pass a view as a `StringView` parameter (→ `lotus_view_t`, length-carrying) or materialize it first via `std::str::clone`. |
 | `Bytes` | `ptr` | `void *` (header) | Points at Hale's `[int64 len][payload]` header — callee uses `lotus_bytes_len(p)` / `lotus_bytes_data(p)` (declared in `lotus_arena.h`) to inspect. Caller owns. |
 | `BytesView` / `StringView` | `{ ptr, i64 }` (struct by value) | `lotus_view_t` | 16-byte F.30b view layout. C glue MAY use `lotus_view_data` to recover the payload pointer + length. |
 | `Duration` / `Time` | `i64` | `int64_t` | Both are 64-bit nanosecond counts under the hood. |
@@ -318,6 +319,9 @@ Parser errors:
   return an error sentinel, the Hale wrapper above translates
   to \`fallible(E)\` if needed`
 - `expected \`fn\` after \`@ffi(...)\` annotation`
+- `expected \`fn\` after \`@export\` annotation`
+- `\`@export\` and \`@ffi\` are mutually exclusive — an FFI import
+  is not a module export`
 
 Typecheck errors:
 
@@ -334,6 +338,155 @@ Codegen errors:
   etc. fall here.
 - `@ffi fn \`<name>\`: parameter defaults are not supported
   across the C-ABI boundary`
+- `@export fn \`<name>\`: fallible exports are not supported yet
+  (wasm entry-inversion v1)`
+
+## WASM host interface
+
+On the `wasm32` target (`hale build --target wasm32`; the program
+declares `target wasm { }`) the foreign boundary is the JavaScript
+host rather than a C library. The same `@ffi` machinery serves the
+inbound direction, and a dual annotation `@export` serves the
+outbound direction.
+
+### The `target` declaration + stdlib gating
+
+The program opts into the wasm backend with a top-level `target`
+declaration whose name is **`wasm`** (or the alias **`browser_js`** —
+both select the same backend and gating):
+
+```
+target wasm { }
+```
+
+The portable stdlib (`std::str`, `std::bytes`, `std::json`,
+`std::math`, `std::text`, …) works unchanged. The **POSIX-backed
+namespaces are rejected at typecheck** under this target — the browser
+sandbox has no syscalls — with the diagnostic ``error: `std::...` is
+unavailable under `target wasm`: <reason>``. The gated set
+(`wasm_unavailable_stdlib`) is exactly:
+
+| Rejected path | Browser substitute |
+|---|---|
+| `std::io::tcp` | a WebSocket bus adapter (`ws://`) |
+| `std::io::udp` | (no raw UDP in the browser) |
+| `std::io::tls` | the browser does TLS transparently for `wss://` / `https://` |
+| `std::io::fs`, `std::io::file` | `fetch` via an `@ffi("js")` host import, or a bus message |
+| `std::io::stdin`, `std::io::stdout` | `println(...)` (the loader routes it to the host console) |
+| `std::term` | (no terminal in the browser) |
+| `std::process` | (no OS process control) |
+| `std::http` | (server is built on raw TCP) |
+
+The **in-process typed bus is fully available** under `target wasm`:
+`topic` declarations and `bus { publish … }` / `bus { subscribe … }`
+across loci lower the same way they do natively — a `Subject <-
+payload` is delivered to every matching in-module subscriber's handler,
+payload-copied through the synthesized `__serialize_T` / `__deserialize_T`
+wire codec. Those codecs follow the `lotus_serialize_fn` /
+`lotus_deserialize_fn` ABI (`ssize_t(const void *, …, size_t)`), whose
+`ssize_t` / `size_t` widths are **target-pointer-width** — i32 on wasm32,
+i64 on the native 64-bit targets — so the runtime's `lotus_bus_dispatch`
+indirect call matches the codec on both. Only the *cross-process /
+network* transports (`shm_ring`, `unix`, and CONNECT-role bindings) are
+unavailable in the sandbox, since they need syscalls.
+
+Reach the outside world through `@ffi("js")` host imports and the
+inbox/state seam below instead.
+
+### `@ffi("js")` — host imports (host → into Hale's callees)
+
+`@ffi("js") fn name(...);` declares a function the **JS loader**
+provides at instantiation (a wasm `env` import), e.g.:
+
+```
+target wasm { }
+@ffi("js") fn console_log(msg: String);
+@ffi("js") fn draw_line(x1: Float, y1: Float, z1: Float,
+                        x2: Float, y2: Float, z2: Float);
+```
+
+Marshalling: `Float` passes directly as a JS `number` (f64). `Int`
+and `Duration` are i64 internally, but at the **`@ffi("js")`** boundary
+they marshal as **f64 (JS `number`), not i64 (which crosses as a JS
+`BigInt`)** — the host handler receives a plain number, with no
+`Number(x)` dance, and an `Int`-returning host import accepts a plain
+JS number back (the runtime `sitofp`s before the call and `fptosi`s the
+return). The trade-off is f64's 53-bit integer range: an `Int` whose
+magnitude exceeds 2^53 loses precision across this boundary — pass such
+values as a `String`/`Bytes` payload instead. (This is **only**
+`@ffi("js")`. `@ffi("c")` keeps i64 — on wasm those resolve to linked
+runtime C symbols that genuinely expect i64.) `String`/`Bytes` pass as
+a pointer into wasm linear memory (the loader reads them with a
+`TextDecoder` over the module's `memory`). The generated `.mjs` loader
+supplies a built-in `console_log` plus the libm set
+(`sin`/`cos`/`tan`/`sqrt`/… mapped to JS `Math.*`, so `std::math` works
+under wasm with no app glue); an app wires its own imports through
+`run(glue)`. Position and the generic / defaulted restrictions are the
+same as `@ffi("c")`.
+
+### `@export` — exports (Hale → callable by the host)
+
+Two forms; both are wasm-only (a **no-op on the native target**) and
+both produce a wasm module export the host calls by its literal name.
+
+**`@export fn name(...) { ... }`** — a top-level free fn. Unlike
+`@ffi` it has a real Hale body. It is valid only on top-level free fns
+(same position rule as `@ffi`), is **not** `@ffi` (mutually exclusive
+— an import is not an export), and is **not** `fallible(E)` (v1 — the
+host has no error channel).
+
+**`@export locus L { ... }`** — the persistent singleton "app." At
+most one per program. It is instantiated **once** (birth runs; it is
+never dissolved), and each of its non-fallible `fn` methods becomes a
+wasm export the host calls (`inst.exports.<method>()`). State lives in
+the locus's params — ordinary Hale fields that survive across calls
+because the singleton persists. The locus **must not define `run()`**
+(it is host-driven via its methods, not a cooperative run loop);
+`fallible` methods stay internal (not exported).
+
+### Entry-inversion run-model
+
+A program built with `@export` runs **inverted**: instead of a
+blocking `main`, the host drives the exports. The compiler synthesizes
+and exports **`_hale_start()`**, which creates a **persistent** program
+arena (and bus queue) that is *not* torn down — and, for an `@export
+locus`, instantiates the singleton there and stashes its pointer. The
+generated loader calls `_hale_start` once at instantiation and then the
+host calls the exports (e.g. one per `requestAnimationFrame`). A
+program with no `fn main` is valid when it has any `@export`; if
+`_hale_start` is present the loader does **not** call `main` (its
+create-then-destroy of the arena would clobber the persistent one).
+
+**`--wrap-main` (browser-playground entry synthesis).** A bare
+`fn main` program is not the `@export` shape a wasm build needs. The
+`hale build … --target wasm32 --wrap-main` flag synthesizes it *on the
+parsed AST*: when the program has a top-level `fn main()` and no
+`@export` entry, it replaces `fn main` with an
+`@export locus __Main { birth() { <main's body> } }` (routing the body
+through the `_hale_start` path) and injects a `target wasm { }` gate if
+absent. Because it operates on the AST — not the source text — every
+diagnostic keeps the user's original line/col (no offset) and a `{`/`}`
+inside a string or comment can't mis-wrap it. It is **wasm-only and
+opt-in**: a hard error without `--target wasm32` (there is no native
+entry-inversion to wrap), never implied by the target (a wasm program
+may legitimately keep a bare `fn main` exported as `main`), and a no-op
+when an explicit `@export` entry already exists (prefer-explicit).
+
+Holding state across calls:
+
+- **`@export locus` (preferred):** state is the locus's fields,
+  mutated in one method and read in another — plain Hale, no
+  marshalling. This is the natural shape for a browser client.
+- **`@export fn` (lower-level):** each call's allocations are released
+  on return, so cross-call state goes through the runtime **host seam**
+  — `@ffi("c") fn lotus_wasm_state_set(b: Bytes);` /
+  `lotus_wasm_state_get() -> Bytes;` deep-copies a packed `Bytes` blob
+  into its own arena so it survives.
+
+Inbound messages use the seam in either model:
+`lotus_wasm_alloc(n)` / `lotus_wasm_set_inbox(len)` (wasm exports the
+host calls to write bytes in) + `@ffi("c") fn lotus_wasm_inbox() ->
+Bytes;` (Hale reads them and parses with `std::json` / `std::bytes`).
 
 ## Cross-references
 
@@ -345,3 +498,6 @@ Codegen errors:
 - `spec/runtime.md` — the C-runtime helpers (`lotus_bytes_*`,
   `lotus_arena_alloc`, `lotus_caller_arena_or_global`, etc.)
   that library authors typically call from C glue.
+- `docs/src/systems/webassembly.md` — the pedagogical companion to
+  the WASM host interface above (the browser-client walkthrough:
+  loader `run(glue)`, the inbox, the `@export locus` game loop).

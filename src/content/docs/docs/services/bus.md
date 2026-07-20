@@ -97,6 +97,12 @@ dispatch cost; if the topic later grows a second subscriber or a
 deployment binding, the real bus path comes back automatically,
 and your code doesn't change.
 
+The static-dispatch devirtualization is broader than that
+intra-locus-type case: any *quiet*, flat-payload, same-thread
+handler on a closed-world local subject lowers to a direct
+synchronous call — even when the publisher and subscriber are
+distinct locus types.
+
 ## Routing keys: one topic, sharded by a field
 
 By default every subscriber to a topic sees every message. When
@@ -135,10 +141,13 @@ reaches only the `Feed` instances that subscribed with
 
 - **`keyed_by FIELD`** on the topic picks the routing field. It
   must be a field of the payload, and its type must be one the bus
-  can hash to a fixed-width key: `Int`, `Bool`, `Time`,
-  `Duration`, a no-payload enum, or `Decimal`. (Need a compound
-  key like `(symbol, venue)`? Pack it into one `Decimal` field
-  yourself.)
+  can compare per entry: `Int`, `Bool`, `Time`, `Duration`, a
+  no-payload enum, `Decimal`, or `String`. A `String` key routes
+  by name directly — `keyed_by room` + `where key == self.name`
+  — with a hash gate so a non-matching key still costs one
+  integer compare. (Need a compound key like `(symbol, venue)`?
+  Pack it into one `Decimal` field or render it into the
+  `String` key yourself.)
 - **`where key == EXPR`** on a subscribe filters that subscriber.
   `EXPR` can be a literal, a `const`, or `self.<field>` — the
   common case, one instance per shard.

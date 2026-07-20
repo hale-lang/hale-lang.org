@@ -22,9 +22,10 @@ document tells you what's *meaningfully* valid.
 | `Bool` | i1 | `true` / `false` |
 | `Time` | ptr (string-shaped, v0) | v0 codegen stores `Time` as a pointer to the literal's source-spelling String — a placeholder shape that the typechecker keeps distinct from `String`. Real `i64`-since-epoch lowering deferred. |
 | `Duration` | i64 | Nanoseconds. Suffix literals (`5s`, `100ms`). |
-| `Bytes` (m89) | ptr → `[i64 len][u8 data[len]]` | Binary-safe. Single-pointer ABI like String, but the underlying blob carries an explicit length prefix so embedded NUL bytes don't truncate. `len(b)` reads the prefix. Distinct from `String` at the type level; the typechecker keeps them apart. Operations: `std::io::fs::read_bytes` (m89), `Stream.send_bytes` (m89), `Stream.recv_bytes` (Phase 2g), `std::bytes::at` / `std::bytes::slice` / `std::bytes::from_string` (Phase 2g), `std::str::from_bytes` for the inverse direction (Phase 2g). |
-| `BytesView` (F.30, 2026-05-20) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value; SysV AMD64 returns in `rax`/`rdx`) | Non-owning view over a `BytesBuilder`'s buffer. Returned by `BytesBuilder.view()`. `src` is the builder pointer; `epoch` snapshots the builder's `mutation_epoch`. The underlying Bytes-shaped data pointer (`buf - 8`) is *recomputed* at read time by `lotus_bytes_view_data`, so the view itself doesn't allocate or carry the data pointer. Coerces implicitly to `Bytes` at function-argument READ positions (e.g. `std::bytes::at(view, i)`, `len(view)`, user-defined fallible-fn args, self/external/interface method args, monomorphized-generic args); codegen emits a call to `lotus_bytes_view_data` which checks the stamped epoch against the builder's live epoch, panics on mismatch (F.30b mutation-while-view-live guard), and returns the recomputed data ptr on the OK path. Rejected at `Bytes`-typed storage sites — callers wanting owned storage must `std::bytes::clone(view)` for a deep-copy into the caller's arena. Storage typed `BytesView` is allowed; a `String` / `Bytes` literal at a `BytesView`/`StringView` storage default is wrapped via `lotus_view_from_static_data` with `epoch == LOTUS_VIEW_EPOCH_STATIC = -1` — the unpack helper sees the static sentinel and returns `src` directly without an epoch check (the literal lives in the global string table at program-lifetime, so there's no source builder to check against). 2026-05-22 PM: ABI compacted from a 24-byte heap-allocated struct to this 16-byte by-value shape; no arena allocation per `view()` call. |
-| `StringView` (F.30, 2026-05-20) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value) | Non-owning view over a `BytesBuilder`'s NUL-terminated buffer. Returned by `BytesBuilder.text_view()`. Symmetric companion to `BytesView`: same layout, same epoch guard, same static sentinel. Coerces to `String` at read sites via `lotus_str_view_data` (which recomputes the C-string pointer as `b->buf` — the `buf[len] == '\0'` invariant maintained by every mutating op makes this well-formed); rejected at `String`-typed storage; `std::str::clone(view)` upgrades to owned. |
+| `Bytes` (m89) | ptr → `[i64 len][u8 data[len]]` | Binary-safe. Single-pointer ABI like String, but the underlying blob carries an explicit length prefix so embedded NUL bytes don't truncate. `len(b)` reads the prefix. Distinct from `String` at the type level; the typechecker keeps them apart. Operations: `std::io::fs::read_bytes` (m89), `Stream.send_bytes` (m89), `Stream.recv_bytes` (Phase 2g; both `fallible(IoError)` since #209), `std::bytes::at` / `std::bytes::slice` / `std::bytes::from_string` (Phase 2g), `std::str::from_bytes` for the inverse direction (Phase 2g). |
+| `BytesView` (F.30) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value; SysV AMD64 returns in `rax`/`rdx`) | Non-owning view over a `BytesBuilder`'s buffer. Returned by `BytesBuilder.view()`. `src` is the builder pointer; `epoch` snapshots the builder's `mutation_epoch`. The underlying Bytes-shaped data pointer (`buf - 8`) is *recomputed* at read time by `lotus_bytes_view_data`, so the view itself doesn't allocate or carry the data pointer. Coerces implicitly to `Bytes` at function-argument READ positions (e.g. `std::bytes::at(view, i)`, `len(view)`, user-defined fallible-fn args, self/external/interface method args, monomorphized-generic args); codegen emits a call to `lotus_bytes_view_data` which checks the stamped epoch against the builder's live epoch, panics on mismatch (F.30b mutation-while-view-live guard), and returns the recomputed data ptr on the OK path. Rejected at `Bytes`-typed storage sites — callers wanting owned storage must `std::bytes::clone(view)` for a deep-copy into the caller's arena. Storage typed `BytesView` is allowed; a `String` / `Bytes` literal at a `BytesView`/`StringView` storage default is wrapped via `lotus_view_from_static_data` with `epoch == LOTUS_VIEW_EPOCH_STATIC = -1` — the unpack helper sees the static sentinel and returns `src` directly without an epoch check (the literal lives in the global string table at program-lifetime, so there's no source builder to check against). 2026-05-22 PM: ABI compacted from a 24-byte heap-allocated struct to this 16-byte by-value shape; no arena allocation per `view()` call. |
+| `StringView` (F.30) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value) | Non-owning view over a `BytesBuilder`'s NUL-terminated buffer. Returned by `BytesBuilder.text_view()`. Symmetric companion to `BytesView`: same layout, same epoch guard, same static sentinel. Coerces to `String` at read sites via `lotus_str_view_data` (which recomputes the C-string pointer as `b->buf` — the `buf[len] == '\0'` invariant maintained by every mutating op makes this well-formed); rejected at `String`-typed storage; `std::str::clone(view)` upgrades to owned. |
+| `BytesMut` (#3) | raw `{ptr, len}` window (by-value; no `[i64 len]` prefix) | A non-owning **raw writable/readable window** — distinct from `Bytes` (which carries a length prefix the handle points *into*) because `BytesMut` is a bare `{ptr, len}` pair over memory owned elsewhere. Handed out by the zero-copy ring producer (`Topic.write(max) { w => … }` binds `w: BytesMut` over the reserved slot) and by `std::io::MirrorRing` (`readable()` / `writable()` return a `BytesMut` over the live / free region). Read it zero-copy with the `_raw` siblings of the binary-pack family (`std::bytes::read_*` / `at` / `find_byte` accept a `BytesMut` directly — length is the window length, not a prefix); write into it with the binary-pack writers (`std::bytes::write_*`). The window is valid only until the next ring commit / mirror advance — no epoch guard, so the lifetime discipline is the caller's. |
 
 **FnPtr (m80):** First-class function values, type-spelled
 `fn(T1, T2) -> R` (or `fn(T1, T2)` for void-returning). LLVM
@@ -37,7 +38,7 @@ indirect calls prepend it before user-visible args. See
 `stdlib/io_tcp.hl` for the canonical use:
 `Listener.on_connection: fn(std::io::tcp::Stream)`.
 
-**FFI-portable subset (Stage-1 FFI, 2026-05-22):** the primitive
+**FFI-portable subset (Stage-1 FFI):** the primitive
 type set above carries an additional axis of distinction at the
 `@ffi("c")` boundary: which types have a stable C-ABI mapping.
 `Int` / `Float` / `Bool` / `Duration` / `Time` / `String` /
@@ -52,6 +53,7 @@ the lifetime contract.
 | Construct | Form | Notes |
 |---|---|---|
 | Slice / array | `[T]` or `[T; N]` | Dynamic or fixed-size |
+| Bounded collection | `bounded[T; N]` | Fixed-capacity counted list, INLINE in its containing type/params (`{ i64 len, [N x T] }`). See § "bounded[T; N]" below. |
 | Tuple | `(A, B, C)` | Fixed-size heterogeneous |
 | Struct | `type Foo { x: Int; y: Int = 0; }` | Named record. Each field can declare a default value (`= expr`); literals omitting a defaulted field fill it from the default at instantiation time. |
 | Enum | `type Foo = enum { A, B(int) };` | Tagged union (sum type) |
@@ -83,7 +85,7 @@ Locus types have:
 
 - A set of **params** (name, type, default value or
   `: inferred`); these are also the locus's mutable state (per
-  F.3 / §3 in design-rationale).
+  F.3 / §3 in decisions).
 - Optional **contract** (expose / consume entries).
 - Optional **capacity slots** (F.22 — `pool X of T;` / `heap Y
   of T;` declarations naming slots 1..N beyond the implicit
@@ -119,14 +121,18 @@ typecheck and codegen.
 
 ## Perspective types
 
-A `perspective P { ... }` declaration introduces a *perspective
-type* P — a serializable parameter bundle within a shared
-compiled-in schema. Used for fitter↔applier communication
-(among other things). Has:
-
-- Params (the parameter bundle)
-- A `stable_when { ... }` block (commit predicate)
-- Optional `serialize_as TypeV1` annotation
+A `perspective P { ... }` declaration introduces a *contract
+type* P — a set of bodyless `fn` signatures (optionally a
+`bus { subscribe/publish ... }` surface) that form a stable ABI
+boundary. Holders program against the **slot type**
+`perspective(P)` — never a concrete impl — and dispatch through a
+single program-global, live-rebindable slot. A locus
+`L : serves P` provides the contract and can be swapped in behind
+the slot at pointer-flip cost via `reperspective`. An optional
+`stable_when { ... }` predicate feeds the (aspirational)
+transport-driven hot-load path. See
+[`semantics.md` § Perspectives](/docs/spec/semantics) for the full model
+(contract / `serves` / slot / live swap).
 
 ## Interface types (F.20)
 
@@ -195,8 +201,7 @@ following positions:
   expression of LocusRef type satisfying `I` coerces
   (added 2026-05-18). E.g. `lookup(...) or Hello { }`
   where `lookup` returns `Greeter fallible(...)`.
-- **let-binding ascription with composite type (G20,
-  2026-05-23).** `let arr: [Greeter; 2] = [Hi {}, Hey {}];`
+- **let-binding ascription with composite type (G20).** `let arr: [Greeter; 2] = [Hi {}, Hey {}];`
   coerces each element through the ascription's element type;
   same shape for `let pair: (Greeter, Greeter) = (Hi {}, Hey
   {});` and `let arr: [Greeter; 3] = [Hi {}; 3];`. The codegen
@@ -217,7 +222,7 @@ struct itself is then deep-copied into the caller's arena by
 `emit_return_value_deep_copy`. Single-element coverage is in
 `crates/hale-codegen/tests/interface_return.rs`.
 
-**Composite-construction coercion (G20, 2026-05-23).** Interface
+**Composite-construction coercion (G20).** Interface
 elements inside fixed-size arrays, array-repeat literals, and
 tuples are now coerced at the construction site when the
 destination type is known. The let-RHS with a composite
@@ -287,7 +292,7 @@ surfaces:
   at the call site. Same rule applies to user-declared fns
   and to stdlib path-calls (`std::math::sqrt(n)` with `n: Int`
   works without `2.0` literals).
-- **binary-op promotion** (B13 / G30, 2026-05-17): when exactly
+- **binary-op promotion** (B13 / G30): when exactly
   one side of a numeric binop is `Int` and the other `Float`,
   the `Int` side widens to `Float` and the op produces `Float`.
   Same rule covers comparison ops (`<`, `>=`, `==`) so
@@ -303,8 +308,40 @@ The widening is **strictly one-way**. `Float → Int` narrowing
 remains explicit (round + cast). `Decimal` never participates
 in implicit cross-type conversion. The rule was added 2026-05-11
 as part of the float-surface-gaps friction-log resolution; see
-F.23 in `spec/design-rationale.md` and the Phase 2c entry in
+F.23 in `spec/decisions.md` and the Phase 2c entry in
 `spec/stdlib.md`.
+
+#### Explicit numeric conversions
+
+Where the implicit widening above does not apply — most often a
+`Float → Int` narrowing, or an `Int → Float` conversion needed in
+the middle of an expression rather than at one of the coercion
+surfaces — there are two explicit forms, both round-toward-zero
+for the narrowing direction (LLVM `fptosi` / `sitofp`):
+
+- **The `Int(x)` / `Float(x)` casts** — the idiomatic in-language
+  form. `Int(f)` narrows a `Float` to an `Int` (truncates toward
+  zero); the cast is opt-in, so there is no silent `Float → Int`.
+- **`std::math::int_to_float(i: Int) -> Float` and
+  `std::math::float_to_int(f: Float) -> Int`** (WS3.1)
+  — the named-function spelling, callable in any expression
+  position. Semantically identical to the casts (`sitofp` /
+  `fptosi`, round-toward-zero); provided so numeric code does not
+  have to round-trip through ASCII (`to_string` + `parse_*`) and
+  so the conversions sit alongside the other `std::math` numeric
+  primitives. An already-correct-typed argument passes through
+  unchanged.
+- **`std::math::round(f: Float) -> Int` and
+  `std::math::trunc(f: Float) -> Int`** — the Float→Int
+  conversions that round at a chosen mode. `trunc` is round-
+  toward-zero (an alias of `float_to_int`); `round` is round-
+  half-away-from-zero (`3.7 → 4`, `2.5 → 3`, `-2.5 → -3`),
+  computed as `fptosi(f + copysign(0.5, f))` via a compare/select
+  half-shift (no `llvm.round` intrinsic, so the path needs no
+  libm libcall — it lowers host-free on `wasm32`). `round` is the
+  spelling numeric code wants when building an integer field from
+  a Float quantity; `Int(f)` / `float_to_int` / `trunc` all
+  truncate.
 
 ### Contract compatibility
 
@@ -349,6 +386,25 @@ For `params` / locus state, the implicit rule is that fields
 are mutable through `self.x = ...` (per F.3). The locus's
 state is the locus's mutable bundle.
 
+**Reassigning a locus-typed field is a lifecycle transition.**
+A field that holds a child locus (`params { conn: WsClient =
+WsClient { … }; }`) can be whole-value reassigned from a member
+fn (`self.conn = WsClient { … }`). Because a locus is not a plain
+value — it owns a region and possibly `@ffi`-acquired resources —
+this is lowered as **dissolve-the-old + construct-the-new**, not a
+pointer store: the previous instance is reclaimed (its `drain` /
+`dissolve` run, releasing its resources) and the new instance is
+constructed into the owning locus's arena, owned by the field (so
+the parent's dissolve cascade reclaims it). The field always
+points at a fully-live instance. (Before this rule the new
+instance was a scope-bound temporary dissolved at the method's
+exit — a use-after-free; see WS1#4.) For "same instance,
+reconfigure," prefer **in-place mutation** (`self.conn.url = …`),
+which keeps the locus's identity and resources and is cheaper.
+v1 limitation: the reassigned instance inherits the owner's pool;
+reassigning a field with an explicit non-default `placement` does
+not re-apply that placement.
+
 ## k_max as a typing rule
 
 Per F.1 / F.3: the compiler computes
@@ -363,7 +419,58 @@ runtime checks at each accept; exceeding k_max raises a
 typed `KMaxExceeded` failure handled by the parent's
 `on_failure`.)
 
+## bounded[T; N] — fixed-capacity collections in types
+
+Types are pure data, so they cannot hold a `@form(vec)` (a locus).
+`bounded[T; N]` is the type-level collection: a fixed-capacity
+counted buffer laid out inline as `{ i64 len, [N x T] }` — the
+capacity is part of the type (K made value-level, the F.22
+philosophy). Works in `type` fields and locus `params`.
+
+Operations are GRAMMAR INTRINSICS (like `len(s)`), not methods, so
+the types-have-no-methods axiom holds:
+
+```hale
+push(f, x)       -> ()  fallible(CapacityError)  // full = error;
+                                                 // displacement policy
+                                                 // lives in the or-arm
+at(f, i)         -> T   fallible(IndexError)
+set(f, i, x)     -> ()  fallible(IndexError)     // overwrite live slot
+count(f)         -> Int
+clear(f)                                          // len = 0
+truncate(f, n)   -> Int                           // len = clamp; returns it
+for x in f { }                                    // iterate live slots
+```
+
+Semantics:
+- Fields auto-initialize EMPTY. Literal init and whole-field
+  assignment are rejected — the intrinsics are the only mutation
+  surface. Whole-STRUCT copies carry elements + count by
+  construction (the storage is inline).
+- Scalar elements (Int/Float/Bool/Decimal/Duration) are flat under
+  `zero_copy` and travel the bus as raw bytes. Pointer-shaped
+  elements (String/Bytes/struct) work in-process — push/set
+  arena-anchor the element into the receiver's owning arena — but
+  are rejected in cross-process bus payloads (post-v1 polish).
+- Drop-front/FIFO is the shift-left idiom: `set` live slots down,
+  then `truncate`.
+- `CapacityError { cap: Int; count: Int }` and the shared
+  `IndexError` are the injected error shapes.
+- The unbounded-alloc analysis treats bounded fields as bounded by
+  construction. `@form(vec)` remains the unbounded, locus-owned
+  collection: unbounded data lives on a locus; bounded data can
+  live in a type.
+
 ## Generics
+
+**Generic type-expr ↔ monomorph unification:** a
+generic instantiation type-expr (`Box<Int>`) resolves at typecheck
+to its mangled monomorph name (`Box_Int`) — the same name codegen
+synthesizes and that `Box_Int { ... }` literals produce — so
+declarations and literals unify, and a `Box_String` literal in a
+`Box<Int>` slot is a caught mismatch. Monomorph literal fields
+validate against the template with the type args substituted, and
+field reads on monomorph values type as the substituted field.
 
 Generic params are declared with angle brackets:
 
@@ -407,7 +514,7 @@ is the full form. (Inference of param types from defaults is
 not supported in v0; explicit is preferred for the `inferred`-vs-
 `= default` distinction.)
 
-Three init shapes (2026-05-16):
+Three init shapes:
 
 - `name: T = expr;` — default. Used when the caller omits the
   field; evaluated in the caller's scope at instantiation time.
@@ -417,7 +524,7 @@ Three init shapes (2026-05-16):
   `Server { handler: ... }` where the handler is the whole
   reason the locus exists).
 
-  **Exception (B7 / G19, 2026-05-17):** if `T` is a user-defined
+  **Exception (B7 / G19):** if `T` is a user-defined
   `type` (struct) and every field of `T` has a declared default,
   the compiler synthesizes `T { }` as the param's default. So
   `params { cfg: Cfg; }` against `type Cfg { host: String =
@@ -427,7 +534,7 @@ Three init shapes (2026-05-16):
 - `name: T : inferred;` — F.3 inference path; compiler /
   runtime determines the value.
 
-**T may be another locus (B10 / G24, 2026-05-17).** A param
+**T may be another locus (B10 / G24).** A param
 typed as a locus name (`params { db: DB; }`) stores a `LocusRef`
 — a single-pointer borrow. The param-holding locus does **not**
 own the referenced locus; the caller keeps it alive. Cross-decl
@@ -511,12 +618,19 @@ from the `main locus`'s `placement { }` entries:
 2. Each nested locus inherits its containing tower's pool
    (see `spec/semantics.md` § "Nested instantiation"). Methods
    on a nested locus run on the parent's pool's thread.
-3. For each method-call expression `recv.foo(args)`, the
-   typechecker determines `recv`'s pool from its static type
-   and the surrounding pool context.
-4. If `recv`'s pool differs from the caller's pool, the call
-   is rejected with a diagnostic naming both pools and
-   pointing at the `placement { }` entries that picked them.
+3. For a method-call expression `self.field.foo(args)`, the
+   receiver's pool is the pool of the *field instance*,
+   inferred at the call site: the enclosing locus's own
+   `placement { }` entry for `field` if it names one (e.g. a
+   `db: pinned` field on the main locus), otherwise the field
+   co-locates with its owner (the caller's pool). The pool is a
+   property of the **instance**, not the field's type — the
+   same locus type used as a field in two loci on two pools is
+   two independent instances, one per owner, each single-pool.
+4. If the receiver instance's pool differs from the caller's
+   pool, the call is rejected with a diagnostic naming both
+   pools and pointing at the `placement { }` entries that
+   picked them.
 5. Bus sends (`Topic <- v;` / `"subj" <- v;`) are unrestricted
    — the runtime's cross-thread dispatch (m28b condvar+memcpy)
    handles the boundary safely.
@@ -564,7 +678,7 @@ the form annotation:
 | `@form(hashmap)` | single-pool only | densest layout, no sync overhead, cross-pool calls rejected |
 | `@form(hashmap, sync = serialized)` | per-map mutex (F.32-1α) | correct cross-pool; throughput bounded by lock contention |
 | `@form(hashmap, sync = striped)` | cell-level CAS + per-map rwlock for grow + cache-padded cells (F.32-1β2-v2) | parallel writers; grow path serializes; rwlock overhead can outweigh parallelism on cheap-payload workloads |
-| `@form(hashmap, sync = lockfree, cap = N)` | fixed-cap, cell-level CAS, no rwlock or mutex (F.32-1γ-v1) | highest measured throughput on the false-sharing bench; no grow, no remove in v1 |
+| `@form(hashmap, sync = lockfree)` (optional `cap = N` hint) | cell-level CAS, no rwlock or mutex on the steady-state path; `remove` via tombstones + lazy grow with a brief migration stall (F.32-1γ-v2) | highest measured throughput on the false-sharing bench |
 
 When a locus carries a recognized sync discipline, cross-
 pool method calls into it are accepted without diagnostic —
@@ -572,6 +686,18 @@ the substrate's chosen discipline carries the safety
 contract. Plain `@form(...)` (no sync kwarg) gets the same
 cross-pool diagnostic as any other locus, extended with an
 upgrade-path hint naming the sync kwargs.
+
+Because a form field's pool is its instance's (rule 3 above),
+two loci that each hold their own `@form` field of the same
+type on different pools are two **separate**, single-threaded
+structures — each accessed only by its owner's pool. Neither
+is a cross-pool access, so neither is flagged, and neither
+needs a `sync` discipline (there is no sharing to synchronize).
+The diagnostic fires only on a genuine cross-pool access —
+reaching one instance from a pool other than the one it lives
+on, e.g. a form field explicitly placed off its owner. (This
+is why two same-type form instances on two pools do **not**
+require byte-identical twin types.)
 
 Concrete shape: a `Registry @form(hashmap, sync = striped)
 of Counter indexed_by name` shared across producer pools
@@ -623,8 +749,7 @@ A function declared `-> T fallible(E)` produces a value of
 type `T fallible(E)` at every call site. This type cannot be
 used where a plain `T` is expected — the caller MUST address
 the error before the value is consumable. See
-`notes/agent-onboarding/hale-design-philosophy.md` § 2 for
-the design rationale.
+`spec/design-rationale.md` for the design rationale.
 
 **Declaration sites are restricted by the two-channel rule
 (see `spec/semantics.md` § "Fallible call semantics"
@@ -715,6 +840,39 @@ emits `error: error not addressed` at:
   a call (`or handler(err)`), making `err` a regular
   expression-position binding inside the fallback.
 
+  **Fallible handlers:** the handler may itself be
+  `fallible(E2)`. Its success value substitutes; its FAILURE
+  propagates through the ENCLOSING fn's error path — implicit
+  `or raise`, sugar for the already-legal nested spelling
+  `call() or (handler(err) or raise)`. E2 must be assignable to
+  the enclosing fn's declared payload ("handler's failure has
+  nowhere to go" / "propagated payload must match" otherwise).
+  User free fns, imported-path fns, and locus member fns are
+  classified; `@form`-synthesized methods and stdlib path-calls
+  still need the explicit nested spelling. In statement position
+  the substituted value is discarded, so the handler's success
+  type needn't match the call's.
+
+  The fallback may be a **`{ block }`** — `or { … }`, with `err`
+  in scope — for multi-statement recovery. Two cases:
+
+  - A block that **always diverges** (`return` / `fail` on every
+    path) produces no substitute value, so it imposes no
+    constraint on T and is accepted for **any** success type —
+    `let s = read_file(p) or { return "fallback"; };` where the
+    fallible's success type is `String`, `Bytes`, a struct, etc.
+    (It disposes like `or raise`: the err branch is closed and
+    only the success value reaches the continuation.)
+  - A non-diverging block substitutes its **tail expression** as
+    the fallback value, whose type must be assignable to T:
+    `let s = read_file(p) or { log(err); "default" };`.
+
+  On a **Unit-success** fallible (`() fallible(E)`, e.g.
+  `std::io::fs::write_file`), `or { block }` runs the block for
+  effect — including in **statement position**:
+  `write_file(p, s) or { println("failed"); };` — the same as
+  `or raise` / `or discard` there.
+
 The `or` operator is right-associative: `a() or b() or raise`
 parses as `a() or (b() or raise)`, so each level disposes one
 fallible in turn until a non-fallible value remains.
@@ -749,7 +907,7 @@ type with the same name wins.
 | `@form(ring_buffer)` | `EmptyError` | `kind: String` |
 | `std::io::fs::*` / `std::io::tcp::*` | `IoError` | `kind: String`, `errno: Int`, `path: String` |
 
-The `IoError` payload (2026-05-16) is the unified shape for the
+The `IoError` payload is the unified shape for the
 fallible I/O surface — see `spec/stdlib.md` § "IoError" for the
 errno → kind tag taxonomy.
 
@@ -795,7 +953,7 @@ static fallbacks 32 KB / 512 KB / 8 MB apply on non-Linux or
 when sysfs is unavailable. See `hale_types::working_set` for
 the engine.
 
-**Per-locus annotation** (F.32-2 v0.2, 2026-05-25):
+**Per-locus annotation** (F.32-2 v0.2):
 
 `@locality(L1)` / `@locality(L2)` / `@locality(L3)` declare
 a per-locus cache-tier expectation. `@locality(any)`
@@ -854,25 +1012,9 @@ the working_set module doc for the full list):
   surface in `WorkingSetEstimate::unbounded_slots` rather
   than contributing zero silently.
 
-## What's deferred
-
-Per `notes/open-questions.md` and design-rationale §16:
-
-- **Trait system.** No `trait` keyword in v0 (reserved). The
-  structural `interface` form (F.20) ships as the v1 interface
-  mechanism — both Phase A (typecheck) and Phase B (codegen
-  vtable dispatch) landed 2026-05-11. Full traits with `impl I
-  for L` declarations and generic bounds remain deferred.
-- **Refinement types** (e.g., `int where x > 0`). Deferred.
-- **Effect / capability system.** Substrate-derivation tracking
-  is currently runtime-enforced via closure tests; future
-  version may move into type system as effects.
-- **Async / await.** Reserved keywords; no v0 typing.
-- **Macros.** Reserved keyword; no v0 typing.
-- **Sum-type-typed `self.children`** for multi-accept-type loci.
-  v0 is single-accept-type only (F.11).
-- **Projection-class-annotated translation impls** (per F.14
-  follow-on). Deferred until forced by an example.
+> Forward-looking / deferred items for this area now live in the
+> decision log — see [`decisions.md` § Deferred & future
+> work](/docs/spec/decisions#deferred--future-work).
 
 ## Verification responsibilities
 
