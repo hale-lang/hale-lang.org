@@ -1,14 +1,18 @@
 # Build the Astro site and deploy to GitHub Pages (hale-lang.org).
 #
-# The docs content under src/content/docs is synced from the hale
-# repo by scripts/sync-docs.mjs and CHECKED IN — CI only builds.
-# After a docs/spec change in hale, run the sync locally and commit.
+# The docs are NOT authored here: every build checks out hale-lang/hale
+# and syncs the Book (docs/src) + spec into the content collection, and
+# regenerates the agent context packs. hale is the single source of
+# truth; this site can never drift more than one deploy behind it.
+# The hourly cron picks up hale-side docs changes without a site push.
 name: deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
 
 permissions:
   contents: read
@@ -24,11 +28,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: hale-lang/hale
+          path: _hale
+      - uses: actions/checkout@v4
+        with:
+          repository: hale-lang/pond
+          path: _pond
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node scripts/sync-docs.mjs _hale
+      - run: bash scripts/build-agent-assets.sh _hale/spec _pond
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
