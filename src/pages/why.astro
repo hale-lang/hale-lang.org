@@ -39,12 +39,15 @@ import Base from '../layouts/Base.astro';
       deploy it at whatever scale the moment needs.
     </p>
 
-    <h2>Fluent for humans and LLMs</h2>
+    <h2>The principles, compiled</h2>
     <p>
-      ASCII source, names instead of symbols, explicit commitments, and a compiler
-      that turns a model's hallucinated field into a hard error make Hale unusually
-      writable by AI assistants — verifiably, not on faith. See
-      <a href="/agents">Hale for agents</a>.
+      The design canon — encapsulation, actor isolation, CQRS, bounded contexts,
+      dependency direction — keeps re-describing the same structure: isolated
+      state in a recursive graph, joined by typed messages. Hale is that structure
+      as a language, which is why breaking a principle here is a compile error
+      rather than a review comment. (A pleasant corollary: a surface this explicit
+      is verifiably writable by AI assistants too — see
+      <a href="/agents">Hale for agents</a>.)
     </p>
 
     <hr/>

@@ -78,8 +78,8 @@ const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', '
         <p class="lede">
           Hale is a general-purpose language built on one idea — the
           <strong>locus</strong> — with Erlang-style supervision, memory freed by
-          structure (no GC, no borrow checker), and a surface written fluently by
-          humans and LLMs.
+          structure (no GC, no borrow checker), and a compiler that enforces the
+          design principles we've always carried as conventions.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/docs/getting-started/install">Get started</a>
@@ -180,16 +180,18 @@ const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', '
         </div>
       </div>
       <div class="copy">
-        <p class="eyebrow">pillar 4 — fluent for humans and LLMs</p>
-        <h3 style="font-size:1.5rem;">Written well by people and models.</h3>
+        <p class="eyebrow">pillar 4 — design you can't drift from</p>
+        <h3 style="font-size:1.5rem;">Good design, enforced.</h3>
         <p>
-          ASCII source, names not symbols, explicit named commitments, a bounded
-          pattern catalog — and a compiler that turns a model's hallucinated field
-          into a <strong>hard error</strong>, not a silent bug. It's already how
-          real Hale systems get built: a short rules doc, a living friction log,
-          and the compiler as the oracle.
+          Encapsulation. Actor isolation. CQRS. Aggregates, bounded contexts,
+          dependency direction. The principles we've carried for decades — in
+          books, in review comments — keep describing one underlying shape: a
+          recursive graph of isolated state joined by typed messages. Hale makes
+          that shape the language itself, so breaking a principle isn't a style
+          nit — it's a <strong>compile error</strong>, like the CQRS violation
+          on the left.
         </p>
-        <a href="/agents">Hale for agents →</a>
+        <a href="/docs/verification">What the compiler checks →</a>
       </div>
     </div>
   </section>
@@ -199,12 +201,13 @@ const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', '
     <div class="band">
       <div class="split">
         <div>
-          <p class="eyebrow" style="color:var(--jade-deep);">built to be written by models, too</p>
-          <h2>Your assistant writes Hale — and the compiler checks it.</h2>
+          <p class="eyebrow" style="color:var(--jade-deep);">tooling</p>
+          <h2>Bring your editor — or your assistant.</h2>
           <p>
-            Hale ships an LLM context pack, agent rules files, and an MCP server so
-            your assistant can write <em>and compile</em> Hale in-loop, with a type
-            checker that catches the mistakes models actually make.
+            <code>hale check</code> answers in ~10&nbsp;ms; the LSP wires it into
+            any editor, and an MCP server + context pack give coding assistants
+            the same loop. Either way the compiler is the oracle — it says
+            precisely what's wrong, whoever the author is.
           </p>
           <div class="hero-actions" style="margin-bottom:0;">
             <a class="btn btn-primary" href="/agents#context-pack">Context pack</a>
