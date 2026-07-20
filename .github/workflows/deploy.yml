@@ -3,16 +3,14 @@
 # The docs are NOT authored here: every build checks out hale-lang/hale
 # and syncs the Book (docs/src) + spec into the content collection, and
 # regenerates the agent context packs. hale is the single source of
-# truth; this site can never drift more than one deploy behind it.
-# The hourly cron picks up hale-side docs changes without a site push.
+# truth. hale's site-deploy workflow dispatches this one whenever a
+# docs-bearing push lands there, so the site tracks the repo push-to-push.
 name: deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '17 * * * *'
 
 permissions:
   contents: read
