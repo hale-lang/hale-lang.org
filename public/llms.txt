@@ -15,7 +15,7 @@
 
 ## For agents and LLMs
 
-- [Hale for agents](https://hale-lang.org/agents): the rules-doc + friction-log + compiler-oracle workflow.
+- [Hale for agents](https://hale-lang.org/agents): the rules-doc + compiler-oracle workflow.
 - [Context pack](https://hale-lang.org/hale-context.txt): single-file spec + styleguide + gotchas, tuned for context windows.
 - [llms-full.txt](https://hale-lang.org/llms-full.txt): the concatenated documentation corpus.
 
