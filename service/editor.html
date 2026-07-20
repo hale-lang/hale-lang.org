@@ -101,50 +101,39 @@ const $ed = document.getElementById("ed");
 const $hl = document.getElementById("hl");
 
 const SAMPLE = `// Hale in one file: the locus is the only primitive — one unit
-// of state, concurrency, and memory. Children nest inside their
-// parent's region; when a locus dissolves, its whole subtree of
-// memory goes with it. No GC, no manual free.
+// of state, concurrency, and memory. Loci never share state;
+// they talk over a typed bus the compiler checks (publishing
+// to a topic nothing receives is a compile error).
 
 type Reading {
     sensor: String;
     value: Int;
 }
 
-locus Sensor {
-    params {
-        name: String = "";
-        scale: Int = 1;
+locus Producer {
+    bus {
+        publish "station.readings" of type Reading;
     }
 
-    contract {
-        expose name: String;
-        expose scale: Int;
+    run() {
+        "station.readings" <- Reading { sensor: "thermal", value: 41 };
+        "station.readings" <- Reading { sensor: "pressure", value: 0 };
+        "station.readings" <- Reading { sensor: "thermal", value: 43 };
     }
 }
 
+// Owns the state. Handlers are atomic: one message at a time
+// per locus, guaranteed by the runtime — no locks, no races.
 locus Station {
     params {
         total: Int = 0;
     }
 
-    contract {
-        consume name: String;
-        consume scale: Int;
+    bus {
+        subscribe "station.readings" as on_reading of type Reading;
     }
 
-    // accept() runs once per child attached to this locus.
-    accept(s: Sensor) {
-        println("station: sensor '", s.name, "' online (x", s.scale, ")");
-    }
-
-    run() {
-        // Instantiating inside a lifecycle method attaches the
-        // child to *self* — structure is ownership is memory.
-        Sensor { name: "thermal", scale: 2 };
-        Sensor { name: "pressure", scale: 10 };
-    }
-
-    fn record(r: Reading) {
+    fn on_reading(r: Reading) {
         self.total = self.total + r.value;
         match r.value {
             0 -> println("station: ", r.sensor, " -> flat, total ", self.total),
@@ -153,17 +142,30 @@ locus Station {
     }
 }
 
+main locus App {
+    params {
+        station: Station = Station { };
+        producer: Producer = Producer { };
+    }
+
+    // Placement is a deployment decision, made here — not in
+    // the loci. On a native build, uncommenting this gives the
+    // producer its own OS thread, and the bus carries each
+    // Reading across the thread boundary as a typed message.
+    // (This browser build is single-threaded wasm, so here
+    // everything runs cooperatively on one scheduler.)
+    //
+    // placement {
+    //     producer: pinned;
+    // }
+
+    run() {
+        println("app: station + producer up");
+    }
+}
+
 fn main() {
-    let station = Station { };
-
-    station.record(Reading { sensor: "thermal", value: 41 });
-    station.record(Reading { sensor: "pressure", value: 0 });
-
-    // Fallible calls are explicit at the call site: \`or\` names
-    // the fallback — no exceptions, no hidden control flow.
-    let n = std::str::parse_int("17") or 0;
-    let bad = std::str::parse_int("not a number") or -1;
-    println("parsed ", n, ", fallback ", bad);
+    App { };
 }`;
 
 // --- share via URL hash (no backend): #c=<base64(source)> ---
