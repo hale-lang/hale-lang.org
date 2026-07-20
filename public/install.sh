@@ -85,4 +85,4 @@ case ":${PATH}:" in
 esac
 
 say ""
-say 'Try it:  printf '\''fn main() { print("hale, world") }'\'' > hello.hl && hale run hello.hl'
+say 'Try it:  printf '\''fn main() { println("hale, world"); }'\'' > hello.hl && hale run hello.hl'
