@@ -110,18 +110,6 @@ type Reading {
     value: Int;
 }
 
-locus Producer {
-    bus {
-        publish "station.readings" of type Reading;
-    }
-
-    run() {
-        "station.readings" <- Reading { sensor: "thermal", value: 41 };
-        "station.readings" <- Reading { sensor: "pressure", value: 0 };
-        "station.readings" <- Reading { sensor: "thermal", value: 43 };
-    }
-}
-
 // Owns the state. Handlers are atomic: one message at a time
 // per locus, guaranteed by the runtime — no locks, no races.
 locus Station {
@@ -129,8 +117,17 @@ locus Station {
         total: Int = 0;
     }
 
+    contract {
+        expose total: Int;
+    }
+
     bus {
         subscribe "station.readings" as on_reading of type Reading;
+    }
+
+    // birth() runs once, at instantiation.
+    birth() {
+        println("station: online");
     }
 
     fn on_reading(r: Reading) {
@@ -142,30 +139,34 @@ locus Station {
     }
 }
 
-main locus App {
-    params {
-        station: Station = Station { };
-        producer: Producer = Producer { };
+locus Producer {
+    bus {
+        publish "station.readings" of type Reading;
     }
 
-    // Placement is a deployment decision, made here — not in
-    // the loci. On a native build, uncommenting this gives the
-    // producer its own OS thread, and the bus carries each
-    // Reading across the thread boundary as a typed message.
-    // (This browser build is single-threaded wasm, so here
-    // everything runs cooperatively on one scheduler.)
-    //
-    // placement {
-    //     producer: pinned;
-    // }
-
+    // run() is the locus's own activity; it starts when the
+    // locus does. On a native build, \`placement\` in a main
+    // locus can pin this to its own OS thread — the bus then
+    // carries each Reading across the thread boundary. This
+    // browser build is single-threaded wasm, so everything
+    // runs cooperatively on one scheduler.
     run() {
-        println("app: station + producer up");
+        "station.readings" <- Reading { sensor: "thermal", value: 41 };
+        "station.readings" <- Reading { sensor: "pressure", value: 0 };
+        "station.readings" <- Reading { sensor: "thermal", value: 43 };
     }
 }
 
 fn main() {
-    App { };
+    println("main: creating the station");
+    let station = Station { };
+
+    println("main: starting the producer");
+    Producer { };
+
+    // Read the station's state back through its contract:
+    // three readings arrived, one at a time, no locks taken.
+    println("main: station total = ", station.total);
 }`;
 
 // --- share via URL hash (no backend): #c=<base64(source)> ---
