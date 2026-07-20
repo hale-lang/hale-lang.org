@@ -162,10 +162,45 @@ fn cors_headers() -> String {
          + "Access-Control-Allow-Headers: Content-Type";
 }
 
+// Read one whole HTTP request. Browsers routinely deliver the header
+// block and the body in separate TCP segments (curl usually doesn't,
+// which is how a single-recv version survived testing), so keep
+// receiving until the \r\n\r\n terminator has arrived and the body
+// covers Content-Length. EOF / timeout / errors return what we have —
+// parse_request downstream turns garbage into a 400.
+fn read_request(s: std::io::tcp::Stream) -> String {
+    let mut raw = s.recv(recv_cap()) or "";
+    let mut rounds = 0;
+    while len(raw) < recv_cap() && rounds < 64 {
+        rounds = rounds + 1;
+        let hdr_end = std::str::index_of(raw, "\r\n\r\n");
+        if hdr_end < 0 {
+            let more = s.recv(recv_cap()) or "";
+            if len(more) == 0 { return raw; }
+            raw = raw + more;
+            continue;
+        }
+        // Header block complete — how much body was promised?
+        let mut clen = 0;
+        let lower = std::str::lower(std::str::substring(raw, 0, hdr_end));
+        let cl_at = std::str::index_of(lower, "content-length:");
+        if cl_at >= 0 {
+            let line_end = std::str::index_of(std::str::substring(lower, cl_at, hdr_end), "\r\n");
+            let mut val_end = hdr_end;
+            if line_end >= 0 { val_end = cl_at + line_end; }
+            let val = std::str::trim(std::str::substring(raw, cl_at + 15, val_end));
+            clen = std::str::parse_int(val) or 0;
+        }
+        if len(raw) - (hdr_end + 4) >= clen { return raw; }
+        let more = s.recv(recv_cap()) or "";
+        if len(more) == 0 { return raw; }
+        raw = raw + more;
+    }
+    return raw;
+}
+
 fn handle_request(s: std::io::tcp::Stream) {
-    // EOF / recv-timeout come back empty (routed to the 400 below);
-    // genuine socket errors also fold into the same close-early path.
-    let raw = s.recv(recv_cap()) or "";
+    let raw = read_request(s);
     let req = std::http::parse_request(raw);
 
     if req.method == "" {
