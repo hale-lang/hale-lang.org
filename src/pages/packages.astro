@@ -5,20 +5,17 @@ const tiers = [
     ['_util/*', 'intfloat, decimal_float, duration_int, kvpack, rowbuf — shared primitives'],
   ]],
   ['Tier 0 — infrastructure', [
-    ['http/client', 'HTTP/1.1 client with pool + retry'],
-    ['crypto', 'HMAC-SHA256, SHA-256, CSPRNG, hex'],
-    ['subprocess', 'fork/exec with pipes + timeout'],
+    ['crypto', 'HMAC-SHA256, SHA-256, ECDSA P-256, CSPRNG, hex'],
+    ['subprocess', 'fork/exec with pipes, timeout, try_wait + signal'],
     ['math/matrix · math/stats', 'dense matrix, matmul, online moments'],
   ]],
   ['Tier 1 — data + web', [
     ['db', 'backend-neutral DbDriver interface (Go database/sql shape)'],
     ['pq', 'Postgres driver — pgwire v3 over TCP, + pool'],
-    ['sqlite', 'SQLite adapter (BLOCKED on a std primitive)'],
-    ['router', 'HTTP router with path params + middleware'],
+    ['sqlite', 'SQLite driver via @ffi — prepared statements + rows'],
     ['sessions · jobs · migrations', 'cookie sessions, job queue, schema runner'],
   ]],
   ['Tier 2 — observability', [
-    ['metrics', 'Prometheus exposition: counter / gauge / histogram'],
     ['tracing', 'span tree mirroring the locus tower'],
     ['logfmt · supervisor', 'structured log sinks, restart strategies'],
   ]],
@@ -44,6 +41,14 @@ const tiers = [
       <span class="sigil">$</span><span class="cmd">hale fetch</span>
     </div>
     <p class="muted" style="font-size:0.9rem;">Vendoring is the v1 dependency primitive — pin a git ref, vendor the source.</p>
+
+    <div class="callout" style="margin-top:1.25rem;">
+      <strong>Graduated to the stdlib:</strong> the HTTP client, the router, and
+      metrics were promoted out of pond — they now ship as
+      <code>std::http</code> (client + <code>Router</code>) and
+      <code>std::metrics</code>, no import needed. pond keeps tracking copies;
+      new code should use the stdlib.
+    </div>
 
     {tiers.map(([h, libs]) => (
       <div style="margin-top:2rem;">

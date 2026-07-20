@@ -29,18 +29,11 @@ const mechanisms = [
       plus verifiability, demonstrated by how real Hale systems already ship.
     </p>
 
-    <h2>The method</h2>
+    <h2>Rules files</h2>
     <p>
-      Sophisticated Hale isn't written by pasting a model into a void. It's a
-      three-part loop, and the website ships each piece as a reusable artifact.
-    </p>
-
-    <h3>1 · A short load-bearing rules doc</h3>
-    <p>
-      A handful of project-level rules the agent reads <em>before writing any
-      locus</em> — the two-channel discipline, the six-pattern catalog, the
-      gotchas. Drop one into your project (a future <code>hale init --agent</code>
-      will scaffold it for you):
+      A short, load-bearing rules doc the agent reads <em>before writing any
+      locus</em> — the two-channel discipline, the pattern catalog, the
+      gotchas. Drop one into your project:
     </p>
     <p>
       <a class="btn btn-ghost" href="/agent/AGENTS.md" download>AGENTS.md</a>
@@ -48,14 +41,7 @@ const mechanisms = [
       <a class="btn btn-ghost" href="/agent/.cursorrules" download>.cursorrules</a>
     </p>
 
-    <h3>2 · Project notes the agent maintains</h3>
-    <p>
-      A running notes file the agent reads and <strong>appends to</strong> when it
-      hits a wall, so a project accumulates hard-won lessons instead of
-      re-learning them each session — the notes are the project's memory.
-    </p>
-
-    <h3 id="mcp">3 · The compiler as the oracle</h3>
+    <h3 id="mcp">The compiler as the oracle</h3>
     <p>
       <code>hale check</code> over the <strong>MCP server</strong> returns
       structured diagnostics, so the model writes → compiles → reads the error →
