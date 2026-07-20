@@ -8,8 +8,8 @@
 // browser instantiates and runs it in its own sandbox. Untrusted code is
 // only ever *compiled* server-side, never executed.
 //
-// Dogfooding: the service is itself a Hale program (same posture as the
-// fathom/Causality servers), built on the std HTTP/TCP/process/fs/crypto
+// Dogfooding: the service is itself a Hale program (same posture as
+// the Causality servers), built on the std HTTP/TCP/process/fs/crypto
 // substrate.
 //
 // Routes:

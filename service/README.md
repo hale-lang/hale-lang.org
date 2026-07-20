@@ -8,7 +8,7 @@ source to `wasm32` and hands the wasm back; the browser instantiates and runs it
 its own sandbox. **Untrusted code is only ever compiled server-side, never executed.**
 
 Dogfooding: the service is itself a Hale program (`main.hl`), built on the std
-HTTP/TCP/process/fs/crypto substrate — same posture as the fathom/Causality servers.
+HTTP/TCP/process/fs/crypto substrate — same posture as the Causality servers.
 
 ## Files
 
