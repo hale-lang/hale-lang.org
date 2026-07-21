@@ -6,7 +6,10 @@
 //
 // Injects Starlight frontmatter (title from the first H1, then strips it)
 // and rewrites in-repo markdown links to site paths (or GitHub for
-// non-doc files). Idempotent.
+// non-doc files). Also generates the Starlight sidebar from the Book's
+// SUMMARY.md (src/generated/book-sidebar.json, read by astro.config.mjs)
+// so the site nav tracks the Book's chapters without hand-editing.
+// Idempotent.
 //
 // Usage: node scripts/sync-docs.mjs [hale-repo-dir]
 import { readFile, writeFile, readdir, mkdir, rm, stat } from 'node:fs/promises';
@@ -70,11 +73,42 @@ async function walk(dir, base = dir) {
   return out;
 }
 
+// SUMMARY.md → Starlight sidebar groups. Part headers (`# Getting started`)
+// open a group; the unheaded list after the `---` rule becomes "Reference";
+// the prefix chapter (Introduction) is folded into the first group, matching
+// the old hand-written sidebar. Labels come from SUMMARY, so the site nav
+// reads exactly like the Book's.
+async function buildSidebar(bookFiles) {
+  const raw = await readFile(join(BOOK, 'SUMMARY.md'), 'utf8');
+  const groups = [];
+  const prefix = [];
+  const inNav = new Set();
+  let current = null;
+  for (const line of raw.split('\n')) {
+    const h = line.match(/^#\s+(.+)$/);
+    if (h) {
+      if (h[1].trim() !== 'Summary') groups.push(current = { label: h[1].trim(), items: [] });
+      continue;
+    }
+    if (/^-{3,}\s*$/.test(line)) { groups.push(current = { label: 'Reference', items: [] }); continue; }
+    const m = line.match(/^\s*(?:-\s*)?\[([^\]]+)\]\(\.\/(.+?)\.md\)\s*$/);
+    if (!m) continue;
+    const [, label, rel] = m;
+    inNav.add(rel + '.md');
+    const item = { label, slug: rel === 'introduction' ? 'docs' : 'docs/' + rel };
+    (current ? current.items : prefix).push(item);
+  }
+  if (groups.length) groups[0].items.unshift(...prefix);
+  const orphans = bookFiles.filter((f) => !inNav.has(f));
+  if (orphans.length) console.log(`note: synced but not in SUMMARY.md (reachable by URL only): ${orphans.join(', ')}`);
+  return groups;
+}
+
 async function main() {
   await rm(DEST, { recursive: true, force: true });
 
   // ---- the Book → /docs/* ----
-  let nBook = 0;
+  const bookRels = [];
   for (const f of await walk(BOOK)) {
     const rel = f.slice(BOOK.length + 1);                 // e.g. basics/values.md
     const repoPath = 'docs/src/' + rel;
@@ -82,8 +116,14 @@ async function main() {
       ? join(DEST, 'index.md')
       : join(DEST, rel);
     await convert(f, repoPath, dest);
-    nBook++;
+    bookRels.push(rel);
   }
+  const nBook = bookRels.length;
+
+  // ---- SUMMARY.md → the sidebar ----
+  const sidebar = await buildSidebar(bookRels);
+  await mkdir('src/generated', { recursive: true });
+  await writeFile('src/generated/book-sidebar.json', JSON.stringify(sidebar, null, 2) + '\n');
 
   // ---- the Spec → /docs/spec/* ----
   let nSpec = 0;
@@ -94,7 +134,7 @@ async function main() {
     nSpec++;
   }
 
-  console.log(`synced ${nBook} book page(s) → /docs/* and ${nSpec} spec page(s) → /docs/spec/*`);
+  console.log(`synced ${nBook} book page(s) → /docs/* and ${nSpec} spec page(s) → /docs/spec/*; sidebar: ${sidebar.length} group(s)`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
