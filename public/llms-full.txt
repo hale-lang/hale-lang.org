@@ -4,7 +4,7 @@ HALE — full documentation corpus (llms-full.txt)
 
 The complete Hale language specification, concatenated for machine consumption.
 
-Generated 2026-07-20 from the Hale language specification. The authoritative source is
+Generated 2026-07-31 from the Hale language specification. The authoritative source is
 the compiler repository. When in doubt, run `hale check` — the compiler is the
 oracle.
 
@@ -396,6 +396,8 @@ a rolled one — log the friction, don't ship the invention.
 Each rule is tagged with its enforcement status:
 **[error]** the compiler rejects it, **[warn]** the compiler
 warns by default, **[@hot]** checked only inside `@hot` fns,
+**[@effects]** checked when the fn declares the matching effect
+assertion (`@effects(none: {…})` or its `@no_*` sugar),
 **[convention]** nothing checks it — the guide is the enforcement.
 
 ### C1. Value ownership on assignment — trust it, know the edges
@@ -728,9 +730,10 @@ is regression-tested. **[convention]**
 
 ## 5. The enforcement ladder
 
-The compiler backs this guide in four tiers. Everything default
-is advisory or genuinely-broken-only; strictness is opt-in where
-you certify a path.
+The compiler backs this guide in tiers. Everything default is
+advisory or genuinely-broken-only; strictness is opt-in where you
+certify a path — plus one tier you get for free because your
+*placement* already declared the intent.
 
 | Tier | Check | Status |
 |---|---|---|
@@ -738,6 +741,8 @@ you certify a path.
 | **warn** (default) | unbounded-alloc survey (self-escaping allocs in unbounded contexts; retirement-aware since v0.11.3); subscription nothing publishes to; locus/builder in a loop **or bus handler**; allocating recv in a loop; blocking call on a cooperative pool (interprocedural); accept-without-release on a daemon | advisory |
 | **@hot** (opt-in) | all of the above as errors within the fn; `snapshot()`/`finish()` in a loop; whole-struct self-field replace | errors in certified fns |
 | **@budget** (opt-in) | `alloc_per_call = N` counted transitively; `N=0` zero-alloc certificate | build fails on violation |
+| **@effects** (opt-in) | `@effects(none: {syscall, block, time, entropy, env, ffi, publish, spawn, recursion})` / `@effects(publish: {T})`, and the `@no_*` / `@deterministic` sugar — checked transitively; diagnostics carry the call chain to the offending leaf | build fails on violation |
+| **placement-implied** (automatic) | a handler on a `cooperative(pool = X) where async_io` locus that reaches a blocking call — the placement *is* the assertion, so no annotation is needed; writing `@no_block` upgrades it to an enforced error | advisory |
 | **fmt** (CI gate) | `hale fmt --check` — canonical mechanical form (§2, "Canonical form"); exit 1 lists offenders | gate in CI; `hale fmt` fixes |
 | escape hatches | `@unbounded` (fn or lifecycle hook) acknowledges intentional accumulation; `--allow-unowned-subscriber`; `--no-warn-unbounded-alloc` | |
 
@@ -1811,13 +1816,87 @@ main locus App {
 }
 ```
 
+**The publish contract (GH #227, 2026-07-22).** `T <- value`
+succeeding means *the broker accepted the message*; what
+"accepted" obligates the broker to is defined per binding, and
+the broker may never accept a message it already knows it cannot
+handle under that binding's guarantee. Per binding:
+
+| Binding            | "Accepted" means                                                        |
+|--------------------|-------------------------------------------------------------------------|
+| none (in-process)  | dispatched to every born subscriber in this binary                      |
+| `unix(...)`        | handed to the peer connection, message boundaries preserved             |
+| `udp://...`        | handed to the local IP stack; lossy from there **by declaration**       |
+| `shm_ring(...)`    | slot claimed + committed, under the declared `on_overflow` policy       |
+| adapter locus      | whatever the adapter's own contract says (it owns delivery)             |
+
+This contract is what lets `<-` be an infallible statement: the
+error channel isn't missing, it's relocated to where it can be
+acted on. Consequences, all normative:
+
+- **Binding realization failure is a birth failure of the
+  declaring locus.** A `bindings { }` entry (or
+  `LOTUS_BUS_CONFIG` route) whose transport cannot be opened —
+  socket/bind/listen/addr failure, connect-retry timeout,
+  unparseable route — refuses the boot. There is no code path
+  where a binding fails to open and subsequent publishes report
+  success. Bindings live on the `main` locus, whose parent is
+  the root, so the unhandled default is the root failure shape:
+  the structural diagnostic on stderr + non-zero exit (the same
+  seat `lotus_root_panic` occupies; routing through a main-locus
+  `on_failure` is the planned extension of that seat). The
+  runtime primitive is `lotus_bus_binding_fail(subject, url)`.
+  Listener-side realization is synchronous at registration
+  (socket + bind + listen; UDP: parse + bind + group join) —
+  only the blocking accept / recv loop runs on the reader
+  thread, so a dead binding can never fail invisibly on a
+  detached thread.
+- **Per-send transient errors on a lossy transport are not
+  structural.** A UDP `sendto` failure is logged (once per errno
+  class), not fatal: the binding's guarantee is best-effort by
+  declaration, so downstream loss is within contract.
+- **Peer EOF on a listen binding is not loss.** The listener is
+  still bound; the serve loop re-arms and accepts the next peer
+  (GH #233 step 2), so rolling restarts of connect-side
+  binaries work without policy.
+- **Connect-side loss is structural, with reconnection as
+  supervision policy (GH #233 steps 3–4).** A send failure on a
+  source-declared connect binding marks the entry *lost*
+  (fanout skips it — publishes during the window are dropped,
+  never falsely "delivered") and queues a loss event dispatched
+  on the owner thread at the next queue drain. Default: the
+  structural exit, diagnostic naming the subject. Handled: the
+  main locus declares
+  `on_failure(t: std::bus::UnixTransport, err: ClosureViolation)`
+  — the handler receives a synthetic `link_lost` violation, and
+  `restart (t);` re-runs the connect-with-retry; on success the
+  binding resumes, on failure (or a handler that declines) the
+  structural exit fires. Reconnection is a supervision decision,
+  not a transport feature. `LOTUS_BUS_CONFIG` connect routes sit
+  outside the supervision tree (no locus to route through) and
+  keep logged-only send failures.
+- **Malformed `LOTUS_BUS_CONFIG` lines stay warn-and-skip**
+  (the file is an operator-layered override and the diagnostic
+  names the line); a well-formed line whose route cannot be
+  *opened* fails the boot like a `bindings { }` entry.
+
 Transport surface:
 
 - `unix("/path")` or `unix("/path", role: connect|listen)` —
-  AF_UNIX framed-byte transport. Substrate-provided: the
-  runtime's `lotus_transport_*` owns the delivery contract
-  directly. `role: listen` spawns a reader thread that fans
-  recv'd payloads into the local handler set; `role: connect`
+  AF_UNIX framed-byte transport. Substrate-provided as a
+  **locus** (GH #233 / F.37): the entry is sugar that
+  instantiates `__StdBusUnixListenTransport` /
+  `__StdBusUnixConnectTransport` (stdlib `bus.hl`) as a
+  cooperative child of the main locus, converging with the
+  adapter path. `birth()` realizes the transport synchronously
+  on the boot path (so a dead binding fails the boot, per the
+  publish contract above); the listen side's birth spawns the C
+  serve thread, whose loop accepts a peer, fans recv'd payloads
+  into the local handler set, and **re-arms on peer EOF**
+  (closes the dead connection and accepts the next peer — a
+  restarted connect-side binary reconnects without the
+  subscriber noticing); `dissolve()` interrupts + joins the
+  serve thread and destroys the transport. `role: connect`
   opens a write-side transport that publish-site dispatch sends
   to. When `role:` is omitted, the typechecker infers it from
   the bus block (`publish` only → connect, `subscribe` only →
@@ -3740,7 +3819,7 @@ document tells you what's *meaningfully* valid.
 | `String` | ptr (NUL-terminated) | UTF-8 bytes, C-style NUL-terminated. Single-pointer ABI to fit return-by-value through the m49 calling convention. Embedded NUL truncates — use `Bytes` for binary content. Allocated in the caller's arena (or the lazy global payload arena for stdlib returns whose lifetime needs to outlive the call). |
 | `Bool` | i1 | `true` / `false` |
 | `Time` | ptr (string-shaped, v0) | v0 codegen stores `Time` as a pointer to the literal's source-spelling String — a placeholder shape that the typechecker keeps distinct from `String`. Real `i64`-since-epoch lowering deferred. |
-| `Duration` | i64 | Nanoseconds. Suffix literals (`5s`, `100ms`). |
+| `Duration` | i64 | Nanoseconds. Suffix literals (`5s`, `100ms`). Arithmetic: `Duration ± Duration → Duration`; scalar scale `Int * Duration` (either order) and `Duration / Int` produce `Duration` (Crumb batch-3, 2026-07-28 — the runtime-computed-delay shape, `ms * 1ms`). `Duration * / % Duration` is a type error (ns² / dimensionless ratio have no unit-sane meaning; the diagnostic points at the scalar forms). |
 | `Bytes` (m89) | ptr → `[i64 len][u8 data[len]]` | Binary-safe. Single-pointer ABI like String, but the underlying blob carries an explicit length prefix so embedded NUL bytes don't truncate. `len(b)` reads the prefix. Distinct from `String` at the type level; the typechecker keeps them apart. Operations: `std::io::fs::read_bytes` (m89), `Stream.send_bytes` (m89), `Stream.recv_bytes` (Phase 2g; both `fallible(IoError)` since #209), `std::bytes::at` / `std::bytes::slice` / `std::bytes::from_string` (Phase 2g), `std::str::from_bytes` for the inverse direction (Phase 2g). |
 | `BytesView` (F.30) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value; SysV AMD64 returns in `rax`/`rdx`) | Non-owning view over a `BytesBuilder`'s buffer. Returned by `BytesBuilder.view()`. `src` is the builder pointer; `epoch` snapshots the builder's `mutation_epoch`. The underlying Bytes-shaped data pointer (`buf - 8`) is *recomputed* at read time by `lotus_bytes_view_data`, so the view itself doesn't allocate or carry the data pointer. Coerces implicitly to `Bytes` at function-argument READ positions (e.g. `std::bytes::at(view, i)`, `len(view)`, user-defined fallible-fn args, self/external/interface method args, monomorphized-generic args); codegen emits a call to `lotus_bytes_view_data` which checks the stamped epoch against the builder's live epoch, panics on mismatch (F.30b mutation-while-view-live guard), and returns the recomputed data ptr on the OK path. Rejected at `Bytes`-typed storage sites — callers wanting owned storage must `std::bytes::clone(view)` for a deep-copy into the caller's arena. Storage typed `BytesView` is allowed; a `String` / `Bytes` literal at a `BytesView`/`StringView` storage default is wrapped via `lotus_view_from_static_data` with `epoch == LOTUS_VIEW_EPOCH_STATIC = -1` — the unpack helper sees the static sentinel and returns `src` directly without an epoch check (the literal lives in the global string table at program-lifetime, so there's no source builder to check against). 2026-05-22 PM: ABI compacted from a 24-byte heap-allocated struct to this 16-byte by-value shape; no arena allocation per `view()` call. |
 | `StringView` (F.30) | `lotus_view_t { src: ptr, epoch: i64 }` (16 bytes, by-value) | Non-owning view over a `BytesBuilder`'s NUL-terminated buffer. Returned by `BytesBuilder.text_view()`. Symmetric companion to `BytesView`: same layout, same epoch guard, same static sentinel. Coerces to `String` at read sites via `lotus_str_view_data` (which recomputes the C-string pointer as `b->buf` — the `buf[len] == '\0'` invariant maintained by every mutating op makes this well-formed); rejected at `String`-typed storage; `std::str::clone(view)` upgrades to owned. |
@@ -6385,10 +6464,41 @@ the model: runtime is automatic; stdlib is explicit.
   hang). Together these let a program whose `main` run() returns
   while a classic-pool server child is live shut down cleanly
   rather than hanging or segfaulting.
-- **Recovery primitives.** `restart`, `restart_in_place`,
-  `quarantine`, `reorganize`, `bubble`, `dissolve`, `drain` —
-  all language keywords; runtime implements the actual
-  effects.
+- **Teardown delivery contract (GH #253, 2026-07-27).** A
+  dissolving parent joins its own **pinned** children — mailbox
+  shutdown, `pthread_join`, then a bus drain — BEFORE cascading
+  its field children's drain/dissolve, and the fn-exit flush
+  likewise joins subscription-less pinned entries before any
+  cooperative entry's teardown. Consequence: events a pinned
+  worker publishes in its final moments (up to `run()` return)
+  are **delivered** to sibling subscribers, in any declaration
+  order — a parent whose `run()` returns immediately no longer
+  silently drops its workers' last publishes (the hale-bun
+  install-fanout shape). This is the pinned mirror of the
+  pool-worker join rule above, and it also closes the lifetime
+  hazard of destroying the owner's arena (which holds the pinned
+  children's self structs) while their threads still ran. What
+  still drops, by contract: a publish made **after** its last
+  subscriber has dissolved — e.g. from a pool-placed publisher
+  whose queued work outlives the process teardown, or from a
+  `dissolve()` body publishing to a subscriber that tore down
+  earlier in the same cascade. Those cells are discarded via the
+  deregister-on-dissolve invariant (never dispatched to freed
+  memory); `LOTUS_BUS_LOG_DROP=1` surfaces them. A workload that
+  must not lose such events coordinates completion explicitly
+  ("exit when done" — poll a tally / await a completion event)
+  rather than relying on teardown ordering. **Deferred-path
+  completion (Crumb batch-4, 2026-07-28):** the contract holds
+  regardless of which teardown path the parent takes. Previously a
+  bus subscription on the main locus made it long-lived → deferred,
+  and the deferred flush processed the parent (cascading its
+  subscriber fields) BEFORE joining its own pinned children — the
+  exact inversion the contract forbids, triggered by the one-line
+  addition of a `subscribe` on the root, dropping every in-flight
+  result silently. A deferred parent's own pinned entries are now
+  re-ordered after its own frame entry, so the reverse-order flush
+  joins + drains them while every subscriber field is alive —
+  identical semantics to the eager path.
 - **Recovery primitives.** `restart`, `restart_in_place`,
   `quarantine`, `reorganize`, `bubble`, `dissolve`, `drain` —
   all language keywords; runtime implements the actual
@@ -6830,6 +6940,21 @@ inside the locus is unchanged — `recv_bytes(stream)` reads the
 same line of source whether the pool is `async_io` or not; the
 substrate picks the right lowering at the syscall boundary.
 
+**One worker thread per named cooperative pool — a promise, not
+an implementation detail** (Crumb batch-3, 2026-07-28). Every
+named cooperative pool (`async_io` or classic) has exactly one
+OS worker thread for the lifetime of the program. Consequences a
+consumer may depend on: every `run()`, bus handler, and parked-
+coro resume for loci on the pool executes on that one thread
+(coroutines interleave on it; they never migrate), so a
+thread-affine C library — a JS engine, SQLite in serialized
+mode, a GUI toolkit — placed on a named pool is entered from a
+single thread by construction, and `@export` re-entry from
+foreign code called on that thread stays on it. Concurrency
+within a pool is cooperative only. If a scale-out mechanism ever
+lands, it will be a new opt-in placement form; `cooperative(pool
+= name)` keeps the single-worker guarantee.
+
 Because parking yields the shared worker, N reader loci that each
 park on their own fd — the F.35 one-reader-per-signal shape —
 are serviced concurrently by a single pool. Two invariants make
@@ -6845,7 +6970,12 @@ arena the sibling has since torn down. Every blocking-recv
 primitive on the pool honors invariant (1) by parking rather than
 blocking `recvfrom`/`read` (the `std::io::udp` recv family joined
 the `tcp`/`tls` siblings here in the 2026-07-15 downstream
-handoff).
+handoff, and `std::time::sleep` joined them 2026-07-28 (Crumb
+batch-5) via a timer-only park — a deadline with no fd, serviced
+by the same expiry sweep — so sleeping coros overlap on one
+worker and a `sleep` inside a handler never blocks the pool; the
+timer half of an event loop now costs what the design always
+claimed).
 
 Each bus delivery to a subscriber on an `async_io` pool runs its
 handler on a coroutine (a struct + a 64 KiB stack). Rather than
@@ -7173,6 +7303,75 @@ optimization that elides bus dispatch for unambiguous
 intra-locus and single-hop parent→child tower patterns when no
 binding is declared.
 
+**Binding realization failure (GH #227) + transports-as-loci
+(GH #233 steps 1–2, 2026-07-22).** Source-level
+`bindings { T: unix(...) }` entries are sugar: codegen
+instantiates a stdlib transport locus
+(`__StdBusUnixListenTransport` / `__StdBusUnixConnectTransport`,
+`runtime/stdlib/bus.hl`) as a cooperative child at the main
+prelude — converging with the adapter path. The locus is the
+control plane; the data plane stays in C:
+
+- `birth()` calls `lotus_bus_transport_realize(subject, path,
+  role)` synchronously on the boot path (unix `socket + bind +
+  listen` via `lotus_transport_listener_create` for listen,
+  connect-with-retry for connect). Realization failure routes
+  into `lotus_bus_binding_fail(subject, url)` — the
+  structural-failure shape (stderr diagnostic + `exit(1)`), the
+  same seat as `lotus_root_panic`. The listen locus's birth then
+  spawns the serve thread (`lotus_bus_transport_spawn_server`).
+  The transport loci are deliberately NOT pinned: a pinned locus
+  runs birth on its spawned thread, which would make realization
+  asynchronous; the serve thread belongs to the C data plane.
+- The serve loop (`lotus_bus_unix_serve`) accepts a peer,
+  dispatches its messages, and on peer EOF **re-arms** — closes
+  the dead connection and loops back into `accept()` for the
+  next peer (GH #233 step 2; peer EOF is not connection loss,
+  and a rolling restart of the connect-side binary just works).
+- `dissolve()` calls `lotus_bus_transport_reclaim`: sets the
+  serve loop's `closing` flag, shuts down both fds to unblock a
+  parked accept/recv, joins the serve thread, destroys the
+  transport. The husk entry stays in the remote table for
+  `lotus_bus_remote_destroy_all` to free uniformly.
+
+Publish fanout is untouched — realized entries land in the same
+`g_bus_remote_entries` table the fanout walks.
+
+**Connection-loss supervision (GH #233 steps 3–4).** Publish
+fanout marks a locus-served connect entry `lost` on send
+failure (skipping it thereafter — down-window publishes drop,
+never falsely succeed) and pushes it onto a mutex'd pending
+list (`lotus_bus_transport_mark_lost`). The top of
+`lotus_bus_queue_drain` — owner thread, the only place failure
+handlers may run — drains the list
+(`lotus_bus_drain_lost_transports`): each handle goes to the
+codegen-registered dispatcher (`lotus_bus_set_loss_handler`,
+emitted only when main declares the matching `on_failure`) or
+straight to the structural exit
+(`lotus_bus_transport_lost_fallback`). The dispatcher invokes
+`main.on_failure(main_self, transport_self, link_lost_violation)`
+and, when the handler bumped `__restart_count` via
+`restart (t)`, calls `lotus_bus_transport_reconnect` (re-runs
+connect-with-retry against the entry's stored path; success
+clears `lost`). Codegen support: `lotus.main.self` global
+(stored at main-locus instantiation),
+`lotus_bus_transport_bind_self` (entry ↔ locus self, emitted
+after each connect instantiation).
+
+Env-configured routes (`LOTUS_BUS_CONFIG`) have no source-level
+declaration to hang a locus on and keep the direct C path:
+`lotus_bus_register_remote(subject, url, role)` returns an i32
+status (0 ok / -1 unrealizable — scheme/addr validation,
+socket/bind/listen, connect-retry timeout, thread spawn), with
+listener-side work done synchronously at registration (udp:
+parse + bind + multicast join via
+`lotus_bus_udp_listener_setup`). On failure the entry is popped
+(no dead slot for fanout to silently skip) and
+`lotus_bus_load_config` routes into `lotus_bus_binding_fail`.
+Config-route unix listeners share `lotus_bus_unix_serve`, so
+they re-arm identically. Normative contract: spec/semantics.md,
+"The publish contract".
+
 **Adapter dispatch.** At codegen, an adapter binding
 instantiates the adapter locus into the program-lifetime
 payload arena (same m90 routing the `-> LocusRef(L)` return
@@ -7197,6 +7396,48 @@ bytes, and fans into local subscribers via
 `lotus_bus_local_dispatch`. Symmetric to the unix reader-
 thread path; out-of-band recv loops (any code holding wire
 bytes for a bound subject) can use this too.
+
+**SPSC observation ring (GH #244).** A single-producer
+fixed-slot ring over CALLER-PROVIDED memory, exposed as lotus
+primitives (`lotus_spsc_init` / `_emit` / `_note_drop` /
+`_set_tag_b` / `_read`) and the raw all-Int Hale surface
+`std::ring::__spsc_*`. Built for observation planes (the iris
+observer attaches to these rings inside an shm segment,
+read-only, from a foreign process), so the layout is a STABLE
+documented contract:
+
+- Descriptor, 64 B, 64-aligned, caller-placed: `u64 data_off`
+  (slot array offset from the segment base), `u64 head`
+  (producer cursor — monotonic, never wraps, published with a
+  release store; slot index is `head & (ring_slots-1)`,
+  ring_slots a power of two), `u64 dropped` (producer-side drop
+  accounting; the ring itself never blocks — overwrite-oldest by
+  construction), `u32 tag_a`, `u32 tag_b` (user tags; tag_b has
+  a relaxed-store setter for gauge use), 32 B reserved (zero).
+- Slots: `ring_slots × 16 B`, two u64 words, written plain
+  after a RELEASE FENCE and before the head release-store. The
+  fence pairs with an acquire fence on the read side (below) —
+  the Boehm seqlock recipe. Without the pair, a relaxed slot
+  load may observe a future record while the h2 re-read returns
+  a stale head, delivering a mixed record past the discard;
+  GenMC exhibits it (the stress soak cannot — TSO masks it).
+- Read side (any process, no Hale runtime required): snapshot
+  h1 (acquire) → copy `[cursor, min(h1, cursor+max))` →
+  ACQUIRE FENCE → re-read h2 (acquire) → discard records with
+  index `<= h2 - ring_slots`
+  and count them as overruns. The `<=` is load-bearing: the
+  producer's in-flight (unpublished) write for record `h` is
+  already clobbering slot index `h - ring_slots`, so the live
+  window given a published head `h` is `(h - ring_slots, h]`.
+  Verified concurrently in `tests/spsc_driver.c` and modeled in
+  `verification/spsc_ring_model.c` (which also refutes the
+  strict-`<` boundary).
+
+Consumer cursors and overrun counters live OUTSIDE the shared
+segment (caller-owned); external readers never write the ring.
+This ring is the convergence target for iris's observation
+protocol (its PROTOCOL.md pre-freeze sketch is this layout with
+`tag_a`/`tag_b` as `sched_id`/`current_locus`).
 
 **SHM ring substrate (Form K5).** POSIX shared-
 memory ring backing the zero-copy bus route. Six C primitives in
@@ -7378,6 +7619,179 @@ zero_copy binding produces.
   enclosing `fallible` frame triggers `lotus_root_panic` —
   the runtime's only value-error escape valve. See
   `spec/semantics.md` § "Process exit".
+
+### Native observation emission (iris P4, 2026-07-27)
+
+With `LOTUS_OBS=1` the runtime publishes an iris-protocol
+observation segment (`/hale-obs-<pid>` + registration file per
+PROTOCOL v0.1 — the contract lives in the iris-observer repo;
+layouts mirrored from its reference implementation) and the
+runtime's own choke points emit records: `BUS_PUBLISH` /
+`BUS_DELIVER` at every dispatch flavor (dynamic, static-devirt,
+cross-thread wire; deliver is enqueue-time at v0),
+`NET_SEND` / `NET_DELIVER` at the transport fanout/reader with
+per-binding monotonic seqs (what iris seq-matches into
+cross-process edges), `LOCUS_BIRTH` / `LOCUS_DISSOLVE` (both
+cooperative and pinned lifecycle paths; dissolve rides the
+`emit_locus_arena_destroy` chokepoint) and `RESTART` at
+reconnect. Cost contract: env unset = one predictable branch
+per probe (`g_obs_state`); enabled-but-unobserved
+(`observer_count == 0`) = counters only, no ring writes; ring
+emission is SPSC via the #247 primitive with one ring per
+emitting thread (TLS assignment; overflow threads count into
+`ring_drops_total`). On the observer-count 0→1 rising edge the
+live-locus table replays as `LOCUS_BIRTH` records so a
+late-attaching observer reconstructs the tree. Knobs:
+`LOTUS_OBS_RINGS` (default 8), `LOTUS_OBS_SLOTS` (default
+4096), `LOTUS_OBS_WIRE` (default off — see NET seq semantics:
+`LOTUS_OBS` alone never alters the wire; the cross-process edge
+header rides the wire only when the operator opts the whole fleet
+in with `LOTUS_OBS_WIRE=1`). v0 notes: manifest ids are registration-order; publisher
+locus attribution on BUS_PUBLISH is unattributed (0); pinned
+births render parent=root. `lotus_obs.c` is its own TU; the
+arena TU's probes are weak-guarded so helper binaries compiling
+`lotus_arena.c` alone  still link.
+
+Field-hardening (iris handoff 2, 2026-07-27, v0.11.13): NET_SEND
+now fires on the UDP multicast fanout path (it `continue`s before
+the stream-transport probe, so multicast publishers emitted only
+deliver-side records — the seq matcher had nothing to pair);
+LOCUS_BIRTH is emitted BEFORE a locus's field-default init and
+carries real parentage (the parent registers before its children
+look it up — post-birth placement rendered every tree flat), and
+pinned children register on the spawning thread so a park before
+their first probe doesn't hide them; BUS_PUBLISH stamps the
+publishing locus from a codegen-set TLS (the C dispatch doesn't
+know `self`); topic shape_hash is `fnv(subject, canonical payload
+structure)` — field names + coarse type tags in declared order,
+never the declaring type's local name — so two binaries sharing a
+subject fuse into one manifest row; and each ring re-emits EPOCH
+every 1024 records so a high-rate ring that wraps its anchor never
+reconstructs timestamps from a stale base (the ~2^64 ns readings).
+
+NET seq semantics (iris handoff 3, v0.11.14): `NET_SEND` and
+`NET_DELIVER` carry `w1 = origin:16 | seq:48` where **origin is
+the SENDER's per-process identity and seq is the SENDER's
+per-binding counter** — the receiver echoes both verbatim from
+the wire, so a send and its delivers pair on `(origin, seq)`
+across segments (the cross-process edge). Before this, the
+receiver stamped its LOCAL delivery counter, which sums across
+senders on a multicast subject — the send seq never equalled the
+deliver seq and iris rendered zero edges. (Stream transports are
+unicast — one sender per connection — so origin 0 + the framed
+wire seq already pairs correctly.)
+
+Edge-emission correctness (iris handoff 4, v0.11.15):
+
+- **The record id field IS the topic id** for `NET_SEND` /
+  `NET_DELIVER` (as for the bus records) — it is the consumer's
+  join key onto the fused topic row. It was hardcoded 0, so no
+  NET event could be associated with any topic and edges were
+  structurally impossible regardless of `(origin, seq)`. The
+  probe now resolves the id from the subject (in hand at every
+  emit site); the per-binding counter line still keys off the
+  binding id.
+- **The published counter is never attribution-gated.** Counters
+  are the dormant-mode contract (enabled-but-unobserved = counters
+  only), so a genuine publish counts even when its locus can't be
+  attributed. handoff-3 gated the counter (and record) behind a
+  positive publisher-TLS that a cross-pool or free-fn publish never
+  set, zeroing the fleet's published counter. Inbound wire
+  re-dispatch is now excluded by NEGATIVE marking instead: the
+  reader brackets its re-dispatch (`lotus_obs_begin/end_redispatch`)
+  and the publish probe consumes the mark; genuine publishes are the
+  unmarked default and always count, with best-effort locus
+  attribution (0 when unknown). The keyed dispatch flavors, which
+  had no publish/deliver probe at all, now emit both.
+- **`LOTUS_OBS` never alters the wire.** The `(origin, seq)` edge
+  identity is a wire change a pre-header receiver cannot parse — an
+  observed sender would silently drop every datagram at a stale
+  peer, partitioning a mixed-version fleet invisibly. So the UDP
+  self-describing header (`[u64 magic][u64 origin|seq]`) and the
+  framed-transport origin word ride the wire ONLY when the operator
+  opts in with `LOTUS_OBS_WIRE=1`; with `LOTUS_OBS` alone the wire
+  is byte-for-byte identical to an unobserved run. Cross-process
+  edges therefore require `LOTUS_OBS_WIRE=1` fleet-wide; counters
+  and local records need only `LOTUS_OBS=1`. The receiver always
+  peels a header it recognizes (self-describing), so old→new and
+  unobserved peers are unaffected either way.
+
+Flavor completeness + quiet-process replay (iris handoff 5,
+v0.11.18):
+
+- **The fully-devirtualized direct dispatch now carries probes.**
+  The single-quiet-subscriber same-thread flavor (the
+  `static_direct` bucket walk with the handler baked as a direct
+  call, and its multi-handler C sibling) emitted NO probes at all —
+  a subject on that path never registered its topic, counted
+  nothing, and produced no BUS records. Both direct flavors now
+  publish once + deliver per matched target like every other
+  flavor. Dormant cost is preserved by the `lotus_obs_live` gate:
+  codegen checks the flag ONCE per function entry (the flag is
+  final before any user publish can run — obs resolves at the
+  first probe, always a locus birth), so LLVM hoists the branch
+  and an unobserved publish loop is instruction-identical to the
+  probe-free lowering. The same per-fn check now also gates the
+  publisher-attribution TLS note.
+- **Observer attach no longer needs probe traffic.** The 0→1
+  birth replay was driven from inside probes, so a probe-quiet
+  process (a main parked in a read loop with pinned raw-fd
+  readers; hot paths on the direct flavor) never noticed an
+  observer and stayed silent — segment registered, zero records.
+  When `LOTUS_OBS=1`, a detached heartbeat thread drives the
+  replay check every 250ms under the obs lock (teardown takes the
+  same lock around the unmap, so the heartbeat never races it);
+  replay latency after attach is bounded at ~250ms even for a
+  process that never probes again.
+
+BUS record w1 layout (iris handoff 7, v0.11.21): `BUS_PUBLISH` /
+`BUS_DELIVER` pack `w1 = locus:20 (bits 44..63) | seq:44 (low)` —
+PROTOCOL §8, executable reference `iris emitter/protocol.h`
+(`obs_bus_w1`). The emitter had these fields transposed (locus
+low, seq shifted) since handoff-3; attribution was computed
+correctly and packed unreadably, and the contract tests stayed
+green because they decoded with the emitter's own layout. The
+tests now vendor protocol.h's decode, so emitter and consumers
+cannot disagree silently.
+
+Adapter ingest completeness (iris handoff 8, v0.11.22): the
+Hale-owned-wire ingest (`std::bus::__local_dispatch` →
+`lotus_bus_dispatch_wire_inbound`) now carries the full probe trio
+the C reader threads have. The wrapper peels the self-describing
+obs wire header when the producer emitted one (magic-guarded — a
+headerless or non-Hale producer is byte-for-byte unaffected, and
+headered bytes reaching a Hale adapter previously failed
+deserialization outright), emits `NET_DELIVER` echoing the wire
+`(origin, seq)` (or `(0, local per-subject seq)` when headerless —
+countable, not pairable), and the plain `dispatch_wire` fanout
+gains the per-target `BUS_DELIVER` its keyed sibling received in
+v0.11.18. Adapter bindings register lazily in the manifest
+(`aux = 2`). Dynamically-ingested planes now form producer→consumer
+edges and attribute subscriber loci exactly like statically
+configured listens.
+
+Attribution ordering + the adapter inbound path (iris handoff 6,
+v0.11.20):
+
+- **`lotus_obs_live` is resolved in a constructor**, before
+  `main`. The fn-entry gate hoist's soundness argument requires
+  the flag to be final before ANY function entry — previously it
+  was set at the first probe (a locus birth inside main's body),
+  so a publish lowered into `fn main` itself would snapshot a
+  stale dormant flag forever. Constructor resolution makes the
+  flag genuinely process-constant. The field-shaped ordering case
+  (publishers deep in steady-state loops, observer attaching much
+  later) is pinned in `obs_fleet_contract.rs`.
+- **`std::bus::__local_dispatch` (the adapter-inbound ingest) is
+  redispatch-MARKED.** An adapter locus dispatching received wire
+  bytes is a delivery, exactly like the reader-thread path — the
+  unmarked entry stamped a spurious `locus=0` BUS_PUBLISH per
+  inbound message and inflated the published counter, so a fleet
+  ingesting via the std adapter surface read as "everything
+  publishes unattributed." Lowers to
+  `lotus_bus_dispatch_wire_inbound`, which brackets the dispatch
+  with the P15 negative marking. Per-subscriber BUS_DELIVER and
+  the topic registration are unchanged.
 
 ### Time
 
@@ -7964,6 +8378,8 @@ the runtime quiet.
 | `LOTUS_BUS_LOG_UNMATCHED=1` | Surfaces silent no-key-match drops in `lotus_bus_local_dispatch_keyed` (Phase 3 routing keys). When set, each publish that matches no `where key == ...` subscriber for the topic emits a single stderr line citing subject, key, and the per-topic subscriber counts (specific vs unkeyed). Off by default — the silent-drop is correct for `on_unmatched: swallow` topics in steady state, but during bring-up the lack of any signal is load-bearing on debug cycles. Implied by `LOTUS_BUS_LOG_DROP=1`. |
 | `LOTUS_BUS_LOG_DESERIALIZE_DROP=1` | Surfaces silent drops in the udp:// reader thread when (a) no deserializer is registered for the inbound subject, or (b) the deserializer returns `<= 0` (size mismatch, bounded-read failure). Emits one stderr line per drop naming the subject, the payload size, and (when applicable) the deserializer's return value. Off by default; the silent-skip on cross-routed multicast noise is the correct steady-state behavior. Same env-gated pattern as `LOTUS_BUS_LOG_UNMATCHED` for keyed-dispatch misses. Implied by `LOTUS_BUS_LOG_DROP=1`. |
 | `LOTUS_BUS_QUEUE_CAP=<N>` | Caps the cooperative bus dispatch queue, each per-pinned-locus mailbox, and each cooperative pool's queue at `N` cells (default 8192; floor 64; rounded up to a power of two; read once). **v0.9.0 footprint change:** the pinned mailbox and cooperative-pool queues are now lock-free MPSC rings (Vyukov bounded ring + signal-only-when-parked wake), and a fixed-size lock-free ring **pre-allocates its cap up front** rather than growing to it — so each pinned subscriber mailbox and each cooperative pool now costs ~4.3 MB resident at the default cap (vs the prior grow-as-needed). With the typical handful of pinned loci / pools this is a few-to-low-tens of MB; **lower `LOTUS_BUS_QUEUE_CAP` for pinned-/pool-heavy programs** to shrink it (the rings honor it identically). When a producer hits the cap it *back-pressures* instead of growing without bound (GH #125) — every message is still delivered. The mechanism: a **single-threaded** producer on the cooperative queue **inline-drains** it to free space; a **cross-thread** producer to a full ring **blocks** (a fenced producers-waiting handshake) until the single consumer drains a slot; a handler self-publishing to its own full ring spills to a consumer-thread-local overflow list (it can't block on itself). The cross-*cooperative*-pool *shared* queue path (multiple drainers, no single consumer) is the remaining non-lock-free path — a follow-on. Lower the cap to tighten the bound / footprint; raise it to reduce drain bursts at the cost of resident memory. |
+| `LOTUS_UNIX_STREAM=1` | GH #231: forces the unix bus transport into framed `SOCK_STREAM` mode on Linux (the Darwin default — macOS has no AF_UNIX `SOCK_SEQPACKET`). Wire format per message: `[u64 LE payload len][u64 LE seq][payload]`; the seq is per-connection monotonic from 1, reset per accepted peer, and the receiver counts gaps (`seq_gaps` counter — GH #236's loss-computability primitive). Set for EVERY process on a socket: framed and SEQPACKET ends don't interoperate (a mismatch trips the 8 MB length sanity cap with a diagnostic naming the likely cause). Primary use: Linux CI/test coverage of the macOS code path. |
+| `LOTUS_BUS_COUNTERS_DUMP=1` | GH #236 (observability groundwork): prints one stderr line per remote binding at teardown — `[bus counters] subject=... kind=... role=... sent= delivered= bytes_sent= bytes_delivered= send_failures= dropped_lost= waits= rearms= reconnects=`. The counters are plain relaxed atomics bumped at the transport choke points (fanout send, serve-loop dispatch, re-arm, reconnect) and exist as the substrate for the iris observer; the dump is the operator/test surface until an in-process consumer ships. `dropped_lost` counts publishes made while a connect binding was in the lost/reconnecting window (GH #233 — drops the publish contract makes deliberate and visible). `waits` counts publishes that parked in `or wait` through that window instead (GH #255 phase 1). Socket-buffer occupancy is intentionally not a counter: it's a poll-time `SIOCOUTQ` query against the live fd. |
 | `LOTUS_BUS_LOG_DROP=1` | Broad superset for diagnosing "publish appears to succeed but handler doesn't fire" symptoms. Implies `LOTUS_BUS_LOG_UNMATCHED` + `LOTUS_BUS_LOG_DESERIALIZE_DROP` AND covers additional silent-drop sites the narrower vars miss: `lotus_bus_dispatch`'s serialize-fn-returns-<=0 case, the local-fanout (`lotus_bus_dispatch_wire` + `lotus_bus_local_dispatch`) zero-matching-subscribers case, per-entry deserialize-returns-<=0 on the local-fanout path, and the no-post-target case (mailbox / coop_pool / global queue all NULL on a matched entry). Each line names the call site, subject, and relevant size / index info so a bus-heavy repro can identify exactly which silent-skip is firing. Reach for this first when investigating bus-drop friction; the narrower vars stay supported for their specific bring-up scenarios. |
 
 Every top-level arena is created via `lotus_arena_create_labeled(name)` and carries an immutable human-readable label string. The codegen passes the locus name (e.g. `WsClient`, `__lib_metrics_metrics_MetricMap`); the program-wide global is labeled `lotus.arena.global`; `g_bus_payload_arena` labels itself. The label is the load-bearing identifier in the residency dump; backtraces resolve via `-rdynamic` for cases where the label alone isn't enough.
@@ -8401,6 +8817,23 @@ appending new elements uses `push`.
 ```hale
 vec.set(0, new_first) or raise;
 vec.set(i, x)         or noop(err);   # swallow OOB
+```
+
+> **Replaced-element reclamation (iris handoff P1, 2026-07-27).**
+> Vec elements are pointer-storage: each `set` deep-copies the new
+> value into the form owner's arena. The REPLACED element (and its
+> non-surviving String fields, with aliasing dedup — the hashmap
+> retire-cell discipline) now retires onto the arena's reuse
+> freelist immediately, and the deep-copy allocation consults that
+> freelist — steady-state `set` churn ping-pongs between reused
+> blocks instead of growing the arena (~33 B/set and a
+> progressively slower containment walk, pre-fix). Single-owner
+> caveat: a value obtained from `.get` is invalidated by a later
+> `set` to the same slot — holding a get result across a mutation
+> of its slot is out of contract (the same single-owner rule the
+> hashmap forms document).
+
+```hale,fragment
 ```
 
 ### `pop`
@@ -10039,8 +10472,12 @@ annotations are not in v1.
   Rust String invariant would UTF-8-encode them as two bytes
   and surprise the caller. No `\u{NNNN}` Unicode escape at
   v1; agents needing non-ASCII drop to byte literals.
-- Raw strings: `r"..."` — no escape processing.
-- Multi-line strings: `"""..."""`.
+- Raw strings (`r"..."`) and multi-line strings
+  (`"""..."""`) are NOT implemented — the lexer rejects both
+  (verified 2026-07-22, GH #228 docs-drift audit; both were
+  previously listed here aspirationally). Byte literals +
+  f-strings cover the practical cases; add these forms to the
+  lexer before re-documenting them.
 - F-strings (v1.x-10): `f"hello {name}"` — interpolates Hale
   expressions inside `{...}`, each rendered via the same
   formatter `println` uses. `{{` and `}}` are literal braces.
@@ -10133,6 +10570,36 @@ lexer errors if encountered outside a string or comment:
 
 (Backticks are reserved for time literals only; bare backslash
 outside a string literal is illegal.)
+
+
+## Annotation inventory
+
+Annotations are `@`-prefixed contextual idents (never reserved
+words), so a program may still use these names as identifiers.
+They attach to the declaration that follows.
+
+| annotation | attaches to | meaning |
+|---|---|---|
+| `@ffi("c")` | free fn | external C-ABI binding |
+| `@export` | fn / locus | WASM module export; persistent singleton |
+| `@form(kind)` | locus | storage form (vec / hashmap / ring_buffer / lru_cache) |
+| `@locality(tier)` | locus | placement locality tier |
+| `@bounded` | locus | opt into the memory-bound proof |
+| `@unbounded` | fn | acknowledge intentional unbounded allocation |
+| `@hot` | fn | certify a hot path (promotes advisories to errors) |
+| `@budget(alloc_per_call = N, stack_bytes = N, block_points = N, publish = N, fanout = N)` | fn | quantitative budgets, comma-separated |
+| `@effects(none: {…})` | fn | forbid effect classes, checked transitively |
+| `@phase_effects(phase: {…}, …)` | locus | per-lifecycle-phase effect contract |
+| `@effects(causes: {…})` | fn | effect classes this fn may cause via bus edges |
+| `@supervised` | locus | every locus in the subtree has a failure policy |
+| `@secret` | fn param | the value must not reach a publish or log/file sink |
+| `@effects(publish: {…})` | fn | the allowed publish set |
+| `@no_syscall` `@no_block` `@no_ffi` `@no_publish` `@no_spawn` `@no_recursion` `@deterministic` | fn | sugar for the `@effects(none: …)` forms |
+| `@no_panic` | fn | no reachable trap (disposition coverage — a different analysis) |
+
+Effect annotations stack with each other and with `@hot` /
+`@budget(...)`; see `spec/verification.md` for what each class
+means and where its truth comes from.
 
 ================================================================================
 ## Operator precedence and associativity
@@ -11077,27 +11544,29 @@ surface without touching the compiler.
 
 | Namespace | Surface | Source |
 |---|---|---|
-| `std::process` | `pid() -> Int`, `exit(code: Int)`, `rss_bytes() -> Int`, `dump_arena_residency() -> Int` (no-op unless `LOTUS_ARENA_RESIDENCY=1`; writes per-arena residency snapshot to stderr), `dump_pool_residency() -> Int` (F.35, 2026-05-28; writes one stderr line per cooperative pool — name, async_io vs blocking mode, parked-coro count, pending cell-queue depth — for ops embedding in heartbeat ticks), `run(argv) -> ProcessOutput fallible(IoError)`, `spawn` / `wait` / `kill` / `write_stdin` / `read_stdout` / `read_stderr` over `Child`. **`try_wait(c) -> Int fallible(IoError)`** (2026-07-17) — non-blocking reap via `waitpid(WNOHANG)`: `-2` = still running (the retryable sentinel shape `recv_into` uses; poll again), `0..255` = exited, `-1` = killed by a signal; ECHILD (already reaped) surfaces `kind="not_found"`. The supervisor idiom: a periodic tick polls `try_wait` per child without ever parking its pool — closes the styleguide §7 "daemons can't non-blocking-reap" gap. **`signal(c, sig) -> () fallible(IoError)`** (promoted from pond/subprocess) — arbitrary POSIX signal to the child's pid (15=TERM, 9=KILL, 1=HUP, …); the TERM→KILL escalation remains `kill`'s job; ESRCH surfaces `kind="not_found"` (usually benign post-exit — `or discard`). Both honor the manual-`Child` convention: `pid <= 0` answers exited-with-0 / no-ops. | path-call dispatch + C primitives |
+| `std::process` | `pid() -> Int`, `exit(code: Int)`, `rss_bytes() -> Int`, `dump_arena_residency() -> Int` (no-op unless `LOTUS_ARENA_RESIDENCY=1`; writes per-arena residency snapshot to stderr), `dump_pool_residency() -> Int` (F.35, 2026-05-28; writes one stderr line per cooperative pool — name, async_io vs blocking mode, parked-coro count, pending cell-queue depth — for ops embedding in heartbeat ticks), `run(argv) -> ProcessOutput fallible(IoError)`, `spawn` / `wait` / `kill` / `write_stdin` / `read_stdout` / `read_stderr` over `Child`. argv is **newline-separated**, not shell-split; when run/spawn fails ENOENT and argv[0] contains a space, the IoError's `path` label carries a hint naming that mistake (2026-07-27, hale-bun handoff item 4) instead of reading as "binary not on PATH". **`try_wait(c) -> Int fallible(IoError)`** (2026-07-17) — non-blocking reap via `waitpid(WNOHANG)`: `-2` = still running (the retryable sentinel shape `recv_into` uses; poll again), `0..255` = exited, `-1` = killed by a signal; ECHILD (already reaped) surfaces `kind="not_found"`. The supervisor idiom: a periodic tick polls `try_wait` per child without ever parking its pool — closes the styleguide §7 "daemons can't non-blocking-reap" gap. **`signal(c, sig) -> () fallible(IoError)`** (promoted from pond/subprocess) — arbitrary POSIX signal to the child's pid (15=TERM, 9=KILL, 1=HUP, …); the TERM→KILL escalation remains `kill`'s job; ESRCH surfaces `kind="not_found"` (usually benign post-exit — `or discard`). Both honor the manual-`Child` convention: `pid <= 0` answers exited-with-0 / no-ops. | path-call dispatch + C primitives |
 | `std::env` | `args_count()`, `arg(i)`, `arg_or(i, default)`, `var(name)`, `var_exists(name)` | path-call dispatch + main-prelude argv stash |
 | `std::cli` | `Resolver` locus — layered config resolution with precedence **CLI argv > env var > fallback**. Params: `env_prefix: String = "HALE_"` (each `get(key, …)` looks up `<prefix><UPPER(key)>` in the process env — `prefix="HALE_"`, `key="dir"` → `HALE_DIR`) and `argv_keys: String = ""` (newline-separated positional keys — first line maps to `argv[1]`, second to `argv[2]`, …; a blank line doesn't shift positions; a key absent from `argv_keys` skips the CLI layer). Methods: `get(key, fallback) -> String` (the highest *populated* layer wins; empty/unset at a layer falls through) and `get_int(key, fallback) -> Int` (same precedence; a non-parseable value falls through to `fallback` rather than crash). No birth/run/dissolve lifecycle — the params *are* the configuration, so re-prefixing the Resolver retargets it without touching the body. | `runtime/stdlib/cli.hl` |
-| `std::time` | `monotonic() -> Duration`, `monotonic_ns() -> Int`, `sleep(d: Duration)`, `now() -> Int`, `time_from_unix(n: Int) -> Time` | `clock_gettime` + EINTR-retrying `clock_nanosleep`; `sleep` slices the request into ≤100ms intervals and folds in a cooperative bus drain after each slice, so a long keep-alive sleep doesn't starve main-pool handlers (see `spec/runtime.md` § "`time::sleep` drain semantics"); `now()` is `CLOCK_REALTIME`; `time_from_unix` formats `gmtime_r` + `strftime` ISO 8601 UTC |
-| `std::decimal` | `to_float(d: Decimal) -> Float` | Direct i128 → f64 conversion at scale 9 (`mantissa × 10^-9`) — skips an ASCII round-trip |
+| `std::time` | `monotonic() -> Duration`, `monotonic_ns() -> Int`, `sleep(d: Duration)`, `now() -> Int`, `time_from_unix(n: Int) -> Time` | `clock_gettime` + EINTR-retrying `clock_nanosleep`; **on a `where async_io` pool `sleep` PARKS the coroutine on a deadline** (timer-only park, no fd — Crumb batch-5, 2026-07-28), yielding the shared worker so N sleeping coros overlap instead of serializing and a sleeping handler never holds the pool against unrelated work; off async pools `sleep` slices the request into ≤100ms intervals and folds in a cooperative bus drain after each slice, so a long keep-alive sleep doesn't starve main-pool handlers (see `spec/runtime.md` § "`time::sleep` drain semantics"); `now()` is `CLOCK_REALTIME`; `time_from_unix` formats `gmtime_r` + `strftime` ISO 8601 UTC |
+| `std::decimal` | `to_float(d: Decimal) -> Float` `format(d: Decimal, places: Int) -> String` (GH #230, 2026-07-22): render with exactly `places` fraction digits (0..=9 clamped), round half-up — the fixed-places money-display surface; default printing still trims trailing zeros (declared precision is not stored in the scale-9 repr). | Direct i128 → f64 conversion at scale 9 (`mantissa × 10^-9`) — skips an ASCII round-trip |
 | `std::str` | `parse_int(s) -> Int fallible(ParseError)`, `parse_float(s) -> Float fallible(ParseError)`, `parse_decimal(s) -> Decimal fallible(ParseError)`; predicate siblings `can_parse_int` / `can_parse_float` (`can_parse_decimal` is NOT dispatched — listed here historically; implement or drop, tracked in notes/typecheck-m3.md); range-bounded variants `range_eq(json, start, end_exclusive, expected) -> Bool` / `range_parse_int(json, start, end_exclusive) -> Int fallible(ParseError)` / `range_parse_decimal(json, start, end_exclusive) -> Decimal fallible(ParseError)` (2026-05-26 — operate on byte ranges within an existing `String` without materializing a substring, paired with `std::json::iter_find_*_range` for allocation-free JSON walks); `byte_at_unchecked(s, i) -> Int` (2026-05-26 — direct byte access at offset i with NO bounds check; caller must guarantee 0 ≤ i < len(s); used by stdlib scan helpers (JSON walkers) where the bound is externally known and a per-access strlen / bytes_from_string would tank perf; misuse → UB); `index_of`, `lower` / `upper`, `trim`, `substring(s, lo, hi)`, `replace`, `repeat`, `pad_left` / `pad_right`, `from_bytes`, `clone(v) -> String` (deep-copy a `StringView` to an owned blob; identity on a `String` for generic callers); `builder_new` / `builder_append` / `builder_len` / `builder_finish` (String-builder primitives — for binary-safe accumulator use `std::bytes::BytesBuilder`) | `lotus_str_*` C runtime primitives |
 | `std::bytes` | `at(b, i) -> Int fallible(IndexError)`, `slice(b, lo, hi) -> Bytes`, `from_string(s) -> Bytes`, `from_int(v) -> Bytes`, `concat(a, b) -> Bytes`, `clone(v) -> Bytes` (deep-copy a view to an owned blob). **Word-scan + masked-XOR** (2026-06-13, fast-protocol-I/O #4): `find_byte(b, off, needle) -> Int` returns the first index `>= off` whose byte equals `needle` (low 8 bits) or `-1` (non-fallible; `memchr` word-at-a-time scan — the length/delimiter-framing primitive for HTTP CRLF etc.). `read_*` / `at` / `find_byte` also accept a **`BytesMut`** raw `{ptr,len}` window (a `MirrorRing.readable()` window or a `Topic.write` slot) — read directly via their `_raw` siblings (length is the window length, no `[i64 len]` prefix), so a mirror-ring parse is zero-copy. `BytesBuilder.xor_mask(src: Bytes, key: Int)` (and its primitive `std::bytes::builder::__xor_mask_into(handle, src, key) -> Int`) appends `src` XOR'd with a repeating 4-byte key (`masked[i] = src[i] ^ key[i % 4]`, key bytes packed little-endian) in one reserve + word-at-a-time pass — the WebSocket masking primitive, replacing a per-byte `from_int` + `append` loop. **Binary-pack readers** (2026-06-06, shm-ring-interop Proposal A): `read_u8` / `read_u16_{le,be}` / `read_u32_{le,be}` / `read_u64_{le,be}` and the signed `read_i8` / `read_i16_{le,be}` / `read_i32_{le,be}` / `read_i64_{le,be}` (sign-extended), each `(b, off) -> Int fallible(IndexError)`; plus `read_f32_le` / `read_f64_{le,be}` `-> Float fallible(IndexError)`. Fixed-width scalar reads at a byte offset, bounds-checked (`[off, off+width)` past the buffer raises `IndexError { kind: "out_of_bounds", index: off, len }`, same error as `at`). Endianness is explicit (`_le` is the x86-native common case); a `u64` with the top bit set wraps to a negative `Int` (i64). **Binary-pack writers** (2026-06-08, shm-ring-interop A1): the mirror `write_u8` / `write_u16_{le,be}` / `write_u32_{le,be}` / `write_u64_{le,be}`, signed `write_i8` / `write_i16_{le,be}` / `write_i32_{le,be}` / `write_i64_{le,be}`, and `write_f32_le` / `write_f64_{le,be}`, each `(buf, off, val) -> Int fallible(IndexError)` — a fixed-width scalar write at a byte offset into a **`BytesMut`** raw window (a `Topic.write` slot or a `MirrorRing.writable()` window), bounds-checked identically to the readers (`[off, off+width)` past the window raises `IndexError`), returning the offset past the write. These back the `Topic.write(max) { … }` zero-copy ring producer and the `repr:`-tagged `Type::set_field`. Growing-buffer accumulator surface lives on the `BytesBuilder` locus — see [§ Builders vs Bytes](#builders-vs-bytes--the-recv-loop-pattern) | `lotus_bytes_*` C runtime primitives |
 | `std::text` | `md_to_html(md) -> String`, `base64::encode` / `base64::decode` / `base64::url_encode` (RFC 4648 §5 URL-safe, unpadded — for JWT/JWS, OAuth, webhooks), `Sink` interface + `StdoutSink` / `StringSink` / `FileSink` loci, byte-class predicates (`is_alpha` / `is_digit` / `is_alnum` / `is_whitespace` / `is_word_char`), `tokenize_words_into(s, target_vec)` | `runtime/stdlib/text.hl` + C runtime |
-| `std::io::fs` | `read_file(path) -> String`, `write_file(path, s) -> ()`, `write_file_append(path, s) -> Int` (returns bytes appended — asymmetric with write_file's Unit, kept for back-compat), `read_bytes -> Bytes`, `file_size -> Int`, `mkdir`, `rename`, `unlink`, `mktemp(dir, prefix) -> String`, `list_dir_count -> Int`, `list_dir_at(path, i) -> String` — all `fallible(IoError)`. (`list_dir` is listed in older notes but not dispatched — use list_dir_count + list_dir_at.) `file_exists(path) -> Bool` is a predicate (non-fallible). One-shot path-call surface: each call opens, does the op, closes. For held-open shapes use `std::io::file::File`. | `lotus_fs_*` C runtime primitives |
+| `std::io::fs` | `read_file(path) -> String`, `write_file(path, s) -> ()`, `write_file_append(path, s) -> Int` (returns bytes appended — asymmetric with write_file's Unit, kept for back-compat), `read_bytes -> Bytes`, `write_bytes(path, b: Bytes) -> ()` (binary-safe write — the companion `std::compress`/`std::tar` output needs; `write_file` ships String content via strlen and truncates at the first NUL), `file_size -> Int`, `mkdir`, `rename`, `unlink`, `mktemp(dir, prefix) -> String`, `list_dir_count -> Int`, `list_dir_at(path, i) -> String` — all `fallible(IoError)`. (`list_dir` is listed in older notes but not dispatched — use list_dir_count + list_dir_at.) `file_exists(path) -> Bool` is a predicate (non-fallible). One-shot path-call surface: each call opens, does the op, closes. For held-open shapes use `std::io::file::File`. | `lotus_fs_*` C runtime primitives |
+| `std::compress` | GH #254 (2026-07-27). One-shot compression over `Bytes`, all `fallible(IoError)`: `gzip(b) -> Bytes` (gzip container, zlib level 6), `gunzip(b) -> Bytes` (accepts gzip OR bare zlib streams — windowBits 15+32 auto-detect), `zstd(b) -> Bytes` (zstd frame, level 3), `unzstd(b) -> Bytes`. Error kinds: `invalid` (corrupt / truncated / unsupported input, incl. a zstd frame with no declared content size — streaming frames are the v2 path), `not_found` (**zstd only**: libzstd not installed — see below), plus EFBIG-backed kinds when decompressed output would exceed the **1 GiB one-shot guard** (zip-bomb / corrupt-length protection; streaming is the path for bigger). Linkage: gzip rides zlib (`-lz`, universally present — distro zlib1g / the macOS SDK); zstd is **dlopen'd at first use** (`libzstd.so.1` / Homebrew dylib paths on macOS), so neither `hale build` nor emitted binaries carry a link-time libzstd dependency — a program that never calls the zstd pair runs anywhere, and one that does gets a clean fallible `not_found` on machines without the library. Compression levels are fixed at v1 (no level parameter yet). | `lotus_compress_*` in `runtime/lotus_compress.c` (own TU, same rationale as lotus_tls.c) |
+| `std::tar` | GH #254 (2026-07-27). One-shot ustar archives over `Bytes`, all `fallible(IoError)` (kind `invalid` = malformed archive / index out of range). Read side is indexed (the list-then-extract shape; each call re-walks headers — O(n), fine for tool-sized archives): `entries(b) -> Int`, `entry_name(b, i) -> String` (ustar prefix field honored: `prefix/name`), `entry_size(b, i) -> Int`, `entry_type(b, i) -> String` (`file` / `dir` / `link` / `symlink` / `other`), `entry_data(b, i) -> Bytes`. Write side is append-style: start from empty Bytes, `pack(archive, name, data) -> Bytes` appends a regular file (mode 644), `pack_dir(archive, name) -> Bytes` a directory (mode 755), `finish(archive) -> Bytes` appends the two terminating zero blocks. Names over 100 bytes are split into the ustar prefix field (≤ 155 + `/` + ≤ 100; ENAMETOOLONG otherwise); mtime is written as 0 for reproducible archives; octal sizes only (no GNU base-256). Compose with `std::compress::gzip` for `.tar.gz` and `std::io::fs::write_bytes` to ship to disk — the output is accepted by system `tar` (pinned by `compress_tar.rs`). | tar section of `runtime/lotus_compress.c` |
 | `std::io::file` | `File` locus (held-open fd with auto-dissolve close). `open(path, mode) -> File fallible(IoError)`; `read_line(f) -> String` (returns "" at EOF or error — pair with `at_eof`); `at_eof(f) -> Bool`; `write_bytes(f, b)`, `write_line(f, s)`, `seek(f, offset)` all `fallible(IoError)`. Mode strings `"r"` / `"w"` / `"a"` / `"r+"` / `"w+"`. Returned Strings live in the bus payload arena. | `lotus_file_*` C primitives + `runtime/stdlib/file.hl` |
 | `std::io::stdin` | `read_line() -> String`, `read_line_status() -> Int` (status `-1` = EOF/IO error; `0` = OK including empty-line). `read_byte(timeout_ms: Int) -> Int` — `poll` up to `timeout_ms` then a 1-byte `read`; returns `0..255` = the byte, `-1` = timeout, `-2` = EOF/error (sentinel; a timeout is a control outcome, not an error). `timeout_ms <= 0` is a pure poll. For interactive raw-mode input paired with `std::term::RawMode`. | POSIX `getline` / `poll`+`read` + payload-arena copy |
 | `std::io::stdout` | `write_bytes(s: String) -> Int` — `fflush(stdout)` then a raw `write(1, ...)` that bypasses the prelude's `_IOLBF` line-buffering, so a multi-line frame isn't flushed per newline. Returns bytes written, `-1` on error (sentinel). The `fflush` keeps output ordered consistently with buffered `println`. | `lotus_term_write_stdout` C primitive |
 | `std::term` | `is_tty(fd: Int) -> Bool` (POSIX `isatty` — probe whether an fd is a terminal, e.g. so a logger can decide on color without vendoring an FFI shim). `RawMode` — an RAII guard locus: `let r = std::term::RawMode { };` puts stdin in raw mode (no echo/canon/ISIG — unbuffered byte input, Ctrl-C as byte `0x03`) at birth and restores the saved termios at dissolve (scope exit). Soft-fails (runs unstyled) when stdin isn't a tty. `RawMode` also registers a runtime `atexit` termios restore, so a panic / unhandled error (which `exit()` through `atexit`) restores the terminal too — no FFI glue needed for terminal hygiene. `size() -> TermSize` (record `{ cols: Int; rows: Int }` via `ioctl(TIOCGWINSZ)`; `{ 0, 0 }` when stdout isn't a tty — poll per frame, no SIGWINCH handling). POSIX-only; non-tty / non-POSIX degrades soft. | `lotus_term_*` C primitives + `runtime/stdlib/term.hl` |
-| `std::io::tcp` | `Listener` locus, `Stream` locus with `send` / `send_bytes` (Unit success) / `recv` / `recv_bytes` — all `fallible(IoError)` since #209 (EOF and recv-timeout return empty, only genuine errors fail; see § Stream methods below), `recv_into(fd, buf: Bytes, max_bytes) -> Int` (caller-provided builder destination). Path-calls `listen_socket`, `connect`, `accept_one` are `fallible(IoError)`. `connect` accepts dotted-quad hosts directly and falls back to hostname resolution via `getaddrinfo(AF_INET)`. **Exclusive bind (2026-07-15, downstream handoff item 4):** `listen_socket` sets `SO_REUSEADDR` (so a restart can rebind a port still lingering in `TIME_WAIT`) but deliberately **not** `SO_REUSEPORT` — so a second live process binding the same host:port fails with `EADDRINUSE` instead of silently sharing the port with the kernel round-robining connections between two divergent-state servers (a split-brain foot-gun). Intentional multi-process load balancing across a shared port is not the default; it would need an explicit opt-in if a workload ever wants it. Send/recv timeouts: `set_recv_timeout(fd, d: Duration) -> () fallible(IoError)` wraps `SO_RCVTIMEO`; `set_send_timeout(fd, d: Duration)` wraps `SO_SNDTIMEO`. `d = 0` disables (blocking default). After `set_recv_timeout(fd, 100ms)` a `recv_bytes` on a quiet socket returns ~100ms instead of blocking forever — unblocks recv loops that need periodic silence-detection / heartbeat / watchdog work. **Sub-millisecond timeouts aren't real:** `SO_RCVTIMEO` is rounded to the kernel's scheduling tick, so a `set_recv_timeout(fd, 50us)` parses but an idle recv still returns after ~1–1.5ms, not 50µs. Poll loops that need finer cadence must amortize their probes rather than lean on a sub-ms deadline (the async_io timed park inherits the same floor — its deadline comes from the same `SO_RCVTIMEO` value). Shares the `sock_set_timeout_ns` helper with the udp siblings (P4). **async_io parking (2026-07-14, downstream handoff):** on a `where async_io` pool, `recv_into` / `recv_stamped_into` / `recv_bytes` / `Stream.recv` park the coroutine on EPOLLIN until the fd is readable or the fd's `set_recv_timeout` deadline expires — `-2` (or `recv_bytes`'s empty return) means the *deadline expired*, never an instant would-block; with no timeout set they park indefinitely. The park deadline mirrors the socket's `SO_RCVTIMEO` (read back via `getsockopt` at call entry), so timeout semantics are identical on every pool type and liveness machinery built on the `-2` sentinel (pond/websocket ping-pong) composes unchanged. **`Stream.release_fd() -> Int`** (2026-07-19): flips `owns_fd` off (dissolve becomes a no-op) and returns the fd — the ownership hand-off primitive behind `std::http` takeover and any live-connection transfer to a longer-lived owner. Nagle control: `set_nodelay(fd, on: Bool) -> () fallible(IoError)` sets `TCP_NODELAY` on a connected fd — `on = true` disables Nagle so small writes hit the wire immediately instead of waiting up to ~40ms to coalesce, the first thing a latency-sensitive request/response or market-data socket reaches for. Previously impossible from Hale (`std::io::tcp` had no setsockopt surface); the generic udp `set_option_*` / `get_option_int` work on any fd if a less-common TCP option is needed. Kernel RX timestamps: `set_rx_timestamps(fd, on: Bool) -> () fallible(IoError)` enables `SO_TIMESTAMPNS` once at setup; `recv_stamped_into(fd, buf: Bytes, max_bytes) -> Int` is the timestamped sibling of `recv_into` (identical `>0` / `0` EOF / `-1` fatal / `-2` retryable contract) that issues one `recvmsg(2)` capturing the kernel's wire-arrival timestamp alongside the bytes — no extra syscall on the hot path. Read the stamps with `last_recv_kernel_ns() -> Int` / `last_recv_user_ns() -> Int` immediately after the call (errno-style thread-local, same idiom as `udp::last_source_*`). `last_recv_user_ns` is a `CLOCK_REALTIME` stamp taken at `recvmsg` return; `last_recv_kernel_ns` is the kernel's `SCM_TIMESTAMPNS` value, or **`0` when the platform/path delivered none** — notably loopback TCP and any NIC without RX software/hardware timestamping (it never returns garbage, so `>= 0` is the contract). The cmsg is parsed defensively (first control message only, length-validated, no `CMSG_NXTHDR` walk — some libcs loop forever on a zero-length cmsg). **Bus-routed I/O observability**: `Stream` gains a `log_subject: String = ""` param and a `bus { publish "io.tcp.**" of type std::io::tcp::LogEvent; }` declaration. When `log_subject` is set, every send / recv / close on that Stream publishes a `LogEvent { phase, detail, bytes, fd }` on the configured subject. Empty `log_subject` (the default) gates the publish with a single `len(s) > 0` branch — zero hot-path cost. Users wire any subscriber locus they want (`subscribe "io.tcp.**" as on_evt of type std::io::tcp::LogEvent`) — stderr sink, structured log, metrics, ring buffer; the bus is the indirection so no `Logger` interface or per-Stream sink locus is needed. Closes the "I/O lib is silent by default with no hook" friction. | `lotus_tcp_*` C primitives |
+| `std::io::tcp` | `Listener` locus, `Stream` locus with `send` / `send_bytes` (Unit success) / `recv` / `recv_bytes` — all `fallible(IoError)` since #209 (EOF and recv-timeout return empty, only genuine errors fail; see § Stream methods below), `recv_into(fd, buf: Bytes, max_bytes) -> Int` (caller-provided builder destination). Path-calls `listen_socket`, `connect`, `accept_one` are `fallible(IoError)`. `connect` accepts dotted-quad hosts directly and falls back to hostname resolution via `getaddrinfo(AF_INET)`. **Exclusive bind (2026-07-15, downstream handoff item 4):** `listen_socket` sets `SO_REUSEADDR` (so a restart can rebind a port still lingering in `TIME_WAIT`) but deliberately **not** `SO_REUSEPORT` — so a second live process binding the same host:port fails with `EADDRINUSE` instead of silently sharing the port with the kernel round-robining connections between two divergent-state servers (a split-brain foot-gun). Intentional multi-process load balancing across a shared port is not the default; it would need an explicit opt-in if a workload ever wants it. Send/recv timeouts: `set_recv_timeout(fd, d: Duration) -> () fallible(IoError)` wraps `SO_RCVTIMEO`; `set_send_timeout(fd, d: Duration)` wraps `SO_SNDTIMEO`. `d = 0` disables (blocking default). After `set_recv_timeout(fd, 100ms)` a `recv_bytes` on a quiet socket returns ~100ms instead of blocking forever — unblocks recv loops that need periodic silence-detection / heartbeat / watchdog work. **Sub-millisecond timeouts aren't real:** `SO_RCVTIMEO` is rounded to the kernel's scheduling tick, so a `set_recv_timeout(fd, 50us)` parses but an idle recv still returns after ~1–1.5ms, not 50µs. Poll loops that need finer cadence must amortize their probes rather than lean on a sub-ms deadline (the async_io timed park inherits the same floor — its deadline comes from the same `SO_RCVTIMEO` value). Shares the `sock_set_timeout_ns` helper with the udp siblings (P4). **async_io parking (2026-07-14, downstream handoff):** on a `where async_io` pool, `recv_into` / `recv_stamped_into` / `recv_bytes` / `Stream.recv` park the coroutine on EPOLLIN until the fd is readable or the fd's `set_recv_timeout` deadline expires — `-2` (or `recv_bytes`'s empty return) means the *deadline expired*, never an instant would-block; with no timeout set they park indefinitely. The park deadline mirrors the socket's `SO_RCVTIMEO` (read back via `getsockopt` at call entry), so timeout semantics are identical on every pool type and liveness machinery built on the `-2` sentinel (pond/websocket ping-pong) composes unchanged. **`Stream.release_fd() -> Int`** (2026-07-19): flips `owns_fd` off (dissolve becomes a no-op) and returns the fd — the ownership hand-off primitive behind `std::http` takeover and any live-connection transfer to a longer-lived owner. **`send_fd(fd, b: Bytes) -> () fallible(IoError)`** (2026-07-27, hale-bun handoff item 4b): public raw-fd send — the write-side takeover companion to `close_fd` / `recv_into` / `set_recv_timeout`, for a handler that keeps a released fd without adopting `Stream`'s close-at-scope-exit lifecycle. Same contract as `Stream.send_bytes` (Unit success; genuine I/O errors fail); previously the only persistent-write path was the internal `__send_bytes`. Nagle control: `set_nodelay(fd, on: Bool) -> () fallible(IoError)` sets `TCP_NODELAY` on a connected fd — `on = true` disables Nagle so small writes hit the wire immediately instead of waiting up to ~40ms to coalesce, the first thing a latency-sensitive request/response or market-data socket reaches for. Previously impossible from Hale (`std::io::tcp` had no setsockopt surface); the generic udp `set_option_*` / `get_option_int` work on any fd if a less-common TCP option is needed. Kernel RX timestamps: `set_rx_timestamps(fd, on: Bool) -> () fallible(IoError)` enables `SO_TIMESTAMPNS` once at setup; `recv_stamped_into(fd, buf: Bytes, max_bytes) -> Int` is the timestamped sibling of `recv_into` (identical `>0` / `0` EOF / `-1` fatal / `-2` retryable contract) that issues one `recvmsg(2)` capturing the kernel's wire-arrival timestamp alongside the bytes — no extra syscall on the hot path. Read the stamps with `last_recv_kernel_ns() -> Int` / `last_recv_user_ns() -> Int` immediately after the call (errno-style thread-local, same idiom as `udp::last_source_*`). `last_recv_user_ns` is a `CLOCK_REALTIME` stamp taken at `recvmsg` return; `last_recv_kernel_ns` is the kernel's `SCM_TIMESTAMPNS` value, or **`0` when the platform/path delivered none** — notably loopback TCP and any NIC without RX software/hardware timestamping (it never returns garbage, so `>= 0` is the contract). The cmsg is parsed defensively (first control message only, length-validated, no `CMSG_NXTHDR` walk — some libcs loop forever on a zero-length cmsg). **Bus-routed I/O observability**: `Stream` gains a `log_subject: String = ""` param and a `bus { publish "io.tcp.**" of type std::io::tcp::LogEvent; }` declaration. When `log_subject` is set, every send / recv / close on that Stream publishes a `LogEvent { phase, detail, bytes, fd }` on the configured subject. Empty `log_subject` (the default) gates the publish with a single `len(s) > 0` branch — zero hot-path cost. Users wire any subscriber locus they want (`subscribe "io.tcp.**" as on_evt of type std::io::tcp::LogEvent`) — stderr sink, structured log, metrics, ring buffer; the bus is the indirection so no `Logger` interface or per-Stream sink locus is needed. Closes the "I/O lib is silent by default with no hook" friction. | `lotus_tcp_*` C primitives |
 | `std::io::udp` | `bind(host, port) -> Int fallible(IoError)` (`host=""` → INADDR_ANY); `send(fd, host, port, msg)`, `recv(fd, max_bytes)`, `recv_into(fd, buf: Bytes, max_bytes)` (`>0` bytes / `0` empty datagram / `-1` fatal / `-2` retryable — a `set_recv_timeout` expiry or async_io park deadline; **2026-07-14 behavior change**: EAGAIN previously fell into `-1` fatal, and on `where async_io` pools `recv_into` now parks until readable or deadline like the tcp sibling), `close(fd)`. Multicast (2026-05-26 P1): `join_group(fd, group, iface) -> () fallible(IoError)` (iface=`""` → INADDR_ANY), `leave_group(fd, group, iface)`, `set_multicast_ttl(fd, ttl)` (0..255), `set_multicast_loop(fd, enabled: Bool)` (whether the sender receives its own packets), `set_multicast_iface(fd, addr)`. Transparent setsockopt pass-through (P2): `set_option_int(fd, level, name, value)`, `set_option_bool(fd, level, name, enabled)`, `get_option_int(fd, level, name) -> Int` — paired with `std::io::sockopt::<NAME>()` named constants below for the `level` / `name` args. Source-bearing recv + timeouts (2026-05-26 P4): `recv_with_source(fd, max_bytes) -> Bytes fallible(IoError)` populates a thread-local source cache; `last_source_host() -> String` / `last_source_port() -> Int` read the cache from the most-recent recv_with_source on the current thread (errno-style; read immediately after recv). `set_recv_timeout(fd, d: Duration) -> () fallible(IoError)` / `set_send_timeout(fd, d: Duration)` wrap `SO_RCVTIMEO` / `SO_SNDTIMEO` (they take a struct timeval so can't ride `set_option_int`); `d = 0` disables (blocking default). Datagram boundaries preserved. **async_io parking (2026-07-15, downstream handoff item 3):** the Bytes-returning `recv` / `recv_with_source` (like `recv_into` before them) park the coroutine on EPOLLIN on a `where async_io` pool — bounded by the socket's `set_recv_timeout` deadline, or indefinitely when no timeout is set — instead of blocking the single pool worker inside `recvfrom`. This is what lets N reader loci, each parked on its own socket, share one async pool concurrently: previously the first blocking `recv` pinned the worker and every reader queued behind it on the same pool never started (with no timeout, never at all). Off async pools it stays a plain blocking `recvfrom`, and a park-deadline expiry surfaces the same "no datagram" result (NULL → the fallible error path) a blocking `SO_RCVTIMEO` timeout already produced. **`std::io::udp` is the raw-socket primitive, not a bus transport** — its `recv` / `send` calls don't carry the bus's typed-payload-dispatch contract. For UDP-as-bus see the `std::bus` row's `udp://host:port` substrate transport (shipped 2026-05-26): single URL scheme covers IPv4 unicast and multicast, dispatch goes through the same `LOTUS_BUS_CONFIG` route as `unix://`, lossy delivery (publisher-side "sendto returned" durability; subscribers best-effort). **`Reader` handle (2026-07-16) — the ergonomic event-driven ingest default.** `std::io::udp::Reader { addr, port, cap }` bundles a bound socket + a single reused `BytesBuilder` and exposes `next() -> BytesView fallible(IoError)`: it binds lazily on the first call (so a bind failure propagates through `next()`'s fallible channel), clears + refills the buffer in place per call (no per-datagram allocation), and returns a **zero-copy `BytesView`** aliasing the buffer — valid until the next `next()`. On a `where async_io` pool `next()` parks on EPOLLIN (kernel-woken, no busy-poll, no `SO_RCVTIMEO` quantum); on a classic pool it blocks the worker in `recvfrom`. It parks until a datagram arrives, so its only failures are a bind failure (first call) or a fatal recv error — both genuinely exceptional, so `or raise` is the disposition (`or discard` doesn't apply — `next()` yields a value). This is the hand-rolled "bind + BytesBuilder + `recv_into` + `.view()`" fast path baked into one handle so it's the path of least resistance; unlike the allocating `recv` it copies no per-datagram payload (the view aliases the buffer). `dissolve()` closes the socket; the nested `BytesBuilder` frees with it. | `lotus_udp_*` C primitives |
 | `std::io::sockopt` | Named-constant getters returning the platform's numeric value for each setsockopt level / name. Use as the `level` / `name` args to `std::io::udp::set_option_*` / `get_option_int`. Each is a zero-arg fn (`std::io::sockopt::SO_RCVBUF()` etc.) so the value tracks the kernel headers; cross-platform without hardcoding. Shipped: `SOL_SOCKET`, `IPPROTO_IP`, `IPPROTO_IPV6`, `IPPROTO_TCP`, `IPPROTO_UDP`, `SO_REUSEADDR`, `SO_REUSEPORT`, `SO_RCVBUF`, `SO_SNDBUF`, `SO_RCVTIMEO`, `SO_SNDTIMEO`, `SO_BROADCAST`, `SO_KEEPALIVE`, `SO_LINGER`, `SO_PRIORITY`, `SO_BINDTODEVICE`, `IP_TTL`, `IP_TOS`, `IP_MULTICAST_TTL`, `IP_MULTICAST_LOOP`, `IP_MULTICAST_IF`, `IP_ADD_MEMBERSHIP`, `IP_DROP_MEMBERSHIP`, `IP_PKTINFO`. PMTU surface added 2026-05-27: `IP_MTU_DISCOVER` + `IP_PMTUDISC_DONT` / `IP_PMTUDISC_WANT` / `IP_PMTUDISC_DO` / `IP_PMTUDISC_PROBE` (Linux-only; returns -1 on platforms missing the constant — caller can detect and skip). TCP option added 2026-06-13: `TCP_NODELAY` (use with `IPPROTO_TCP` as `level`; or reach for the `std::io::tcp::set_nodelay` convenience). | `lotus_sockopt_<NAME>` C getters |
 | `std::io::tls` | Client-side TLS via system OpenSSL. `connect(host, port) -> Int fallible(IoError)` does the TCP connection + TLS 1.2+ handshake with SNI + system-trust-store cert verification. **Socket upgrade** (2026-07-14): `upgrade(fd: Int, host: String, verify: Bool) -> Int fallible(IoError)` wraps an *already-connected* TCP fd (from `std::io::tcp::connect`) in a client TLS session — the STARTTLS-style path a protocol takes after speaking a plaintext prologue on the socket (e.g. pond/pq sends the pgwire `SSLRequest`, reads the `'S'` byte, then upgrades the same fd). The returned handle is fully interchangeable with `connect`'s across `send_bytes` / `recv_bytes` / `recv_into` / `close` / `set_nodelay` / etc. SNI (`SSL_set_tlsext_host_name`) is **always** sent. `verify = true` authenticates the peer: hostname-checked against the cert via `SSL_set1_host` against the system trust store (identical to `connect`). `verify = false` gives **sslmode=require semantics** — encrypt *without* authenticating the peer (`SSL_VERIFY_NONE` per-connection override, no hostname check), for endpoints whose CA is not in the system trust store (e.g. AWS RDS); SNI is still sent. **FD-ownership asymmetry (important):** `upgrade` does **not** close `fd` on handshake failure — the caller already owned the fd (it came from `tcp::connect`, not from this call), so teardown stays with the caller (`std::io::tcp::close_fd(fd)` in the `or` handler). This is the *opposite* of `connect`, which dials its own fd and therefore closes it on any failure. On success the returned handle owns the fd (`close` closes it), same as `connect`. **Caveats:** pass a *hostname*, not an IP literal, for `host` when `verify = true` — `SSL_set1_host` treats the value as a DNS name for certificate hostname matching, and using an IP address as SNI is discouraged (some servers reject or mismatch it). Do **not** `upgrade` the same fd twice — each returned handle assumes sole ownership of the fd at `close` time, so a double-upgrade produces two handles that both believe they own the fd, leading to a double-close. **STARTTLS over-read:** before calling `upgrade`, read *exactly* the plaintext prologue and no further (pond/pq reads the single `'S'` byte and stops). Any bytes consumed past the prologue are gone from the kernel receive buffer, so the peer's TLS `ServerHello` — which follows immediately on the wire — would be handed to the caller as plaintext and the handshake would then read a truncated, corrupt stream (the classic STARTTLS plaintext-injection footgun). The current design is safe because `upgrade`'s recvmsg BIO and the `tcp::recv_*` primitives share **no** read buffer — every read pulls straight from the socket, so there is nowhere to accidentally buffer post-prologue bytes — but any future read-ahead/buffered `tcp` reader would break this property, so a consumer must keep its prologue reads unbuffered and byte-exact right up to the `upgrade` call. **`Int` is overloaded — a raw fd and a TLS handle are not interchangeable even though both are typed `Int`.** TLS handles are small table indices (0, 1, 2, …) that numerically alias real fd numbers, so the type system cannot catch a mix-up: passing a TLS *handle* to `upgrade` (which expects a raw fd) runs `SSL_connect` on whatever kernel fd happens to share that number (e.g. fd 0/1/2 = stdio), and passing a raw *fd* to `tls::send_bytes` / `recv_bytes` indexes the handle table with a value that isn't a handle — **both are silent misuse** (no error raised, just corrupt/garbage I/O), not a type error. Only ever pass `upgrade` an fd from `tcp::connect`, and only ever pass the `tls::*` send/recv/close primitives a handle returned by `tls::connect` / `tls::upgrade`. `connect` is now internally `dial + upgrade(fd, host, verify=1)`, so the `connect` behavior is unchanged and its network tests double as regression coverage for the shared upgrade path. `send_bytes` / `recv_bytes` / `recv_into` / `close` over the handshaked connection. Send/recv timeouts: `set_recv_timeout(handle, d: Duration) -> () fallible(IoError)` / `set_send_timeout(handle, d: Duration)` wrap `SO_RCVTIMEO` / `SO_SNDTIMEO` on the connection's underlying socket fd (the handle-aware siblings of the `std::io::tcp` ones, which take a raw fd). With a recv timeout set, `recv_into` returns the `-2` "timed out, retryable" sentinel (not `-1`/fatal) when `SSL_read` yields `SSL_ERROR_WANT_READ` — so a long-lived client can bound a blocking read and run connection-liveness work (ping/pong) instead of hanging forever on a half-open connection. On a `where async_io` pool, `recv_into` / `recv_stamped_into` park the coroutine on the raw fd (EPOLLIN, or EPOLLOUT on a renegotiation `WANT_WRITE`) until readable or the recv-timeout deadline — same 2026-07-14 parking semantics as `std::io::tcp`; `-2` means the deadline expired, never an instant would-block. **Fast-path siblings**: `set_nodelay(handle, on: Bool) -> () fallible(IoError)` (TCP_NODELAY on the underlying fd — reuses the tcp primitive) and `recv_stamped_into(handle, buf: Bytes, max) -> Int` with `last_recv_kernel_ns() -> Int` / `last_recv_user_ns() -> Int`, the TLS siblings of the `std::io::tcp` versions. `set_rx_timestamps(handle, on: Bool) -> () fallible(IoError)` enables `SO_TIMESTAMPNS`. The kernel timestamp rides the *socket* recvmsg but `SSL_read` sits in front of the socket, so the TLS connection uses a custom BIO whose read does `recvmsg` + the defensive `SCM_TIMESTAMPNS` cmsg walk, capturing the stamp on the socket fill that feeds `SSL_read` — `last_recv_kernel_ns` is the last segment's kernel RX stamp (0 when the path delivered none, e.g. no NIC RX timestamping), `last_recv_user_ns` is a `CLOCK_REALTIME` stamp at `SSL_read` return. (The recvmsg cmsg is the path that carries `SO_TIMESTAMPNS`; the `SIOCGSTAMPNS` ioctl reads `sk_stamp`, which that option does not populate.) Process-global `SSL_CTX` runs with `SSL_MODE_RELEASE_BUFFERS` — OpenSSL releases its read/write buffers between records so long-running TLS clients don't accumulate ~32 KiB per idle connection. **Allocation (audit, fast-protocol-I/O #6):** `recv_into` is zero-alloc on the Hale side — `SSL_read` decrypts straight into the caller's reserved buffer, no per-record malloc in the binding (the `tcp`/`udp` `recv_into` siblings likewise; pinned by `crates/hale-codegen/tests/recv_zero_alloc.rs` via the `std::diag` counter). The only per-record TLS allocation is OpenSSL-internal: with `SSL_MODE_RELEASE_BUFFERS` set, a released read buffer is re-malloc'd on the next record — a deliberate memory-vs-malloc tradeoff. An always-busy latency-critical connection that prefers zero per-record malloc over frugal idle memory would clear that mode (retain the buffers); that knob isn't exposed yet (no consumer). The `lotus_tls.c` TU compiles separately so helper tests linking `lotus_arena.c` directly don't drag in libssl/libcrypto. | `lotus_tls_*` in `runtime/lotus_tls.c` |
 | `std::shm` | In-band record-header field delivery for a foreign ring (2026-06-13, shm-ring-interop). When a `layout:`-bound subscriber's `ring_layout` declares `record_header_bytes` with in-band header scalars (a per-record fixed header before the payload — e.g. a sequence number and a producer wire-arrival timestamp), `last_record_seq() -> Int` / `last_record_kernel_ns() -> Int` / `last_record_user_ns() -> Int` read the header fields of the record currently being delivered, called from inside the handler (errno-style thread-local, the same read-immediately idiom as `tcp::recv_stamped` — the value is the most-recent record's, valid for the duration of the handler). Each returns `0` when the bound layout declares no corresponding header field. The names map to the layout's declared header scalars by role; the layout's `recheck post_copy` guard ensures a torn header isn't surfaced. | `lotus_shm_*` in `runtime/lotus_shm_ring.c` |
 | `std::diag` | Test-time gate counters. `heap_alloc_count() -> Int` returns the cumulative number of heap allocations (malloc / realloc / calloc / mmap) the runtime has made; `syscall_count(name: String) -> Int` returns the cumulative count of a wrapped I/O syscall (`"recv"`, `"recvmsg"`, `"read"`, `"write"`, `"send"`, `"sendto"`). Read a counter before and after a steady-state region and assert the delta — the runtime/test-time complement to compile-time `--warn-unbounded-alloc` ("this loop did zero heap allocs" / "exactly one read per poll"). Both return `-1` when the counting shim is absent (sanitizer builds — TSan/ASan interceptors collide with the `-Wl,--wrap` shim), so a caller can distinguish "gate unavailable in this build" from a real `0`. Counters are process-wide and monotonic; `syscall_count` returns `-1` for an unrecognized name. The wrap shim is compiled into every default (`-O2`) build at the cost of one relaxed-atomic increment per allocation / wrapped syscall — only the runtime's own calls are routed (libc- and libssl-internal I/O is untouched). | `lotus_diag_*` + `__wrap_*` in `runtime/lotus_arena.c` |
-| `std::http` | `Request` + `Response` types (`Response.headers: String` carries CRLF-joined user-supplied headers — no trailing CRLF — for Set-Cookie / CORS / custom headers); `parse_request`, `write_response`; case-insensitive symmetric `header(receiver, name)` lookup; `Handler` interface (`fn handle(req: Request) -> Response`); `Server` locus with `shutdown()` (cross-thread safe — see [§ Server.shutdown](#servershutdown--interruptible-accept-loop)) and optional `ready_signal: String` for piped oracles. **Request reassembly** (2026-07-14, downstream handoff): the per-connection loop reads until the `\r\n\r\n` header terminator and then until `Content-Length` body bytes arrive, so clients that split headers and body across TCP segments (python urllib et al.) are served whole. Guards: 1 MiB total-request cap (a declared `Content-Length` over the cap answers `413`; overflow before a complete header block closes without a response) and a 5s recv timeout (bounds a stalled client on classic/pinned pools; inert on `async_io`, where a stalled conn parks only its coroutine). Keep-alive remains unsupported (`Connection: close` hardcoded); `Transfer-Encoding: chunked` is not parsed. **Connection takeover / Upgrade (2026-07-19):** `Request.conn_fd` carries the live connection fd into the handler (`-1` outside a Server), and `Response { takeover: true }` makes the Server write ONLY the status line + the response's `headers` + a blank line — no Content-Type/Content-Length/`Connection: close`, no body — and return WITHOUT closing the fd (`Stream.release_fd()` disarms the per-connection scope close). From that moment the handler owns the connection: stash `req.conn_fd` (typically publish it to a session locus on its own pool) and drive it through the raw-fd tcp surface or a borrowed `Stream { conn_fd: fd, owns_fd: false }`. Status-agnostic (101 for WebSocket-class upgrades — `__status_phrase` knows `101 Switching Protocols` — or a CONNECT tunnel's 200). Caveats: the conn loop's 5s recv timeout is still armed on the fd (clear via `set_recv_timeout(fd, 0)`), and a handler that sets `takeover` without stashing the fd leaks it — the accept/release daemon warn class. This is the surface WebSocket promotion was blocked on. **Router** (promoted from pond/router, 2026-07-17): `Router` locus — `add(method, pattern, h)` registers `METHOD /path/:capture` patterns against `RouteHandler` loci (`fn handle(ctx: Context) -> Response`; first match wins, register specific-before-general; method matching is case-insensitive at register time), `use(m)` registers `Middleware` (`before(ctx)` forward / `after(ctx, resp)` backward — onion order), `dispatch(req)` runs the chain, and `handle(req)` satisfies the `Handler` interface so `Server { handler: router }` plugs in directly. `Context` bundles the parsed `Request` (`ctx.req`, raw target incl. query string) with `RouteParams` (`ctx.params`); `path_param(params, name)` / `query_param(params, name)` return the capture / `k=v` value or `""` (sentinel shape; values NOT URL-decoded at v1). Patterns bound at 8 captures (`bounded[String; 8]` — exceeding it raises at register-authored routes); the 404 default is the overridable `not_found: RouteHandler` param. Trailing-slash tolerant on both sides; no implicit wildcard suffix. **Client** (promoted from pond/http/client, 2026-07-17): one-shot free fns `get(url)` / `post(url, body, content_type)` / `request(req)` — all `fallible(HttpError)`, `Connection: close`, read-to-close — plus the pooled `Client` locus (`user_agent` / `timeout_ms` / `max_retries` / `max_body` params; same fallible method surface; opt-in `keep_alive: true` switches to framed reads — Content-Length or `Transfer-Encoding: chunked` — over a 4-slot per-host:port connection pool with retry-and-backoff; the pool is deliberately hand-rolled, NOT `@form(lru_cache)`: an fd-owning cache needs an eviction hook and take-semantics the form doesn't offer). Client-side types are distinct from the server side on purpose: `ClientRequest` (`method` / `url: Url` / packed `headers` / `body: Bytes`) and `ClientResponse` (`status` / packed `headers` / `body: Bytes` — Bytes for binary safety, embedded NULs survive); `parse_url(s) -> Url fallible(HttpError)` decomposes scheme/host/port/path (query rides in `path`; no userinfo/fragments; no URL-decoding). `HttpError` kinds: bad_url / unsupported_scheme / connect_failed / send_failed / recv_failed / bad_response / too_large / retries_exhausted. https rides `std::io::tls` — **placement caveat**: TLS recv blocks the worker thread (no async_io park yet), so loci making https calls belong on `pinned` or a classic cooperative pool. Not implemented at v1: redirects (3xx returns as-is), proxies, compression. **Bus-routed observability**: `Server` gains a `log_subject: String = ""` param and a `bus { publish "io.http.**" of type std::io::tcp::LogEvent; }` declaration. When `log_subject` is set, listen-start / accept / listen-close events publish on the configured subject; empty (default) keeps the hot path at a single `len > 0` branch per event. Reuses the `std::io::tcp::LogEvent` type so one subscriber can observe both TCP and HTTP layers. | `runtime/stdlib/http.hl` |
-| `std::json` | `Builder` locus (streaming output assembly — see [§ json::Builder](#stdjsonbuilder--streaming-output-api)); `escape_string` / `unescape_string` (RFC 8259); `find_string_field` / `find_int_field` / `find_bool_field` (flat-object lookup); `find_field_raw(json, name) -> String` (bracket-balanced raw substring over nested objects/arrays — the recursive-descent primitive); `ArrayIter` + `array_first` / `array_next`, and the span-bearing `ArrayIterSpan` cursor `array_first_span(json, start) -> ArrayIterSpan` / `array_next_span(it) -> ArrayIterSpan` (carry the element's byte range rather than an owned substring — the allocation-free array-walk sibling of the object cursor below). Range-bearing iter family: `iter_find_field_range(it, json, name) -> JsonFieldRange` and `iter_find_string_field_range(it, json, name) -> JsonFieldRange` return `{ok, start, end_pos}` instead of an owned-String substring; paired with the `std::str::range_*` family for fully allocation-free per-element walks on large arrays (the high-throughput workload class where per-field allocation dominates arena pressure). No nested-tree shape at v1 — re-feed substrings into the same surface for nested walks. Single-pass object member cursor: `object_first(json) -> ObjectIterSpan` / `object_next(it, json)` walk `{...}` members once, with `obj_key_eq(it, json, name) -> Bool` / `obj_key_len(it) -> Int` for key dispatch and `obj_value_int` / `obj_value_bool` / `obj_value_string` / `obj_value_raw(it, json)` reading the current value from its source range (no per-field rescan; nested objects/arrays on unmatched keys are skipped whole by the depth scan). This is the substrate a compiler-generated, schema-specialized parser drives — and the seam a future SIMD structural index slots under. | `runtime/stdlib/json.hl` |
+| `std::http` | `Request` + `Response` types (`Response.headers: String` carries CRLF-joined user-supplied headers — no trailing CRLF — for Set-Cookie / CORS / custom headers); `parse_request`, `write_response`; case-insensitive symmetric `header(receiver, name)` lookup; `Handler` interface (`fn handle(req: Request) -> Response`); `Server` locus with `shutdown()` (cross-thread safe — see [§ Server.shutdown](#servershutdown--interruptible-accept-loop)) and optional `ready_signal: String` for piped oracles. **Request reassembly** (2026-07-14, downstream handoff): the per-connection loop reads until the `\r\n\r\n` header terminator and then until `Content-Length` body bytes arrive, so clients that split headers and body across TCP segments (python urllib et al.) are served whole. Guards: 1 MiB total-request cap (a declared `Content-Length` over the cap answers `413`; overflow before a complete header block closes without a response) and a 5s recv timeout (bounds a stalled client on classic/pinned pools; inert on `async_io`, where a stalled conn parks only its coroutine). Keep-alive remains unsupported (`Connection: close` hardcoded); `Transfer-Encoding: chunked` is not parsed. **Connection takeover / Upgrade (2026-07-19):** `Request.conn_fd` carries the live connection fd into the handler (`-1` outside a Server), and `Response { takeover: true }` makes the Server write ONLY the status line + the response's `headers` + a blank line — no Content-Type/Content-Length/`Connection: close`, no body — and return WITHOUT closing the fd (`Stream.release_fd()` disarms the per-connection scope close). From that moment the handler owns the connection: stash `req.conn_fd` (typically publish it to a session locus on its own pool) and drive it through the raw-fd tcp surface (`send_fd` / `recv_into` / `close_fd`) or a borrowed `Stream { conn_fd: fd, owns_fd: false }`. Status-agnostic (101 for WebSocket-class upgrades — `__status_phrase` knows `101 Switching Protocols` — or a CONNECT tunnel's 200). Caveats: the conn loop's 5s recv timeout is still armed on the fd (clear via `set_recv_timeout(fd, 0)`), and a handler that sets `takeover` without stashing the fd leaks it — the accept/release daemon warn class. This is the surface WebSocket promotion was blocked on. **Raw takeover (Crumb batch-3, 2026-07-28):** `Response { takeover_raw: true }` transfers the fd with **nothing written** — no status line, no headers. For the deferred-response shape: the handler returns before the answer exists (a promise resolved later, a bus reply from another locus), so whoever ends up owning the fd writes the entire response — status line included — via the raw-fd surface (`send_fd`). Also the CONNECT-tunnel / server-initiated-protocol shape. `status`/`headers`/`body` are ignored; takes precedence over `takeover`; same timeout + fd-leak caveats. **Router** (promoted from pond/router, 2026-07-17): `Router` locus — `add(method, pattern, h)` registers `METHOD /path/:capture` patterns against `RouteHandler` loci (`fn handle(ctx: Context) -> Response`; first match wins, register specific-before-general; method matching is case-insensitive at register time), `use(m)` registers `Middleware` (`before(ctx)` forward / `after(ctx, resp)` backward — onion order), `dispatch(req)` runs the chain, and `handle(req)` satisfies the `Handler` interface so `Server { handler: router }` plugs in directly. `Context` bundles the parsed `Request` (`ctx.req`, raw target incl. query string) with `RouteParams` (`ctx.params`); `path_param(params, name)` / `query_param(params, name)` return the capture / `k=v` value or `""` (sentinel shape; values NOT URL-decoded at v1). Patterns bound at 8 captures (`bounded[String; 8]` — exceeding it raises at register-authored routes); the 404 default is the overridable `not_found: RouteHandler` param. Trailing-slash tolerant on both sides; no implicit wildcard suffix. **Client** (promoted from pond/http/client, 2026-07-17): one-shot free fns `get(url)` / `post(url, body, content_type)` / `request(req)` — all `fallible(HttpError)`, `Connection: close`, read-to-close — plus the pooled `Client` locus (`user_agent` / `timeout_ms` / `max_retries` / `max_body` params; same fallible method surface; opt-in `keep_alive: true` switches to framed reads — Content-Length or `Transfer-Encoding: chunked` — over a 4-slot per-host:port connection pool with retry-and-backoff; the pool is deliberately hand-rolled, NOT `@form(lru_cache)`: an fd-owning cache needs an eviction hook and take-semantics the form doesn't offer). Client-side types are distinct from the server side on purpose: `ClientRequest` (`method` / `url: Url` / packed `headers` / `body: Bytes`) and `ClientResponse` (`status` / packed `headers` / `body: Bytes` — Bytes for binary safety, embedded NULs survive); `parse_url(s) -> Url fallible(HttpError)` decomposes scheme/host/port/path (query rides in `path`; no userinfo/fragments; no URL-decoding). `HttpError` kinds: bad_url / unsupported_scheme / connect_failed / send_failed / recv_failed / bad_response / too_large / retries_exhausted. https rides `std::io::tls` — **placement caveat**: TLS recv blocks the worker thread (no async_io park yet), so loci making https calls belong on `pinned` or a classic cooperative pool. Not implemented at v1: redirects (3xx returns as-is), proxies, compression. **Bus-routed observability**: `Server` gains a `log_subject: String = ""` param and a `bus { publish "io.http.**" of type std::io::tcp::LogEvent; }` declaration. When `log_subject` is set, listen-start / accept / listen-close events publish on the configured subject; empty (default) keeps the hot path at a single `len > 0` branch per event. Reuses the `std::io::tcp::LogEvent` type so one subscriber can observe both TCP and HTTP layers. | `runtime/stdlib/http.hl` |
+| `std::json` | `Builder` locus (streaming output assembly — see [§ json::Builder](#stdjsonbuilder--streaming-output-api)); `escape_string` / `unescape_string` (RFC 8259); `find_string_field` / `find_int_field` / `find_bool_field` (flat-object lookup); `find_field_raw(json, name) -> String` (the raw value of the named TOP-LEVEL member — rebuilt on the object cursor 2026-07-28 (Crumb batch-4): matches key POSITIONS only, so key text recurring inside an earlier string VALUE no longer shadows the real key (on a real npm packument the old text-scan lost 12 of 35 version keys). Depth-aware and string-safe; nested walks re-feed the returned object/array substring — the documented chaining contract, now actually enforced); `ArrayIter` + `array_first` / `array_next`, and the span-bearing `ArrayIterSpan` cursor `array_first_span(json, start) -> ArrayIterSpan` / `array_next_span(it) -> ArrayIterSpan` (carry the element's byte range rather than an owned substring — the allocation-free array-walk sibling of the object cursor below). Range-bearing iter family: `iter_find_field_range(it, json, name) -> JsonFieldRange` and `iter_find_string_field_range(it, json, name) -> JsonFieldRange` return `{ok, start, end_pos}` instead of an owned-String substring; paired with the `std::str::range_*` family for fully allocation-free per-element walks on large arrays (the high-throughput workload class where per-field allocation dominates arena pressure). No nested-tree shape at v1 — re-feed substrings into the same surface for nested walks. Single-pass object member cursor: `object_first(json) -> ObjectIterSpan` / `object_next(it, json)` walk `{...}` members once, with `obj_key_eq(it, json, name) -> Bool` / `obj_key_len(it) -> Int` for key dispatch, `obj_key_string(it, json) -> String` for unknown-key iteration (the key-side sibling of `obj_value_string`, incl. escape decoding — hand-slicing `key_start..key_end` silently skips it) and `obj_value_int` / `obj_value_bool` / `obj_value_string` / `obj_value_raw(it, json)` reading the current value from its source range (no per-field rescan; nested objects/arrays on unmatched keys are skipped whole by the depth scan). This is the substrate a compiler-generated, schema-specialized parser drives — and the seam a future SIMD structural index slots under. | `runtime/stdlib/json.hl` |
 | `std::test` | `assert(cond, msg)`, `assert_eq_int`, `assert_eq_str` | `runtime/stdlib/test.hl` |
 | `std::log` | `Logger`, `LogEvent`, `StdoutSink` (subscribes `log.**`). **Sinks promoted from pond/logfmt (2026-07-18):** `FileSink` — appends every event to `path`, rotates by size (`max_size_bytes`, `keep_files`; chain shifts via atomic `rename(2)` overwrite, oldest evicted, active file recreated on next append), I/O failures captured in the `last_error_kind/errno/path` scratch triple (the styleguide-2.7 convention), also wears the `std::text::Sink` shape (write/line/newline with the same rotation). `ConsoleSink` — dim HH:MM:SS + colored width-5 level badge + dim path + message; WARN/ERROR on stderr (StdoutSink's lane split); color AUTO (tty probe on stderr; FORCE_COLOR/CLICOLOR_FORCE override; NO_COLOR always wins; `color: false` = never). pond's OtlpSink stays in pond (vendor-protocol integration is app-tier). | `runtime/stdlib/log.hl` |
 | `std::metrics` | Prometheus-shaped metrics (promoted from pond/metrics, 2026-07-18). `Registry` locus (`namespace` prefix; **owns its storage** — the `MetricMap` (`@form(hashmap, sync = serialized)`) and `HistogramList` (`@form(vec)`) are param-default children, so `Registry { namespace: "app" }` is the whole construction and a Registry returned from a builder fn keeps its series alive; explicit `store:`/`histograms:` overrides remain accepted but a let-bound override dissolves at the constructing fn's scope exit — prefer the owned default). Factory free fns `counter(reg, name, labels)` / `gauge(reg, name, labels)` / `histogram(reg, name, bounds, labels)` are **idempotent on (name, labels)** — a repeat call returns a handle to the same series without resetting it; handles reference the storage slots directly (resolve once at boot, cache the handle as a field, mutate from the hot path — styleguide S12). `Counter` (`inc` / `add`, monotonic by convention), `Gauge` (`set` / `add` / `sub` / `inc` / `dec`), `Histogram` (`observe(v)` — cumulative buckets + implicit `+Inf` + `sum` + `count`; bucket bounds passed as a space-separated ascending String `"0.005 0.01 0.05"`, parsed once at registration, max 32 buckets with over-cap clamping). Labels via `labels_empty()` / `labels_one(k, v)` / `labels_two(...)` / `labels_append(l, k, v)`. `render()` emits Prometheus text exposition (`# TYPE` lines, `ns_name{k="v"} value` samples, histogram `_bucket{le=...}` / `_sum` / `_count`); `Endpoint { registry: reg }` satisfies `std::http::Handler` and answers any request with the rendering under `Content-Type: text/plain; version=0.0.4`, so `std::http::Server { handler: Endpoint { ... } }` is a complete /metrics scrape target. The MetricMap is `sync = serialized` because the canonical topology scrapes from one pool while handlers write from another. | `runtime/stdlib/metrics.hl` |
@@ -11106,7 +11575,7 @@ surface without touching the compiler.
 | `std::os` | `getrandom(n: Int) -> Bytes fallible(IoError)` (CSPRNG; `getrandom(2)` with `/dev/urandom` fallback) | `lotus_os_getrandom` C primitive |
 | `std::rand` | `next_int(max: Int) -> Int` — a uniform-ish integer in `[0, max)` drawn from a shared xorshift64\* generator; `seed_from_time()` re-seeds that generator from the wall clock. **Not cryptographic** (deterministic PRNG, process-shared state) — for security-sensitive randomness use `std::os::getrandom`. | `lotus_rand_*` C runtime |
 | `std::ts` | Tree-sitter parse substrate (m96 — the `std::ts::*` routes back the higher-level `Lang` locus). `parse_go(src: String) -> Int` parses Go source and returns an opaque **tree handle** (`Int`); `root_node(tree) -> Int` returns the root **node handle**. Node navigation (all handles are `Int`): `node_child_count(node)` / `node_named_child_count(node)`, `node_child(parent, i)` / `node_named_child(parent, i)`, `node_is_named(node) -> Int` (`0`/`1`). Kind, text, spans: `node_kind(node) -> String`, `node_text(node) -> String`, `node_start_byte(node) -> Int` / `node_end_byte(node) -> Int`. Go is the only bundled grammar at v1; the tree-sitter shim staticlib is linked into the build (gating the link on actual `std::ts` use is future work). | `lotus_ts_*` + tree-sitter shim |
-| `std::bus` | `__StdBusAdapter` interface (contract for user-supplied bus transports — a single `fn send(subject: String, bytes: Bytes)` method); `__local_dispatch(subject, bytes)` primitive lets an adapter relay received wire-bytes into the local handler set. **Substrate transport URL schemes** (resolved at runtime by `lotus_bus_load_config` from `LOTUS_BUS_CONFIG=<file>`): `unix://<path>` (AF_UNIX SEQPACKET; m58); `udp://<host>:<port>` (2026-05-26 — IPv4 UDP, single scheme covers unicast and multicast: addresses in `224.0.0.0/4` trigger `IP_ADD_MEMBERSHIP` on the subscribe side, everything else takes the plain unicast bind/sendto path; lossy delivery — publishers get "sendto returned" durability, subscribers best-effort; gap recovery is a deployment concern via app-layer repeaters, MoldUDP-style). Each LOTUS_BUS_CONFIG line: `subject = <url>:<role>` where role is `listen` or `connect`. Other protocol-layer transports (NATS, MQTT, raw-TCP-with-framing) come in via user adapters (the `__StdBusAdapter` route above). **Payload size**: the substrate handles bus payloads up to ~64 KB (`LOTUS_PAYLOAD_MAX`, sized to UDP datagram max). Mailbox cells inline payloads ≤ 512 B (`LOTUS_PAYLOAD_INLINE` — zero malloc on the hot path); larger payloads route through a per-cell `malloc` that the drain path frees after the handler returns. The UDP transport's wire buffer is sized at LOTUS_PAYLOAD_MAX; the kernel-side socket receive buffer takes its size from `SO_RCVBUF` (default ~208 KB on Linux, raise via `LOTUS_BUS_UDP_RCVBUF=<bytes>` env). UDP `sendto` failures log once per errno class to stderr (`EMSGSIZE` typically means path-MTU mismatch; see `std::io::sockopt::IP_MTU_DISCOVER` for the DF-bit knob). | `runtime/stdlib/bus.hl` + `lotus_bus_*` C runtime |
+| `std::bus` | `__StdBusAdapter` interface (contract for user-supplied bus transports — a single `fn send(subject: String, bytes: Bytes)` method); `__local_dispatch(subject, bytes)` primitive lets an adapter relay received wire-bytes into the local handler set. **Substrate transport URL schemes** (resolved at runtime by `lotus_bus_load_config` from `LOTUS_BUS_CONFIG=<file>`): `unix://<path>` (AF_UNIX SEQPACKET; m58); `udp://<host>:<port>` (2026-05-26 — IPv4 UDP, single scheme covers unicast and multicast: addresses in `224.0.0.0/4` trigger `IP_ADD_MEMBERSHIP` on the subscribe side, everything else takes the plain unicast bind/sendto path; lossy delivery — publishers get "sendto returned" durability, subscribers best-effort; gap recovery is a deployment concern via app-layer repeaters, MoldUDP-style). Each LOTUS_BUS_CONFIG line: `subject = <url>:<role>` where role is `listen` or `connect`. A well-formed route that cannot be *opened* fails the boot via `lotus_bus_binding_fail` (the publish contract, spec/semantics.md — no requested route may silently not exist); malformed lines warn-and-skip. Other protocol-layer transports (NATS, MQTT, raw-TCP-with-framing) come in via user adapters (the `__StdBusAdapter` route above). **Payload size**: the substrate handles bus payloads up to ~64 KB (`LOTUS_PAYLOAD_MAX`, sized to UDP datagram max). Mailbox cells inline payloads ≤ 512 B (`LOTUS_PAYLOAD_INLINE` — zero malloc on the hot path); larger payloads route through a per-cell `malloc` that the drain path frees after the handler returns. The UDP transport's wire buffer is sized at LOTUS_PAYLOAD_MAX; the kernel-side socket receive buffer takes its size from `SO_RCVBUF` (default ~208 KB on Linux, raise via `LOTUS_BUS_UDP_RCVBUF=<bytes>` env). UDP `sendto` failures log once per errno class to stderr (`EMSGSIZE` typically means path-MTU mismatch; see `std::io::sockopt::IP_MTU_DISCOVER` for the DF-bit knob). | `runtime/stdlib/bus.hl` + `lotus_bus_*` C runtime |
 
 Hale doesn't use parametric stdlib collection types (`Map<K,
 V>`, `Vec<T>`, `Set<T>`, etc.). Storage is locus-shaped via the
@@ -12056,6 +12525,48 @@ Bytes;` (Hale reads them and parses with `std::json` / `std::bytes`).
   the WASM host interface above (the browser-client walkthrough:
   loader `run(glue)`, the inbox, the `@export locus` game loop).
 
+
+## C→Hale re-entry: `@export fn` on native (Crumb batch 2, 2026-07-27)
+
+The inverse direction of `@ffi`: an `@export fn` free fn is
+emitted as an **unmangled C-ABI symbol** on native targets (the
+same annotation wasm entry-inversion already used; the internal
+arena-ABI implementation is renamed `__hale_impl_<name>` and the
+literal name is claimed by a C-callable wrapper). C code — an
+engine registering host functions, a callback-taking library —
+links the symbol and calls straight into Hale.
+
+**Marshalling** is the same FFI-portable set as imports, in the
+same C shapes: `Int` ↔ `int64_t`, `Float` ↔ `double`, `Bool` ↔
+`bool`, `String` ↔ `const char*`, `Bytes` ↔ lotus blob pointer
+(`lotus_bytes_len`/`lotus_bytes_data` are linkable for C-side
+access). Typecheck rejects non-portable params/returns, defaulted
+params (fixed C arity), and fallible exports (no C error
+channel).
+
+**The v1 contract is same-thread re-entry**: the callback must
+fire while Hale is inside an in-flight `@ffi` call on that same
+thread (the engine-host-function shape — JS calls a host fn
+during `crumb_js_run_file`). Codegen publishes the call site's
+arena in the caller-arena TLS around every `@ffi` call
+(save/set/restore, nesting-safe); the export wrapper's prologue
+picks it up, so the re-entered body composes with the established
+context — bus publishes dispatch, eager loci instantiate and
+dissolve, all on the thread that owns them. Entry from a foreign
+thread (or outside any in-flight `@ffi` call) aborts with a
+pointed diagnostic naming this section; cross-thread entry is the
+documented follow-up.
+
+**Invariants the re-entered code inherits** (spelled out per the
+Crumb request): re-entry runs on the calling thread's context —
+the same single-threaded interiority as the locus/fn that made
+the `@ffi` call. Publishes enqueue exactly as they would from
+that caller; a re-entered export must not assume it runs on main
+unless the `@ffi` call site does. `JSValue`-style by-value
+foreign structs never cross — trampolines convert to the
+marshalling set C-side (the pond/sqlite handles-in/scalars-out
+pattern).
+
 ================================================================================
 ## Static verification surface
 ## source: spec/verification.md
@@ -12213,6 +12724,243 @@ assume the others in a build:
   contract with `recv_into` + a reused `BytesBuilder`. fn-only; mutually
   exclusive with `@unbounded`. A violation reports the measured count and
   points at every offending allocation with the fast-path fix.
+- **Effect assertions — `@effects(...)` and its `@no_*` sugar**
+  (GH #265, 2026-07-29). `@budget`'s discipline generalized from
+  allocation *count* to effect *classes*: an opt-in contract at a root
+  the author cares about, inferred everywhere else, enforced as a hard
+  error. **One surface, one engine, one classified frontier** — not a
+  family of independent flags.
+
+  The general form is `@effects(...)`:
+
+  ```hale
+  @effects(none: {syscall, block})   fn decode(b: Bytes) -> Msg { ... }
+  @effects(none: {time})             fn backoff(n: Int) -> Int { ... }
+  @effects(publish: {OrderFill})     fn route(o: Order) { ... }
+  ```
+
+  `none: {…}` forbids effect classes; `publish: {…}` declares the
+  allowed publish set (exact, because the topic set is closed). The
+  classes are `syscall`, `block`, `time`, `entropy`, `env`, `ffi`,
+  `publish`, `spawn`, `recursion`.
+
+  The `@no_*` family is **documented sugar**, desugared at parse time
+  so the checker has exactly one shape to interpret (a flag can never
+  drift from the general form):
+
+  | sugar | means |
+  |---|---|
+  | `@no_syscall` | `@effects(none: {syscall})` |
+  | `@no_block` | `@effects(none: {block})` |
+  | `@no_ffi` | `@effects(none: {ffi})` |
+  | `@no_publish` | `@effects(none: {publish})` |
+  | `@no_spawn` | `@effects(none: {spawn})` |
+  | `@no_recursion` | `@effects(none: {recursion})` |
+  | `@deterministic` | `@effects(none: {time, entropy, env})` |
+
+  All stack with each other and with `@hot` / `@budget(...)`, so the
+  full hot-path certificate is one line:
+  `@no_block @no_syscall @deterministic @no_recursion @hot
+  @budget(alloc_per_call = 0)`.
+
+  **Where each class's truth comes from.** `syscall` / `block` /
+  `time` / `entropy` / `env` are queries against the **fully
+  classified stdlib registry** — all 327 surface entries carry an
+  `EffectSet` in `hale-types::stdlib_surface`, with zero unclassified
+  residue (pinned by a test). The classification distinguishes
+  *reading* an effect source from operating on a *supplied value*:
+  `time_from_unix(n)` is deterministic while `monotonic_ns()` is not;
+  `http::parse_request` is pure while `http::get` is blocking I/O.
+
+  **Incompleteness fails closed, in both of its forms.** An entry
+  present but *unclassified* is treated as may-do-anything and
+  violates every assertion. So is a `std::` path with **no registry
+  row at all** — the two used to be asymmetric, and that asymmetry
+  was a soundness hole: an unclassified row failed closed while a
+  whole unregistered namespace read as pure, silently certifying
+  calls into it. "Absent" and "unknown" are the same claim, and
+  neither can be certified.
+
+  The **language builtins that write to a stream** (`println`,
+  `print`, `eprintln`, `eprint`) are syscall-class. They are not
+  `std::` paths, so they once sat outside the frontier entirely and
+  a `@no_syscall` fn could print freely — while the diagnostic for
+  `std::io::fs::*` described the syscall class as covering "stdio".
+  Writing to a stream is a `write(2)`; it can block, and a hot-path
+  certificate that permits it is not certifying what it claims.
+
+  `ffi` matches
+  bundle-local `@ffi` declarations. `publish` and `spawn` are
+  **syntactic** — `Topic <- v` and `Child { … }` are effects the
+  language expresses directly, recorded as effect *sites* on the
+  summary rather than as call edges. `recursion` is a graph property.
+
+  **Reachability follows handles, not just paths.** A call made on a
+  value — `reader.slurp()`, `resolver.get(…)` — is a real edge, and
+  the analysis resolves the receiver's declared type to walk into
+  the method body. This includes the part of the standard library
+  that is **written in Hale** (`hale-stdlib`): those bodies are fed
+  to the callgraph, so their effects are *inferred from the
+  implementation* rather than declared in a table that can drift.
+  Witness paths through a stdlib locus are rendered in the public
+  spelling (`std::cli::Resolver::get`), never the internal mangled
+  name.
+
+  This matters more than it sounds: the locus-with-methods shape is
+  the idiomatic way to do I/O in Hale — the same shape a violation
+  diagnostic recommends as the fix. Moving an effect behind a locus
+  the asserting fn still calls does not make it unreachable, and the
+  checker must not confuse the two.
+
+  **Diagnostics carry the witness path** — the call chain from the
+  asserting root to the offending leaf, which `@budget`'s fixpoint
+  structurally could not produce:
+
+  ```
+  effect assertion violated: `on_tick` must not reach `block`, but reaches
+    on_tick -> helper -> nap [std::time::sleep — a blocking operation …].
+  ```
+
+  plus a second diagnostic at the leaf itself.
+
+  **Boundaries:** opaque callees outside the classified frontier are
+  not seen (the same soundness boundary the escape analysis and
+  `@budget` draw); `@ffi` labels are trusted, not verified; a computed
+  publish subject cannot be proven in-set and is reported. `@no_panic`
+  remains a separate track — disposition coverage + index-op
+  selection, not leaf reachability.
+- **Quantitative budgets — `@budget(<dim> = N)`** (GH #265 step 5,
+  2026-07-29). `@budget` counts more than allocations now; dimensions
+  compose in one clause, comma-separated:
+  - `stack_bytes` — worst-case stack depth as a **DAG longest path**
+    over estimated frame sizes. Acyclicity is the precondition, which
+    is why this pairs with `@no_recursion`: a cycle reports
+    *unbounded*. Frames are estimated from declared shapes and
+    over-approximate, so the bound is safe to assert on but is not
+    WCET.
+  - `block_points` — how many blocking operations one call may reach
+    (`0` is `@no_block`; `1` is "may wait once, on its own socket").
+  - `publish` — publishes per call. `@budget(publish = 1)` **is** the
+    exactly-once-reply contract the issue sketched as `@replies`,
+    falling out as a count rather than a bespoke analysis.
+  - `fanout` — transitive subscriber **deliveries** one call causes,
+    read off the bus graph. This is the amplification/backpressure
+    property no per-fn count reveals: a handler publishing to a
+    200-subscriber subject amplifies 200×.
+
+  A contributor inside a loop saturates to unbounded, matching
+  `alloc_per_call`'s per-call semantics.
+- **Phase-indexed effects — `@phase_effects(...)` on a locus**
+  (GH #265 step 6, 2026-07-29). The lifecycle model expresses what a
+  function-level effect system cannot:
+  `@phase_effects(birth: {alloc}, run: {})` **is** the DO-178 "no
+  dynamic memory after initialization" discipline, stated directly
+  rather than assembled from two unrelated flags. Each phase names
+  the classes it may perform (`alloc`, plus the `@effects` classes);
+  a phase omitted is unconstrained, a phase with `{}` forbids
+  everything. Phases resolve to lifecycle hooks (`birth`, `run`,
+  `drain`, `dissolve`, `accept`, `release`) or to any member fn /
+  handler by name.
+- **`@no_panic` — disposition coverage** (GH #265, 2026-07-29).
+  Deliberately *not* an effect class: this is a syntactic property of
+  a body, not a query over the classified frontier. A fn asserting
+  `@no_panic` must have no reachable trap — no explicit `violate`, no
+  fallible expression dispositioned `or raise` (which propagates
+  rather than handles), no trapping index form. `or discard`, a
+  substitute value, and `or handler(err)` all satisfy it.
+- **The conformance loop — checking the checker** (GH #265 step 7,
+  2026-07-29). Static classification is a *claim*; the running
+  binary is the oracle. `crates/hale-codegen/tests/
+  effects_conformance.rs` compiles programs carrying assertions,
+  runs them, and samples the runtime's own counters
+  (`std::diag::syscall_count` / `heap_alloc_count`) around the
+  certified call: a fn certified `@no_syscall` that performs a
+  syscall, or `@budget(alloc_per_call = 0)` that allocates, is **a
+  caught soundness bug in the analysis itself** — the one class of
+  defect that "the checker says what I expect" testing cannot find.
+  A negative control asserts the oracle detects the effect when it
+  genuinely happens, so the conformance checks can never pass
+  vacuously. Same philosophy as GenMC-in-CI, applied to effects.
+- **The `.hale.effects` manifest + CI gate** (GH #265 step 7). The
+  manifest is a **behavioural fingerprint**: every fn's declared
+  contracts *and* its INFERRED effect set (`does={…}`), stable-sorted
+  for diffs. `hale check <target> --dump-effects-manifest` writes it;
+  `--check-effects-manifest <path>` diffs against a committed
+  baseline and **fails the build** when the program's effects change,
+  printing which fn gained or lost what. That catches the case
+  annotations cannot: a handler that quietly starts doing filesystem
+  I/O shows up as `+ Api::emit … does={syscall,publish,alloc}` in
+  review even though no annotation changed. Regenerate deliberately
+  with the dump flag when the change is intended.
+- **Corpus-wide conformance** (GH #265 step 7). Beyond the per-test
+  runtime oracle, a sweep over the whole in-tree `.hl` corpus asserts
+  three properties everywhere real code lives: no reachable stdlib
+  call lands on an **unclassified** registry row (an unclassified
+  leaf silently weakens every assertion over it, so frontier
+  completeness must not rot as the corpus grows); inference is
+  **deterministic** (the same program inferred twice yields identical
+  sets — otherwise manifests diff spuriously); and every corpus
+  program carrying an assertion **satisfies** it.
+- **The `.hale.effects` manifest** (GH #265 step 7). `effect_manifest`
+  / `render_effect_manifest` emit the whole program's declared
+  contracts in a stable, sorted line format alongside `.hale.topo`.
+  Declaration-only at v1 (inferring a full effect set per fn is the
+  effect-rows-on-function-types slippery slope the issue defers);
+  what it buys today is that an effect **regression** — a handler
+  that quietly lost a contract — shows up as a one-line diff in
+  review, the way an API break shows in a `.d.ts` diff.
+- **Cross-actor causality — `@effects(causes: {…})`** (GH #265,
+  2026-07-29). The call graph stops at a publish; the **bus graph
+  continues**. Because Hale's message graph is declared over a closed
+  topic set, "this handler, by publishing `orders`, can transitively
+  cause a filesystem write in the audit subscriber" is a checkable
+  property — the compiler walks publish sites → subject → each
+  subscriber's inferred effect set. The diagnostic names the causal
+  path (`Api::handle -> subject Orders -> Audit::on_order`). Only
+  effects reached THROUGH the bus are reported; direct effects are
+  the `none:` form's job. Actor systems without a declared message
+  graph structurally cannot offer this.
+- **Supervision coverage — `@supervised`** (GH #265, 2026-07-29). A
+  locus marked `@supervised` asserts that every locus in its subtree
+  has a failure policy in scope — an `on_failure` on itself or an
+  ancestor. A locus with children and no policy above it is reported
+  by name: a failure there has nowhere to go. The declared ownership
+  tree makes this a tree walk; it is the static supervision-coverage
+  property the actor world has wanted for decades.
+- **Coarse secret taint — `@secret` params** (GH #265, 2026-07-29).
+  A parameter declared `@secret name: T` must not reach a bus publish
+  or a log / file sink. Deliberately **coarse** — parameter-granular,
+  not value-flow-complete — which the issue asked be assessed rather
+  than deferred to a "v2 horizon"; the choke-pointed sinks make even
+  this catch the mistake that matters (a key or token in a log line
+  or on the wire). Constant-time / full information flow remains out
+  of scope: value-dependent control flow and microarchitecture are a
+  different shape of analysis.
+- **Inferred effect sets + symbolic cost** (GH #265, 2026-07-29).
+  `frontier::infer_effects` computes the transitive effect set of ANY
+  fn — no declaration required — which is what feeds the causality
+  check and lets the `.hale.effects` manifest report inferred sets
+  alongside declared contracts. (Effect rows on function *types*
+  remain the deferred slippery slope; a manifest is a report, not a
+  type.) `cost_expression` renders a structural cost —
+  `O(n^k)` in nesting depth with a step estimate — explicitly **not
+  WCET**: the first-filter triage shape, meaningful only for a fn
+  already proven bounded.
+- **Placement-implied contracts — the assertion you don't write**
+  (GH #265, 2026-07-29). A locus placed
+  `cooperative(pool = X) where async_io` shares that pool's single
+  worker; a blocking operation reachable from one of its handlers
+  holds the worker and stalls every other locus on the pool. Since
+  the placement already declares the intent, the compiler enforces it
+  **with no annotation at all**: an unannotated handler on an
+  async_io pool that reaches a blocking call gets a warning naming
+  the chain and both fixes (move the work to its own pool, or assert
+  `@no_block` to have it enforced as an error). Advisory rather than
+  hard, because a lone locus owning its pool may block deliberately;
+  writing an explicit assertion suppresses the advisory (the author
+  is engaged, and the enforced error replaces it). This is the class
+  of bug that shipped as a downstream latency mystery — a sleeping
+  handler holding an engine pool — now visible at compile time.
 - **Hot-path allocation lint — default-on advisory** (2026-07-16). Two
   loop-scoped anti-patterns get a **warning** (never a build failure), so
   the allocation-free shape is the path of least resistance rather than
@@ -12621,10 +13369,33 @@ The test-runner contract is exit-code based:
   stdout. The first failure short-circuits — `std::process::exit`
   terminates immediately.
 
-A `.hl` test program is just an ordinary Hale binary. The
-current test runner is the Rust integration harness in
-`crates/hale-codegen/tests/`; future `hale test` CLI runs
-the same `.hl` programs unchanged.
+A `.hl` test program is just an ordinary Hale binary.
+
+### The compiler's own Hale-language suite
+
+`tests/hale/` holds `*_test.hl` programs that test the language in
+the language, run by `hale test` and wired into the workspace suite
+(`crates/hale-cli/tests/hale_native_suite.rs`). Run them directly
+with `hale test tests/hale`.
+
+A behaviour test belongs there rather than in a Rust integration
+test when it is "run a program, check what it computed". Two things
+change in the move:
+
+- **The expectation stops being transcribed.** The Rust form
+  compiles a program that *prints*, then substring-matches the
+  output from another language. The Hale form asserts next to the
+  code — no second copy to drift. It is also stricter:
+  `assert_eq_int(n, 42)` rejects what `stdout.contains("a=42")`
+  accepts, because the latter also passes on `a=421`.
+- **The program gets typechecked.** `build_executable`, which the
+  Rust codegen tests call, parses and lowers but never runs the
+  checker, so those programs are compiled and executed without ever
+  being checked.
+
+What stays in Rust is anything asserting on *compiler output* rather
+than program behaviour: diagnostics, IR shape, leak counts,
+observation records.
 
 ### What landed vs what's still aspirational
 

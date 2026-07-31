@@ -296,8 +296,14 @@ innocent at the call site can leak into a locus's lifetime arena
 — but the substrate closes more of those shapes than you'd
 expect, and the "What's already free" list preempts overcautious
 code. The compiler backs the rules with a layered enforcement
-ladder (default warnings → `@hot` → `@budget`); see styleguide
-§5.
+ladder (default warnings → `@hot` → `@budget` → `@effects`); see
+styleguide §5. `@effects(none: {…})` — with the `@no_block` /
+`@no_syscall` / `@deterministic` / `@no_publish` / `@no_spawn` /
+`@no_ffi` / `@no_recursion` shorthands — asserts what a fn may
+*reach*, checked transitively with the offending call chain in
+the diagnostic. And a handler on a `where async_io` locus is
+checked for blocking calls with no annotation at all: the
+placement is the contract.
 
 ## Binding an external C library
 
@@ -342,6 +348,29 @@ down" is a closure declaration + a member fn + one `violate`
 statement. Don't reach for a `should_exit: Bool` flag plus a
 `while !should_exit { yield; }` loop — the primitives above
 are the supported form.
+
+## Hard gotchas (codegen-v0 limits — don't fight these)
+
+These are the ones that bite on a first attempt. Each is a real
+restriction, not a style preference.
+
+- **CQRS / no-locus-return.** A `fn` member of a locus may NOT return
+  a user-declared locus type — `fn get() -> SomeLocus` is rejected.
+  Use parent-child + contract, a bus topic, or delegation. **Free fns
+  CAN return loci** (constructors like `std::io::file::open`), which
+  is why factories are free fns rather than methods.
+- **Strict field access.** A typo'd field (`self.greting`) is a hard
+  error, not a silent unknown. Fix the name.
+- **Empty `if` bodies parse-fail.** Put a `// note` inside, or invert
+  the condition.
+- **Fn-pointer callbacks can't capture** surrounding state. Route
+  state through the bus, reconstruct it inside, or use a locus method
+  with its own `self`.
+- **`hale run` rejects qualified-name struct/locus literals**
+  (`std::http::Request { }`). Use `hale build` and run the binary for
+  programs using path-qualified stdlib types.
+- **No `panic` / `assert`.** Failure is structural (`violate`) or
+  value-level (`fallible`); see above.
 
 ## Pointers
 

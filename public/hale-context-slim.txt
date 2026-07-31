@@ -2,293 +2,414 @@
 HALE CONTEXT PACK (slim)
 ================================================================================
 
-The essentials plus the two highest-signal spec docs (style guide + lexical structure). Fits comfortably in a context window.
+The canonical authoring rules plus the two highest-signal spec docs (style guide + lexical structure). Fits comfortably in a context window.
 
-Generated 2026-07-20 from the Hale language specification. The authoritative source is
+Generated 2026-07-31 from the Hale language specification. The authoritative source is
 the compiler repository. When in doubt, run `hale check` — the compiler is the
 oracle.
 
 
 ================================================================================
-## Essentials & gotchas
-## source: agent-assets/essentials.md
+## Authoring rules (canonical AGENTS.md)
+## source: hale/AGENTS.md
 ================================================================================
 
-# Hale essentials & gotchas — write correct, idiomatic Hale
+# AGENTS.md — Hale for agents writing `.hl` programs
 
-This is the distilled, load-bearing knowledge for writing Hale that compiles
-and is idiomatic on the first try. It is the preamble to the full context pack;
-the rest of the pack is the complete language specification for depth. Read this
-first, then **let the compiler be the oracle** — `hale check <dir>` accepts or
-rejects with a precise diagnostic; iterate against it.
+You are writing programs in Hale. This file is the load-bearing
+prompt: encoding first, then operational. Read it once before
+you write any `.hl` code.
 
----
+## The Design (recursive hypergraph)
 
-## 1. The axiom: everything is a locus
+Hale operationalizes **The Design** — a recursive hypergraph — at
+the language substrate. Every rule about how Hale code is shaped
+traces back here. Quote node / hyperedge / invariant IDs when
+citing a rule (e.g. `H8`, `I4`).
 
-Hale has exactly two declaration primitives, on one gradient:
+```
+%DESIGN v1
 
-- **`type`** — pure data. Fields, layout, returnable by value. No lifecycle, no
-  flow. A record.
-- **`locus`** — anything with *flow*: lifecycle (`birth`/`run`/`drain`/`dissolve`),
-  state, contracts, bus participation, supervision. An app is a locus; a service
-  is a locus; a namespace of helpers is a locus; a bus subscriber is a locus.
+nodes:
+  α   axiom                ; declared, irreducible
+  Σ   system               ; α with 1→N decomposition
+  Δ   dimension            ; projection of Σ's 1→N
+  Π   perspective          ; choice of Δ
+  K   capacity             ; bound on Σ
+  D   displacement         ; K-full + new → drop-least
+  ↑   failure-up           ; D insufficient → Σ.parent
+  ⊥   root-as-boundary     ; recursion stops at horizon
+  ∥   vertical-only        ; edges ⊆ {parent↔child}
+  ⋈   multi-DAG-projection ; substrate-DAGs join via form
 
-If a thing has lifecycle or mutable flow, it's a `locus`. If it's pure shape,
-it's a `type`. There is no third category. There is no `class`, `module`,
-`package`, or `namespace` keyword — a locus does all of it.
+hyperedges:                              ; arity ≥ 2
+  H1  unfold     (α, Σ, [α₁..αₙ])        ; α-as-Σ has children
+  H2  recurse    (Σ, αᵢ)                 ; each child read-as-α
+  H3  compose-Δ  (Δ₁, Δ₂) → Δ₃           ; ⊗-closed
+  H4  observe    (Π, Δ)                  ; perspective picks Δ
+  H5  depth-Δ    (Π, Δd)                 ; cross-depth Π IS a Δ
+  H6  bound      (Σ, K)
+  H7  displace   (Σ, K-full, new) → kept ; drop reveals priority
+  H8  bubble     (Σ, ↑) → Σ.parent.on_fail
+  H9  vertical   ∀ edge ∈ Σ-tree : edge ∈ ∥
+  H10 lateral-Δ  compose-Δ is licit-lateral-at-Δ-layer only
+  H11 root       (Σ.root, ⊥) = current-observable-horizon
+  H12 DAG-join   (⋈, DAGᵢ) via form
 
-```hale
-type Point { x: Int; y: Int = 0; }      // data
+invariants:
+  I1 form         : portable across deployment substrates
+  I2 params       : substrate-local
+  I3 pyramid      : ∀ d ∈ depths(Σ-tree), ∃ stability-tuple_d
+  I4 MS2          : ∀ q ∈ model, q ∈ exactly-one-Σ-tower
+                    floating-q ⟹ modeling-error
+  I5 form-content : form claims are perspective-invariant;
+                    content reduction claims are perspective-conditioned
 
-locus Counter {                          // flow
-    params { n: Int = 0; }               // params ARE the locus's mutable state
-    fn inc() { self.n = self.n + 1; }
-}
+hale ≜ operationalization(DESIGN, substrate=language)
+map:
+  locus               ↔ Σ
+  type                ↔ Σ-proto (no lifecycle/flow)
+  contract            ↔ Π@depth-edge
+  expose | consume    ↔ Π↑ | Π↓
+  capacity{pool,heap} ↔ K-tuple, slot-0 implicit Arena
+  on_failure          ↔ ↑
+  drain (cascade)     ↔ ∥ depth-first
+  projection class    ↔ K-conditioned Π-resolution (rich|chunked|recognition)
+  bus                 ↔ Δ-composed channel, ⋈ when bound to transport
+  closure-test        ↔ I3 local check at Σ
+  perspective T       ↔ Π serialized across processes
+  fallible(E)         ↔ value-channel Π↑ (orthogonal to ↑)
+  @form(...)          ↔ K-discipline lowering, application-layer Σ
+
+hale.root: ⊥(language-graph) = DESIGN itself
 ```
 
-`params` is both the construction-time defaults *and* the locus's runtime state
-(mutated via `self.x = ...`). There is no separate `state {}` block.
+## The locus axiom
+
+Everything named and structural is a **locus** (Σ). If it has
+lifecycle, contracts, bus participation, modes, closures,
+capacity slots, or projection class, it is a fully-grown
+locus. If it is pure data — record, returnable by value, no
+flow — it is a **type**, a locus still in proto-form. There is
+no third primitive at the structural layer. By `I4` (MS2),
+every named quantity must be assignable to exactly one locus
+in one locus tower; floating quantities signal modeling error,
+not framework gap.
+
+## The pattern catalog
+
+Seven shapes. Every well-written `.hl` program matches one. If
+something doesn't fit, reconsider against the catalog before
+inventing. (`spec/styleguide.md` is the unified guide — shapes,
+correctness rules, hot-path speed rules, and the compiler's
+enforcement ladder in one place; this section is the working
+summary.)
+
+1. **App locus** — outer encapsulation; one per app. PascalCase
+   name; `params` from argv defaults; `run()` delegates to a
+   free helper; `main()` reads argv and statement-instantiates
+   the locus.
+2. **Namespace lotus** — empty (or config-only) `params { }`,
+   methods only. The language's substitute for "module of
+   functions" / "static class". Instantiate once, dispatch
+   through it.
+3. **Service locus** — full lifecycle (`birth → run → drain →
+   dissolve`) for things that genuinely run over time. Sentinel
+   params (e.g. `-1` for "not yet bound") let `dissolve` no-op
+   on partially-constructed loci.
+4. **Spawned child** — `let s = SomeLocus { ... };` defers
+   dissolve to the enclosing fn's scope exit. The binding stays
+   valid for method calls between construction and dissolve.
+   Statement-position literals (`SomeLocus { };` with no `let`)
+   fire-and-forget at the end of the statement.
+   - **Accept'd flow child** (connection / per-request shape):
+     a long-lived parent `accept(c: Conn)`s one child per
+     connection; the child's `run()` IS its lifetime (a recv
+     loop that returns on close). Declare `release(c: Conn)` on
+     the parent to mark `Conn` a *flow* — then run-completion
+     reclaims the child (its arena freed as the connection ends,
+     not at parent dissolve). Or end it explicitly with
+     `terminate;`. Without `release`/`terminate` an accept'd
+     child is a *resident* and lives until the parent dissolves
+     — on a daemon, forever (unbounded growth). See
+     `spec/semantics.md § release(c)`.
+5. **Data collection** — a `@form(vec)` / `@form(hashmap)` locus
+   holding the storage, wrapped by a thin facade locus whose
+   methods name the domain operations (`append` / `count` / `at`
+   over `push` / `len` / `get`). Cell types must be unqualified
+   in-seed structs; hashmap iteration is bucket-order (add a
+   `seq` field for order) and has no delete (tombstone with a
+   `present: Bool`). Fixed scalar `[T; N]` arrays are the
+   zero-alloc alternative for fixed populations.
+6. **Shape type** — `type Foo { a: Int; b: String; }`. Pure
+   data, no flow. PascalCase, snake_case fields. Construct via
+   struct literal.
+7. **Free fn** — first-class seed member. Use when the operation
+   has no flow and isn't naturally a method on an existing
+   locus. When 3+ free fns form a coherent vocabulary, promote
+   them to a namespace lotus (pattern 2).
+
+**Composition patterns** (one layer up — how the shapes combine in
+real services; full treatment in `docs/src/services/patterns.md`):
+
+- **Three-locus gateway** — pinned reader → cooperative manager that
+  `accept()`s → keyed per-entity children. The topic declares
+  `keyed_by <field>` and each child subscribes `where key ==
+  self.<field>` (scalar or String keys), so the bus delivers only
+  that entity's traffic — never filter in the handler. The answer
+  to "N dynamic keyed children with lifecycle"; the bus *is* the
+  keyed routing table, so you never need a map of loci. Declare
+  `release(c)` so children reclaim.
+- **Demand-driven discovery** — a subscription triggers the
+  `accept()`; topology grows from the data, zero hardcoded children.
+- **Hot-path counters/gauges** — locus methods returning locus
+  values are rejected (GH #18.6 "CQRS"). Migration: pre-allocate the
+  counter/gauge loci as `params` at boot and mutate fields in place,
+  or publish `MetricUpdate` to a single-writer collector. Never a
+  method that returns a locus.
+- **Publish-policy gate** — accumulate in place, publish behind a
+  `tick()` with a time/volume trigger, so publish volume is bounded
+  independently of input volume.
+- **View lifetime** — `StringView` / `BytesView` / `*_span` results
+  are valid only until the next recv/overwrite; `std::str::clone`
+  out to persist. Stale access is now panic-guarded.
+
+## What's NOT in the language
+
+Filter these reflexes before they cost you time.
+
+- **No `import` / `use` syntax for stdlib.** Stdlib is called
+  inline through `std::*` paths (`std::io::fs::read_file(p)`).
+  Cross-seed user libraries use `import "lib/x" as alias;`.
+- **No visibility modifiers** (`pub`, `private`). Every
+  top-level decl in a seed (one directory) is visible to every
+  file in that seed. Decompose by concern, not visibility.
+- **No `async` / `await`.** Concurrency comes from loci + the
+  bus + per-locus thread *placement* declared in `main`'s
+  `placement { }` block (F.31): `placement { gateway:
+  pinned(core = 1); metrics: cooperative(pool = io); }`.
+  Placement is a deployment seam on `main` only — never on
+  the locus declaration. Unspecified main-locus params default
+  to `cooperative(pool = main)`.
+- **No `trait` / `impl` blocks.** There's `interface I { ... }`
+  with structural satisfaction — any locus whose method set is
+  a superset satisfies `I`. No `impl I for L`.
+- **No parametric collection types** — no `Vec<T>` / `Map<K,V>`
+  / `Option<T>` / `Result<T,E>`. Use `@form(vec)` /
+  `@form(hashmap)` / `@form(ring_buffer)` on a locus. Errors
+  flow through `fallible(E)` with required addressing at the
+  call site.
+- **No closures-as-values.** Function pointers exist (typed
+  `fn(T) -> U`); inline closure-with-capture does not.
+  Reconstruct context in the callee or route through the bus.
+- **No method syntax on builtins.** `len(s)`, `to_string(n)` —
+  not `s.len()`. User-defined locus / type methods use
+  `obj.method()` normally.
+- **No printf-style format strings.** `println(a, b, c)`
+  concatenates its args. F-strings `f"hello {name}"` interpolate.
+- **No `return` inside `birth` / `run` / `dissolve` bodies.**
+  Factor short-circuit logic into helper free fns.
+- **`fallible(E)` is rejected on substrate-facing surfaces:**
+  lifecycle methods (`birth` / `run` / `dissolve`), mode bodies
+  (`bulk` / `harmonic` / `resolution`), closure-assertion
+  bodies, and bus-subscribed handlers. Those have no caller
+  frame to address the error channel, so a `fallible(E)`
+  declaration would describe a contract that can't be
+  satisfied. User-declared `fn` members on a locus and free
+  fns DO carry `fallible(E)` — they have a real caller. The
+  narrowed two-channel rule (2026-05-25) keeps `↑` and `fallible`
+  separate at the substrate boundary; everywhere else they
+  compose. See `spec/semantics.md § fallible-on-locus`.
+- **No `panic(msg)` / `assert(cond)`.** Failure is structural,
+  routed through closure-tests + `on_failure` (the `↑` channel)
+  or value-level via `fallible(E)`.
+
+## Operational rules
+
+- File extension `.hl`. ASCII-only outside string literals and
+  comments. Statements end with `;`. Newlines are not
+  terminators.
+- `let x = 1;` is immutable; `let mut x = 1;` is reassignable.
+- Bare struct/locus literals at statement position run
+  birth-through-dissolve immediately. `let`-bound literals defer
+  dissolve to the binding's scope exit.
+- Bus send: `Foo <- payload;`. Subscribe is declarative
+  (`subscribe Foo as handler;`). Subscribers must be born
+  before publishers fire — instantiate them first in `main`.
+- `self` is valid only inside lifecycle / mode / closure / `fn`
+  member bodies of a locus.
+- Build a directory: `hale build mydir/` bundles every `.hl`
+  in the directory as one program; binary lands at
+  `mydir/mydir`. Inside one seed, top-level scope is shared and
+  resolution is order-free.
+- Don't edit `crates/`. That's compiler territory. If a
+  primitive you need is missing, work within the existing
+  surface; don't reach into the compiler.
+
+## Naming
+
+- Locus, type, perspective, interface: `PascalCase`.
+- Method, field, param, free fn: `snake_case`.
+- Constant: `SCREAMING_SNAKE_CASE`.
+- Bus subject (literal form): dot-separated lowercase
+  (`log.app.db`). Topic name (preferred form): PascalCase
+  identifier.
+
+## Reading errors
+
+Diagnostics cite the rule that fired. Read verbatim. Common
+surprises:
+
+- Bus subscriber declared after publisher fired → instantiate
+  subscribers first.
+- Topic ref used as expression value → topics aren't values;
+  they address bus channels only.
+- `self` outside a method body → you're in a free fn or top
+  level; no enclosing Σ.
+- Lifecycle / mode / closure-assertion / bus-handler method
+  declared `fallible(E)` → the substrate orchestrates these,
+  so the error channel has no caller to address. Drop the
+  `fallible(E)` and route failure through `↑` (closure-test
+  + `on_failure`), OR factor the body into a user-declared
+  `fn` member that the lifecycle method calls with `or` to
+  bridge the channels.
+- "Error not addressed" on a `fallible` call → add `or raise` /
+  `or default` / `or handler(err)`.
+
+## First step
+
+1. Skim `spec/styleguide.md` if you haven't (the seven patterns
+   above are condensed from it — its §1 memory model and §4
+   speed rules are the parts most sessions under-read).
+2. Pick the smallest target. State it out loud: app name,
+   stdlib paths you'll need, what you're not sure about.
+3. Read 2-3 programs close to your target shape. The richest
+   in-tree sources are in
+   `crates/hale-codegen/tests/fixtures/examples/` (small
+   per-feature anchors, numbered — the broadest acceptance
+   surface).
+4. Write the smallest program that gets one thing working.
+   `hale run <file-or-dir>` for fast feedback; `hale build`
+   for the native binary.
+5. Iterate. Before you finish, run `hale fmt <file-or-dir>` —
+   canonical form is tool-defined (zero config), so your diff
+   touches only the lines you actually changed. Never
+   hand-align columns; fmt collapses them.
+
+## Hot-path memory patterns
+
+Before writing code that runs many times per second (per-frame
+handlers, tight loops, bus dispatch hot paths), read
+[`spec/styleguide.md`](./spec/styleguide.md) §1 "The memory model
+in one page" and §4 "Speed rules" (which absorbed the old
+`agents/memory-patterns.md`). They catalog which assignment /
+return / lookup shapes the substrate makes allocation-free
+automatically and which require care from the author. The arena
+allocator doesn't free per-allocation, so patterns that look
+innocent at the call site can leak into a locus's lifetime arena
+— but the substrate closes more of those shapes than you'd
+expect, and the "What's already free" list preempts overcautious
+code. The compiler backs the rules with a layered enforcement
+ladder (default warnings → `@hot` → `@budget` → `@effects`); see
+styleguide §5. `@effects(none: {…})` — with the `@no_block` /
+`@no_syscall` / `@deterministic` / `@no_publish` / `@no_spawn` /
+`@no_ffi` / `@no_recursion` shorthands — asserts what a fn may
+*reach*, checked transitively with the offending call chain in
+the diagnostic. And a handler on a `where async_io` locus is
+checked for blocking calls with no annotation at all: the
+placement is the contract.
+
+## Binding an external C library
+
+Hale binds to non-stdlib C libraries (raylib, sqlite, curl, ...)
+via user-extensible `@ffi("c")` declarations — no stdlib
+expansion or compiler change needed. If you're writing a binding
+library (typically landing in pond), read
+[`agents/binding-packages.md`](./agents/binding-packages.md) for
+the recommended file layout, the wrap-vs-leave-bare conventions,
+the C-glue skeleton, and the testing pattern. The substrate
+contract for the FFI surface itself is in
+[`spec/ffi.md`](./spec/ffi.md).
+
+## Inline structural failure
+
+For "catch a value error in a locus method and shut this locus
+down," use the four-piece pattern. Spec reference:
+`spec/design-rationale.md` § F.27.
+
+- **`closure NAME { captures: f1, f2; epoch inline; }`** —
+  assertion-less closure shape that fires only via explicit
+  `violate`. Snapshots the listed fields into the violation
+  payload.
+- **`violate NAME;` / `violate NAME with expr;`** —
+  statement-level, divergent (`Never` type, same shape as
+  `fail` in fallible fns and `bubble` in `on_failure`).
+  Valid only inside a locus member fn; resolves NAME against
+  the current locus's `epoch inline` closures.
+- **Error-check fn pattern** — a locus member fn with
+  signature `fn(ErrType) -> SuccessType`, used as
+  `or self.handler(err)` at fallible call sites. Body either
+  returns the substitute value or `violate`s. The bridge
+  between the value channel and the structural channel.
+- **`self.draining`** — synthetic Bool field on every locus,
+  readable inside method bodies. True from the moment
+  `violate` (or any drain trigger) fires until dissolve
+  completes. Useful for "don't publish further after we
+  decided to wind down."
+
+The canonical pattern for "catch error and shut this locus
+down" is a closure declaration + a member fn + one `violate`
+statement. Don't reach for a `should_exit: Bool` flag plus a
+`while !should_exit { yield; }` loop — the primitives above
+are the supported form.
+
+## Hard gotchas (codegen-v0 limits — don't fight these)
+
+These are the ones that bite on a first attempt. Each is a real
+restriction, not a style preference.
+
+- **CQRS / no-locus-return.** A `fn` member of a locus may NOT return
+  a user-declared locus type — `fn get() -> SomeLocus` is rejected.
+  Use parent-child + contract, a bus topic, or delegation. **Free fns
+  CAN return loci** (constructors like `std::io::file::open`), which
+  is why factories are free fns rather than methods.
+- **Strict field access.** A typo'd field (`self.greting`) is a hard
+  error, not a silent unknown. Fix the name.
+- **Empty `if` bodies parse-fail.** Put a `// note` inside, or invert
+  the condition.
+- **Fn-pointer callbacks can't capture** surrounding state. Route
+  state through the bus, reconstruct it inside, or use a locus method
+  with its own `self`.
+- **`hale run` rejects qualified-name struct/locus literals**
+  (`std::http::Request { }`). Use `hale build` and run the binary for
+  programs using path-qualified stdlib types.
+- **No `panic` / `assert`.** Failure is structural (`violate`) or
+  value-level (`fallible`); see above.
+
+## Pointers
+
+- Spec (canonical contract): `spec/`. Start with
+  `spec/styleguide.md`, then `spec/semantics.md`, then
+  `spec/grammar.ebnf`.
+- Stdlib surface: `spec/stdlib.md`.
+- Form library (`@form(vec)`, `@form(hashmap)`,
+  `@form(ring_buffer)`): `spec/forms.md`.
+- Memory / capacity slots / projection classes:
+  `spec/memory.md`.
+- Per-feature anchor programs (in-tree):
+  `crates/hale-codegen/tests/fixtures/examples/`.
+- Contrib libraries — protocols / parsers / shapes that don't
+  belong in stdlib but are too useful to rewrite per-project:
+  <https://github.com/hale-lang/pond>. Vendor via
+  `hale.toml` → `hale fetch`; import as
+  `import "vendor/pond/<lib>" as <alias>;`.
+- Sibling repos: <https://github.com/hale-lang/examples>,
+  <https://github.com/hale-lang/bench>.
 
 ---
 
-## 2. The six-pattern catalog
-
-Every locus/fn in idiomatic Hale matches one of these. If your code doesn't, reconsider.
-
-1. **App locus** — `main.hl` defines a top-level locus owning the run; `fn main()`
-   reads argv, instantiates it. Lifecycle bodies can't `return`, so factor
-   short-circuit logic into a free fn.
-2. **Namespace lotus** — empty/config-only `params {}`, methods only. The
-   replacement for "module of functions" / "static class".
-3. **Service locus** — `birth`/`run`/`dissolve` (+ often `bus subscribe`) for
-   long-lived work.
-4. **Spawned child** — a `let`-bound locus literal that dissolves at scope exit.
-5. **Shape type** — a `type` record, pure data.
-6. **Free fn** — top-level fn with no flow. When ≥3 cohere into a vocabulary,
-   promote to a namespace lotus.
-
----
-
-## 3. Memory & lifetime — no GC, no borrow checker, no `free`
-
-A locus owns a **region** (arena). When the locus dissolves, the region is freed
-**wholesale**. The structure *is* the lifetime. There is no garbage collector,
-no borrow checker, and no manual free.
-
-Dissolve timing (the part people get wrong):
-
-- **Statement-position literal** `Foo { };` — fire-and-forget; dissolves at the
-  statement boundary. Use for one-shot runs.
-- **Let-bound** `let h = Foo { };` — stays valid for method calls; dissolves at
-  the enclosing fn's scope exit (deferred). Use when you need a usable handle.
-- A locus with `bus subscribe` is long-lived regardless of binding shape.
-
-Lifecycle methods: `birth` (setup) → `run` (steady-state) → `drain` (stop new
-work) → `dissolve` (release). `accept(c: Child)` runs *before* a child's birth.
-Parent/child: a parent that `accept`s children exposes `self.children`. Cross-locus
-state goes over the **bus**, never lateral field reads (vertical-only flow).
-
----
-
-## 4. Failure: two orthogonal channels
-
-Hale has **no exceptions, no `panic`, no `assert`**. Failure is either:
-
-**(a) Value channel — `fallible(E)`.** For recoverable, call-by-call errors.
-
-```hale
-fn parse_port(s: String) -> Int fallible(ParseError) {
-    return std::str::parse_int(s) or raise;
-}
-```
-
-Every fallible call MUST be addressed at the immediate caller with an `or` clause:
-
-- `or raise` — propagate one frame up (the enclosing fn must be `fallible`).
-- `or <value>` — substitute a default; `err` is bound to the payload in scope.
-- `or handler(err)` — hand off to a fn that returns the success type.
-- `or fail E { ... }` — translate to the enclosing fn's error type.
-- `or discard` — swallow; only when the success type is `()` (Unit).
-
-`fail E { ... };` inside a fallible body exits via the error path (mirror of `return`).
-
-**Where `fallible(E)` is allowed (v0.8.1 narrowing — important):** free fns,
-`@form(...)` container methods, **and user-declared `fn` member methods on a
-locus**. It is REJECTED on *substrate-facing* surfaces: lifecycle methods
-(`birth`/`run`/`accept`/`drain`/`dissolve`/`on_failure`), mode methods, closure
-assertions, and bus-subscribed handlers — those have no caller frame. (Older docs
-say "no fallible on locus methods" — that blanket rule was narrowed; member fns CAN
-be fallible now.)
-
-**(b) Structural channel — closures + supervision.** For "a locus's invariant
-broke." A parent's `on_failure(c, err)` decides policy: `restart(c)` /
-`quarantine(c)` / `bubble(err)` / absorb. To escalate a caught value error into a
-structural failure from inside a locus method (e.g. a lifecycle body, which can't
-be fallible), use the error-check-fn pattern:
-
-```hale
-closure fatal_io { captures: last_error; epoch inline; }
-
-fn handle_io(e: IoError) -> Row {        // a member fn, returns the success type
-    self.last_error = e.kind;
-    if e.kind == "broken_pipe" { violate fatal_io; }   // → structural escalation
-    return Row { data: "" };
-}
-// caller (e.g. in run()/birth()): let r = do_io() or self.handle_io(err);
-```
-
-`violate NAME;` is divergent (like `fail`/`bubble`). The parent reads frozen child
-state in `on_failure` via the child handle (`c.last_error`).
-
----
-
-## 5. The bus — and the one rule that trips everyone
-
-Loci coordinate over a typed pub/sub bus. Declare a channel with `topic`, publish
-with `<-`, subscribe in a `bus {}` block:
-
-```hale
-topic Tick { payload: TickData; subject: "ticks"; }
-
-locus Producer {
-    bus { publish Tick; }
-    run() { Tick <- TickData { n: 1 }; }   // identifier subject, not "Tick"
-}
-locus Consumer {
-    bus { subscribe Tick as on_tick; }
-    fn on_tick(t: TickData) { /* ... */ }
-}
-```
-
-**THE GOTCHA (codegen-v0):** `bus { publish T; }` and `T <- v;` only resolve a
-`topic T` declared in the **SAME `.hl` FILE** as the publishing locus.
-Cross-file topic references fail with `publish references unknown topic`
-*regardless of file order*. Two fixes:
-
-- **Single publisher:** put the `topic` decl in the same file as the publishing locus.
-- **≥2 files publish the same topic:** use the literal-subject form, which works
-  cross-file: `publish "wire.subject" of type T;` + `"wire.subject" <- v;`.
-
-(Topic *payload-type* resolution IS seed-global/order-free — only the topic
-*reference* in a bus block is file-local.)
-
-**Placement & the deployment seam.** Thread placement and transport are
-deployment seams, set ONLY in a `main locus`'s `placement {}` / `bindings {}`
-blocks — never as per-locus annotations (the old `: schedule` annotation was
-removed). With no `bindings`, loci run as one in-process binary; bind a topic to
-a transport (`unix(...)`, etc.) and the same code runs cross-process.
-
-```hale
-main locus App {
-    params { gw: Gateway = Gateway { }; api: Server = Server { }; }
-    placement { gw: pinned(core = 1); api: cooperative(pool = io); }
-    bindings { Ticks: unix("/run/ticks.sock"); }   // delete → monolith
-}
-```
-
-A locus's methods may be invoked only on its placement pool's thread
-(single-threaded-method invariant); cross-pool coordination goes over the bus.
-
----
-
-## 6. Data: forms, not generics; Bytes vs BytesBuilder
-
-Hale has **no parametric collection types** (`Vec<T>`, `Map<K,V>`). Use `@form`
-annotations on a locus instead:
-
-```hale
-@form(vec)
-locus Items { capacity { heap data of Int; } }     // push/get/set/pop/len/sort_*
-
-@form(hashmap)
-locus Reg { capacity { pool entries of Entry indexed_by name; } }  // get/set/has/remove
-```
-
-`@form(vec | hashmap | ring_buffer)`. Synthesized fallible methods (`get`/`pop`/
-`remove`) return injected error types (`IndexError`/`KeyError`/`EmptyError`).
-
-For "list of things" returns without a form, use the **row-string / index-API**
-idiom (tab-separated columns, newline-separated rows), per stdlib precedent —
-not an invented parametric collection.
-
-**`Bytes` vs `BytesBuilder` are distinct types.** `Bytes` is an immutable
-length-prefixed blob (`at`/`slice`/`len`/`concat`). `std::bytes::BytesBuilder` is
-a growable accumulator locus (`append`/`len`/`shift_front`/`clear`/`snapshot`/
-`view`). They don't coerce. The recv-loop idiom writes into a builder
-(`recv_into`) and `snapshot()`/`view()` to hand off a `Bytes`. Prefer `Bytes` for
-binary I/O, `String` for human-readable text.
-
-**Structural interfaces** (Go-shaped): a locus satisfies an `interface` by having
-the methods — no `impl`. Interface methods can't be `fallible`; carry errors in
-result structs (`ok`/`err` fields), the Go `(result, error)` shape.
-
----
-
-## 7. Numbers, strings, naming
-
-- **`Decimal` for money, `Float` for math.** `Decimal` (suffix `d`: `1.50d`)
-  never participates in implicit conversion. `Int → Float` widens implicitly
-  (one-way); `Float → Int` needs explicit `Int(x)`.
-- Strings are NUL-terminated (`String`); use `Bytes` for binary. f-strings:
-  `f"hi {name}"`. ASCII-only source (names, not Greek: `sigma`, `phi`).
-- **Naming:** PascalCase for loci/types/interfaces; snake_case for fns/fields/
-  params; UPPER_SNAKE for consts; dot-lowercase bus subjects (`log.app.db`).
-  Lifecycle methods drop `fn` (`run() { }`, not `fn run()`).
-
----
-
-## 8. Projects: seeds, imports, vendoring
-
-- **A directory is one seed** (F.19): every `.hl` file in a dir shares one
-  top-level scope, order-free. No `pub`/visibility. Decompose by concern, not
-  visibility. Subdirectories are *separate* seeds.
-- **Cross-seed import** (F.25): `import "path" as alias;` (the alias is
-  REQUIRED). References read `alias::Name`. The path resolves entry-relative
-  then workspace-root.
-- **Vendoring is the dependency model** (F.26): `hale fetch` clones git deps into
-  `vendor/`; no registry, no transitive resolution — vendor everything you use.
-
----
-
-## 9. Hard gotchas (codegen-v0 limitations — don't fight these)
-
-- **CQRS / no-locus-return:** a `fn` member of a locus may NOT return a
-  user-declared locus type (`fn get() -> SomeLocus` is rejected). Use
-  parent-child + contract, a bus topic, or delegation. **Free fns CAN return
-  loci** (constructors like `std::io::file::open`) — so factory functions are
-  free fns, not methods. (This is why `@form(vec)` factories and matrix/metrics
-  factories are free fns.)
-- **Topic file-locality** (§5 above) — the most common first-try failure.
-- **Strict field access:** a typo'd field (`self.greting`) is a hard error, not a
-  silent `Unknown`. Good — fix the name.
-- **No `panic`/`assert`** — failure is structural or `fallible` (§4).
-- **Empty `if` bodies parse-fail** — put a `// note` comment inside or invert the
-  condition.
-- **Fn-pointer callbacks can't capture** surrounding state — route state through
-  the bus, reconstruct it inside, or use a locus method with its own `self`.
-- **`hale run` rejects qualified-name struct/locus literals** (`std::http::Request
-  { }`) — use `hale build` + run the binary for programs using path-qualified
-  stdlib types.
-- **Two-hop `_util` import** (pond-specific): `_util/*` libs aren't importable from
-  inside tier libs (a two-hop codegen break) — keep local copies there.
-
----
-
-## 10. The workflow that makes this work
-
-1. **Read this pack** (and the relevant spec section) before writing a locus.
-2. **Write**, matching one of the six patterns.
-3. **`hale check <dir>`** — the compiler is the oracle. Read the diagnostic; it
-   names the rule and usually the fix.
-4. **Fix and re-check** until `ok: N file(s) typechecked`.
-5. **Maintain a `FRICTION.md`** in the project: when you hit a wall, append what
-   you learned (the cause + the working shape). Read it before the next task.
-   This "friction discipline" is how large Hale systems stay buildable by agents.
-
-Don't reach for foreign patterns (TOML-in-a-locus, fluent builders, singletons,
-decorators). When something doesn't fit the six patterns, log it as friction
-rather than coding around it.
+**Hale** is the language. **lotus** is the runtime substrate.
+C-runtime symbols stay `lotus_*` by design.
 
 ================================================================================
 ## Style guide
@@ -677,6 +798,8 @@ a rolled one — log the friction, don't ship the invention.
 Each rule is tagged with its enforcement status:
 **[error]** the compiler rejects it, **[warn]** the compiler
 warns by default, **[@hot]** checked only inside `@hot` fns,
+**[@effects]** checked when the fn declares the matching effect
+assertion (`@effects(none: {…})` or its `@no_*` sugar),
 **[convention]** nothing checks it — the guide is the enforcement.
 
 ### C1. Value ownership on assignment — trust it, know the edges
@@ -1009,9 +1132,10 @@ is regression-tested. **[convention]**
 
 ## 5. The enforcement ladder
 
-The compiler backs this guide in four tiers. Everything default
-is advisory or genuinely-broken-only; strictness is opt-in where
-you certify a path.
+The compiler backs this guide in tiers. Everything default is
+advisory or genuinely-broken-only; strictness is opt-in where you
+certify a path — plus one tier you get for free because your
+*placement* already declared the intent.
 
 | Tier | Check | Status |
 |---|---|---|
@@ -1019,6 +1143,8 @@ you certify a path.
 | **warn** (default) | unbounded-alloc survey (self-escaping allocs in unbounded contexts; retirement-aware since v0.11.3); subscription nothing publishes to; locus/builder in a loop **or bus handler**; allocating recv in a loop; blocking call on a cooperative pool (interprocedural); accept-without-release on a daemon | advisory |
 | **@hot** (opt-in) | all of the above as errors within the fn; `snapshot()`/`finish()` in a loop; whole-struct self-field replace | errors in certified fns |
 | **@budget** (opt-in) | `alloc_per_call = N` counted transitively; `N=0` zero-alloc certificate | build fails on violation |
+| **@effects** (opt-in) | `@effects(none: {syscall, block, time, entropy, env, ffi, publish, spawn, recursion})` / `@effects(publish: {T})`, and the `@no_*` / `@deterministic` sugar — checked transitively; diagnostics carry the call chain to the offending leaf | build fails on violation |
+| **placement-implied** (automatic) | a handler on a `cooperative(pool = X) where async_io` locus that reaches a blocking call — the placement *is* the assertion, so no annotation is needed; writing `@no_block` upgrades it to an enforced error | advisory |
 | **fmt** (CI gate) | `hale fmt --check` — canonical mechanical form (§2, "Canonical form"); exit 1 lists offenders | gate in CI; `hale fmt` fixes |
 | escape hatches | `@unbounded` (fn or lifecycle hook) acknowledges intentional accumulation; `--allow-unowned-subscriber`; `--no-warn-unbounded-alloc` | |
 
@@ -1687,8 +1813,12 @@ annotations are not in v1.
   Rust String invariant would UTF-8-encode them as two bytes
   and surprise the caller. No `\u{NNNN}` Unicode escape at
   v1; agents needing non-ASCII drop to byte literals.
-- Raw strings: `r"..."` — no escape processing.
-- Multi-line strings: `"""..."""`.
+- Raw strings (`r"..."`) and multi-line strings
+  (`"""..."""`) are NOT implemented — the lexer rejects both
+  (verified 2026-07-22, GH #228 docs-drift audit; both were
+  previously listed here aspirationally). Byte literals +
+  f-strings cover the practical cases; add these forms to the
+  lexer before re-documenting them.
 - F-strings (v1.x-10): `f"hello {name}"` — interpolates Hale
   expressions inside `{...}`, each rendered via the same
   formatter `println` uses. `{{` and `}}` are literal braces.
@@ -1781,3 +1911,33 @@ lexer errors if encountered outside a string or comment:
 
 (Backticks are reserved for time literals only; bare backslash
 outside a string literal is illegal.)
+
+
+## Annotation inventory
+
+Annotations are `@`-prefixed contextual idents (never reserved
+words), so a program may still use these names as identifiers.
+They attach to the declaration that follows.
+
+| annotation | attaches to | meaning |
+|---|---|---|
+| `@ffi("c")` | free fn | external C-ABI binding |
+| `@export` | fn / locus | WASM module export; persistent singleton |
+| `@form(kind)` | locus | storage form (vec / hashmap / ring_buffer / lru_cache) |
+| `@locality(tier)` | locus | placement locality tier |
+| `@bounded` | locus | opt into the memory-bound proof |
+| `@unbounded` | fn | acknowledge intentional unbounded allocation |
+| `@hot` | fn | certify a hot path (promotes advisories to errors) |
+| `@budget(alloc_per_call = N, stack_bytes = N, block_points = N, publish = N, fanout = N)` | fn | quantitative budgets, comma-separated |
+| `@effects(none: {…})` | fn | forbid effect classes, checked transitively |
+| `@phase_effects(phase: {…}, …)` | locus | per-lifecycle-phase effect contract |
+| `@effects(causes: {…})` | fn | effect classes this fn may cause via bus edges |
+| `@supervised` | locus | every locus in the subtree has a failure policy |
+| `@secret` | fn param | the value must not reach a publish or log/file sink |
+| `@effects(publish: {…})` | fn | the allowed publish set |
+| `@no_syscall` `@no_block` `@no_ffi` `@no_publish` `@no_spawn` `@no_recursion` `@deterministic` | fn | sugar for the `@effects(none: …)` forms |
+| `@no_panic` | fn | no reachable trap (disposition coverage — a different analysis) |
+
+Effect annotations stack with each other and with `@hot` /
+`@budget(...)`; see `spec/verification.md` for what each class
+means and where its truth comes from.

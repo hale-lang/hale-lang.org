@@ -1,0 +1,69 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('articles');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+---
+
+<Base title={post.data.title}>
+  <section class="container prose">
+    <span class="tag">/articles</span>
+    <div class="meta">
+      <span class={`kind kind-${post.data.kind}`}>
+        {post.data.kind === 'announcement' ? 'Announcement' : 'Article'}
+      </span>
+      <time datetime={post.data.date.toISOString()}>
+        {fmt(post.data.date)}
+      </time>
+      {post.data.version && <span class="ver">{post.data.version}</span>}
+    </div>
+    <h1>{post.data.title}</h1>
+    <Content />
+    <hr />
+    <p><a href="/articles">← All articles</a></p>
+  </section>
+</Base>
+
+<style>
+  .meta {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    font-size: 0.85rem;
+    opacity: 0.75;
+    margin: 0.5rem 0 0.25rem;
+    flex-wrap: wrap;
+  }
+  .kind {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+  }
+  .ver {
+    font-family: var(--font-mono, monospace);
+  }
+  hr {
+    margin: 3rem 0 1.5rem;
+    border: 0;
+    border-top: 1px solid var(--border, #2a2a2a);
+  }
+</style>

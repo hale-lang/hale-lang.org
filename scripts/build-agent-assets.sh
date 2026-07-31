@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the agent toolchain assets that the /agents page serves:
-#   public/hale-context.txt        full authoring pack (essentials + spec + gotchas)
-#   public/hale-context-slim.txt   essentials + the two highest-signal spec docs
+#   public/hale-context.txt        full authoring pack (AGENTS.md + spec + gotchas)
+#   public/hale-context-slim.txt   AGENTS.md + the two highest-signal spec docs
 #   public/llms-full.txt           the documentation corpus (full spec)
 #   public/agent/AGENTS.md         rules-file template (canonical)
 #   public/agent/CLAUDE.md         derived from AGENTS.md (Claude Code variant)
@@ -19,6 +19,13 @@ DATE="$(date +%Y-%m-%d)"
 
 # The canonical agent prompt lives in the hale repo, next to the spec —
 # the site never authors its own copy (it drifted when it did).
+#
+# That rule now covers the CONTEXT PACKS too, not just the rules files.
+# The packs used to open with a site-authored `agent-assets/essentials.md`:
+# 275 lines restating the same knowledge in a different shape, maintained
+# separately, and missing The Design entirely — which is the section
+# AGENTS.md opens with and the thing every other rule traces back to. Its
+# unique gotchas were folded into AGENTS.md and the file retired.
 AGENTS_SRC="$(dirname "$SPEC")/AGENTS.md"
 
 [ -d "$SPEC" ] || { echo "spec dir not found: $SPEC" >&2; exit 1; }
@@ -54,8 +61,8 @@ EOF
 full="$OUT/hale-context.txt"
 {
   pack_header "HALE CONTEXT PACK (full)" \
-    "Everything an LLM needs to write correct, idiomatic Hale: the essentials, the full language specification, and the real-world gotchas."
-  sep "Essentials & gotchas" "$ASSETS/essentials.md"; cat "$ASSETS/essentials.md"
+    "Everything an LLM needs to write correct, idiomatic Hale: the canonical authoring rules, the full language specification, and the real-world gotchas."
+  sep "Authoring rules (canonical AGENTS.md)" "hale/AGENTS.md"; cat "$AGENTS_SRC"
   for name in $SPEC_ORDER; do
     f="$SPEC/$name.md"; [ -f "$f" ] || continue
     title="$(grep -m1 '^# ' "$f" | sed 's/^# //')"
@@ -70,8 +77,8 @@ full="$OUT/hale-context.txt"
 slim="$OUT/hale-context-slim.txt"
 {
   pack_header "HALE CONTEXT PACK (slim)" \
-    "The essentials plus the two highest-signal spec docs (style guide + lexical structure). Fits comfortably in a context window."
-  sep "Essentials & gotchas" "$ASSETS/essentials.md"; cat "$ASSETS/essentials.md"
+    "The canonical authoring rules plus the two highest-signal spec docs (style guide + lexical structure). Fits comfortably in a context window."
+  sep "Authoring rules (canonical AGENTS.md)" "hale/AGENTS.md"; cat "$AGENTS_SRC"
   for name in styleguide tokens; do
     f="$SPEC/$name.md"; [ -f "$f" ] || continue
     title="$(grep -m1 '^# ' "$f" | sed 's/^# //')"
