@@ -94,7 +94,9 @@ const status = [
         <p>
           <code>causes:</code> follows outward influence across publishes.
           <code>depends:</code> walks backward through subscriptions and
-          republishers to check the complete set that may reach a locus.
+          republishers to check the complete set that may reach a locus
+          <em>over the bus graph</em>. Influence that travels outside it —
+          see aliased loci below — is not part of that closure.
         </p>
         <a href="/docs/effects">Causality contracts →</a>
       </article>
@@ -184,9 +186,30 @@ const status = [
     </div>
 
     <section class="known-limits" aria-labelledby="known-limits-heading">
-      <p class="eyebrow">current tracked limits · 31 July 2026</p>
+      <p class="eyebrow">current tracked limits · 1 August 2026</p>
       <h2 id="known-limits-heading">The proof boundary is public too.</h2>
       <div class="known-limit-list">
+        <article>
+          <h3>Type checking at call boundaries</h3>
+          <p>
+            <code>hale check</code> compares types at assignment sites but not
+            at call boundaries. Argument and return types for user functions,
+            locus methods, interface slots, and builtins are currently caught
+            during code generation instead, so a clean <code>check</code> does
+            not yet mean a program compiles.
+          </p>
+          <a href="https://github.com/hale-lang/hale/issues/335">Track issue #335 →</a>
+        </article>
+        <article>
+          <h3>Canonical identity for topics and instances</h3>
+          <p>
+            A topic reaches different phases of the compiler under different
+            spellings, and a locus instance has no identity beyond the field
+            path naming it. Cross-seed delivery and cross-pool aliasing are the
+            two shapes where that currently shows.
+          </p>
+          <a href="https://github.com/hale-lang/hale/issues/334">Track issue #334 →</a>
+        </article>
         <article>
           <h3>Cross-seed topic identity</h3>
           <p>
@@ -196,6 +219,15 @@ const status = [
             shape.
           </p>
           <a href="https://github.com/hale-lang/hale/issues/332">Track issue #332 →</a>
+        </article>
+        <article>
+          <h3>Aliased loci across pools</h3>
+          <p>
+            One locus instance passed into two parents placed on different
+            pools is reachable from both threads without synchronization, and
+            the placement invariant does not currently reject it.
+          </p>
+          <a href="https://github.com/hale-lang/hale/issues/333">Track issue #333 →</a>
         </article>
         <article>
           <h3>Emitted stack bounds</h3>
