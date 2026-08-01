@@ -1,0 +1,122 @@
+---
+import Hale from './Hale.astro';
+
+const local = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+}`;
+
+const pinned = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+
+    placement {
+        ingest: pinned(core = 1);
+        rollup: cooperative(pool = compute);
+    }
+}`;
+
+const unix = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+
+    bindings {
+        Samples: unix("/run/samples.sock");
+    }
+}`;
+
+const shared = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+
+    bindings {
+        Samples: shm_ring("/samples",
+            slot_count: 1024,
+            on_overflow: drop)
+            where intra_machine, zero_copy;
+    }
+}`;
+
+const adapter = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+
+    bindings {
+        Samples: NatsAdapter {
+            url: "nats://prod:4222"
+        };
+    }
+}`;
+---
+<div class="deployment-switcher">
+  <input type="radio" name="deployment-mode" id="deploy-local" checked />
+  <input type="radio" name="deployment-mode" id="deploy-pinned" />
+  <input type="radio" name="deployment-mode" id="deploy-unix" />
+  <input type="radio" name="deployment-mode" id="deploy-shm" />
+  <input type="radio" name="deployment-mode" id="deploy-adapter" />
+
+  <div class="deployment-tabs" role="tablist" aria-label="Deployment examples">
+    <label for="deploy-local" role="tab">Local</label>
+    <label for="deploy-pinned" role="tab">Pinned</label>
+    <label for="deploy-unix" role="tab">Unix</label>
+    <label for="deploy-shm" role="tab">Shared memory</label>
+    <label for="deploy-adapter" role="tab">Adapter</label>
+  </div>
+
+  <div class="deployment-panels">
+    <section class="deployment-panel panel-local">
+      <Hale code={local} title="main.local.hl" />
+      <dl>
+        <div><dt>Dispatch</dt><dd>Direct call where provable; otherwise the in-process bus.</dd></div>
+        <div><dt>Boundary</dt><dd>One process, one ownership tree.</dd></div>
+        <div><dt>Domain code</dt><dd>Unchanged.</dd></div>
+      </dl>
+    </section>
+
+    <section class="deployment-panel panel-pinned">
+      <Hale code={pinned} title="main.pinned.hl" />
+      <dl>
+        <div><dt>Execution</dt><dd>Dedicated core for ingest; cooperative pool for rollup.</dd></div>
+        <div><dt>Communication</dt><dd>The same typed topic, still in process.</dd></div>
+        <div><dt>Domain code</dt><dd>Unchanged.</dd></div>
+      </dl>
+    </section>
+
+    <section class="deployment-panel panel-unix">
+      <Hale code={unix} title="main.unix.hl" />
+      <dl>
+        <div><dt>Transport</dt><dd>Framed Unix socket with message boundaries preserved.</dd></div>
+        <div><dt>Failure</dt><dd>The transport is a child locus and enters supervision.</dd></div>
+        <div><dt>Domain code</dt><dd>Unchanged.</dd></div>
+      </dl>
+    </section>
+
+    <section class="deployment-panel panel-shm">
+      <Hale code={shared} title="main.shm.hl" />
+      <dl>
+        <div><dt>Transport</dt><dd>Shared-memory ring for a high-rate same-machine edge.</dd></div>
+        <div><dt>Policy</dt><dd>Capacity and overflow behavior are visible at the seam.</dd></div>
+        <div><dt>Domain code</dt><dd>Unchanged.</dd></div>
+      </dl>
+    </section>
+
+    <section class="deployment-panel panel-adapter">
+      <Hale code={adapter} title="main.adapter.hl" />
+      <dl>
+        <div><dt>Transport</dt><dd>A user-written locus supplies the external broker.</dd></div>
+        <div><dt>Contract</dt><dd>Ordering, retries, and durability belong to the adapter contract.</dd></div>
+        <div><dt>Domain code</dt><dd>Unchanged.</dd></div>
+      </dl>
+    </section>
+  </div>
+</div>

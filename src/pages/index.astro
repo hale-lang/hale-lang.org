@@ -1,262 +1,261 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hale from '../components/Hale.astro';
+import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
+import StatusRail from '../components/StatusRail.astro';
+import SystemMap from '../components/SystemMap.astro';
+import '../styles/storefront.css';
 
-const hero = `locus Greeter {
-    params { name: String = "world"; }
-    run() { println(f"hello, {self.name}"); }
-}
+const room = `type Msg { room: String; user: String; text: String; }
 
-fn main() { Greeter { name: "hale" }; }`;
+topic Posted    { payload: Msg; keyed_by room; }
+topic Broadcast { payload: Msg; }
 
-const seam = `main locus App {
-    params {
-        ingest: Ingest        = Ingest { };
-        rollup: Rollup        = Rollup { };
-        api:    MetricsServer  = MetricsServer { port: 9100 };
+locus Room {
+    params { name: String = "lobby"; }
+
+    bus {
+        subscribe Posted as on_post where key == self.name;
+        publish Broadcast;
     }
-    placement {
-        ingest: pinned(core = 1);          // its own OS thread
-        rollup: cooperative(pool = compute);
-        api:    cooperative(pool = io);
-    }
-    bindings {
-        // dev:  delete this block -> one binary, in-process bus.
-        // prod: keep it -> same code, separate processes.
-        Samples: unix("/run/samples.sock");
+
+    fn on_post(m: Msg) {
+        Broadcast <- m;
     }
 }`;
 
-const pLocus = `locus Counter {
-    params { n: Int = 0; }
-    fn inc() { self.n = self.n + 1; }
+const dependency = `@effects(depends: {PublicSummary, ConfigChanged})
+locus Report {
+    bus {
+        subscribe PublicSummary as on_summary;
+        subscribe ConfigChanged as configure;
+    }
 }`;
 
-const pMem = `fn handle(fd: Int) {
-    let s = std::io::tcp::Stream { conn_fd: fd };
-    s.send(b"ok");
-    // s dissolves at scope exit:
-    // fd closed, region freed. no GC, no free().
-}`;
+const dependencyDiagnostic = `declared dependency set violated:
+  Report can transitively depend on PrivateFeed
 
-const pReliable = `fn port(s: String) -> Int fallible(ParseError) {
-    return std::str::parse_int(s) or raise;
-}
+Path:
+  subject PrivateFeed
+  -> Relay
+  -> subject PublicSummary
+  -> Report`;
 
-locus Pool {
+const failure = `locus WorkerPool {
     accept(c: Worker) { }
+
     on_failure(c: Worker, err: ClosureViolation) {
-        restart(c);          // let it crash, supervised
+        restart(c);
     }
 }`;
-
-const pLlm = `locus Cache {
-    // a method that hands out a managed entity:
-    fn get(key: String) -> Entry {
-        return self.lookup(key);
-    }
-}`;
-
-const features = [
-  ['Closure tests', 'Runtime structural invariants that audit themselves at each epoch.'],
-  ['Projection classes', 'Memory strategy tuned to how many children a locus fans out to.'],
-  ['Structural interfaces', 'Satisfy an interface by shape. No `impl`, no ceremony.'],
-  ['Transport-agnostic bus', 'The same publish/subscribe over in-process, unix, udp, or shm.'],
-  ['Verification catalog', 'The compiler rejects bus cycles, cross-pool races, and CQRS breaks.'],
-  ['One seed, one binary', 'A directory is a program. Focused executables are cheap.'],
-];
-
-const pondLibs = ['http', 'db', 'pq', 'router', 'sessions', 'jobs', 'metrics', 'tracing', 'websocket', 'crypto', 'agent/llm'];
 ---
 <Base>
-  <!-- HERO -->
-  <section class="container wide hero">
+  <section class="container wide hero storefront-hero">
     <div class="split">
       <div>
-        <p class="eyebrow">general-purpose · memory-safe · supervised</p>
-        <h1>Build a monolith. Deploy a distributed system.</h1>
+        <p class="eyebrow">a language for running systems</p>
+        <h1>Describe the system. Hale compiles the mechanism.</h1>
         <p class="lede">
-          Hale collapses the linguistic layers between a domain and the
-          machine. One primitive — the <strong>locus</strong> — with Erlang-style
-          supervision, memory freed by structure (no GC, no borrow checker), and
-          a compiler that enforces the design principles we've always carried as
-          conventions.
+          Write the services, messages, ownership, placement, and recovery as
+          one program. Hale turns that description into direct calls, queues,
+          sockets, shared memory, or broker adapters — and checks the resulting
+          system before it runs.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/docs/getting-started/install">Get started</a>
-          <a class="btn btn-ghost" href="/playground">Open playground →</a>
+          <a class="btn btn-primary" href="/playground">Run the tour</a>
+          <a class="btn btn-ghost" href="/docs/getting-started/install">Install Hale</a>
         </div>
         <div class="install">
           <span class="sigil">$</span>
           <span class="cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
         </div>
       </div>
-      <Hale code={hero} title="greeter.hl" />
+      <div>
+        <Hale code={room} title="room.hl" />
+        <div class="sentence-map" aria-label="How the description maps to Hale">
+          <span><b>a room</b><code>locus Room</code></span>
+          <span><b>each posted message</b><code>subscribe Posted</code></span>
+          <span><b>in that room</b><code>keyed_by room</code></span>
+          <span><b>relay it to everyone</b><code>publish Broadcast</code></span>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- SHOWPIECE: deployment seam -->
+  <section class="why-now">
+    <div class="container wide why-now-inner">
+      <p class="eyebrow">why now</p>
+      <h2>Code is getting cheaper. Consequences are not.</h2>
+      <p>
+        More implementations will be produced by more people and more tools.
+        The scarce part is knowing what each part may touch, publish, block on,
+        allocate, depend on, or destroy. Hale makes those facts part of the
+        program instead of leaving them in review comments and deployment lore.
+      </p>
+    </div>
+  </section>
+
   <section class="section-alt">
     <div class="container wide">
-      <div class="split rev">
-        <Hale code={seam} title="main.hl" />
-        <div class="copy">
-          <p class="eyebrow">the deployment seam</p>
-          <h2>Change a block, not your code.</h2>
-          <p>
-            Placement and transport are <strong>deployment seams</strong>, not
-            properties of your logic. With no <code>bindings</code>, your loci run
-            as a single in-process binary. Bind a topic to a transport and the
-            <em>same source</em> runs as separate processes — your code never
-            changes.
-          </p>
-          <p class="seam-note">
-            one source → dev monolith → pinned threads → a cross-process fleet
-          </p>
-        </div>
+      <div class="section-intro">
+        <p class="eyebrow">one typed edge, several mechanisms</p>
+        <h2>Build a monolith. Deploy a distributed system.</h2>
+        <p class="lede">
+          The loci and their topic sends stay put. Change <code>main</code> to
+          decide where they run and how each edge travels.
+        </p>
       </div>
+
+      <DeploymentSwitcher />
+
+      <p class="deployment-contract">
+        A successful send means the broker accepted the message under the
+        selected binding's guarantee. A binding that cannot be opened fails the
+        declaring locus at birth; it does not leave a route that claims success
+        while dropping everything.
+      </p>
+      <div class="section-link"><a href="/docs/services/multi-binary">Across binaries →</a></div>
     </div>
   </section>
 
-  <!-- PITCH -->
-  <section class="container center" style="padding-bottom:0;">
-    <h2 style="max-width:20ch;margin-inline:auto;">
-      Structure <em>is</em> the lifetime. Failure is supervised. Bad designs don't compile.
-    </h2>
-  </section>
-
-  <!-- PILLARS -->
   <section class="container wide">
-    <div class="split" style="margin-bottom:3.5rem;">
-      <div>
-        <p class="eyebrow">pillar 1 — one primitive</p>
-        <h3 style="font-size:1.5rem;">Everything is a locus.</h3>
-        <p>
-          An app, a service, a worker, a pipeline stage, a bus subscriber — one
-          recursive shape. Pure data is a <code>type</code>; anything with flow is
-          a <code>locus</code>. There is no third thing. Learn it once; it's the
-          whole language.
-        </p>
-        <a href="/docs/everyday/locus-gently">The locus model →</a>
-      </div>
-      <Hale code={pLocus} title="counter.hl" />
+    <div class="section-intro center">
+      <p class="eyebrow">one recursive structure</p>
+      <h2>The architecture carries the runtime semantics.</h2>
+      <p class="lede" style="margin-inline:auto;">
+        A locus is not just an actor or an object. It is where domain identity,
+        owned state, memory lifetime, execution, children, and failure policy
+        meet.
+      </p>
     </div>
 
-    <div class="split rev" style="margin-bottom:3.5rem;">
-      <Hale code={pMem} title="handle.hl" />
-      <div class="copy">
-        <p class="eyebrow">pillar 2 — memory you can reason about</p>
-        <h3 style="font-size:1.5rem;">No GC. No borrow checker.</h3>
-        <p>
-          Every locus owns a region, freed wholesale when it dissolves —
-          deterministically, no tracing pauses, no lifetime annotations. Not
-          “memory is free”: memory is <strong>structural and
-          instrumentable</strong>, with built-in residency tooling for the rest.
-        </p>
-        <a href="/docs/systems/memory">How memory works →</a>
-      </div>
-    </div>
+    <SystemMap />
 
-    <div class="split" style="margin-bottom:3.5rem;">
-      <div>
-        <p class="eyebrow">pillar 3 — reliable by construction</p>
-        <h3 style="font-size:1.5rem;">Let it crash — supervised. And checked first.</h3>
-        <p>
-          Failures flow up to a parent's <code>on_failure</code> (restart /
-          quarantine / bubble). There are no exceptions; recoverable errors are
-          addressed inline with <code>or</code>. And the compiler rejects whole
-          classes of design bugs — bus cycles, cross-thread races — at build time.
-        </p>
-        <a href="/docs/services/failure">The failure model →</a>
-      </div>
-      <Hale code={pReliable} title="pool.hl" />
-    </div>
-
-    <div class="split rev">
-      <div>
-        <Hale code={pLlm} title="cache.hl" />
-        <div class="callout" style="margin-top:0.75rem;">
-          error: method <code style="color:inherit;background:none;">Cache.get</code> may not return a locus value (CQRS).<br/>
-          &nbsp;&nbsp;use parent-child + contract, a bus topic, or delegation.
-        </div>
-      </div>
-      <div class="copy">
-        <p class="eyebrow">pillar 4 — design you can't drift from</p>
-        <h3 style="font-size:1.5rem;">Good design, enforced.</h3>
-        <p>
-          Encapsulation. Actor isolation. CQRS. Aggregates, bounded contexts,
-          dependency direction. The principles we've carried for decades — in
-          books, in review comments — keep describing one underlying shape: a
-          recursive graph of isolated state joined by typed messages. Hale makes
-          that shape the language itself, so breaking a principle isn't a style
-          nit — it's a <strong>compile error</strong>, like the CQRS violation
-          on the left.
-        </p>
-        <a href="/docs/verification">What the compiler checks →</a>
-      </div>
+    <div class="consequence-grid">
+      <article>
+        <span>ownership</span>
+        <h3>Structure is the lifetime.</h3>
+        <p>A locus owns its region and children. Dissolve it and the owned memory is reclaimed deterministically.</p>
+      </article>
+      <article>
+        <span>communication</span>
+        <h3>Topics name the edge.</h3>
+        <p>Publishers and subscribers declare intent. They do not hold references to one another.</p>
+      </article>
+      <article>
+        <span>execution</span>
+        <h3>Placement is separate from logic.</h3>
+        <p>The same locus can share a pool, own a thread, pin to a core, or sit across a process boundary.</p>
+      </article>
+      <article>
+        <span>failure</span>
+        <h3>Recovery belongs to the owner.</h3>
+        <p>Structural failures reach the parent with enough context to restart, quarantine, or let them bubble.</p>
+      </article>
     </div>
   </section>
 
-  <!-- TOOLING BAND -->
+  <section class="section-alt causal-section">
+    <div class="container wide">
+      <div class="section-intro">
+        <p class="eyebrow">causality as a contract</p>
+        <h2>The compiler follows the system past the function call.</h2>
+        <p class="lede">
+          A call graph stops at a publish. Hale continues through the typed bus
+          graph, across republishers and into the loci that receive the result.
+        </p>
+      </div>
+
+      <div class="causal-proof">
+        <div>
+          <Hale code={dependency} title="report.hl" />
+          <p>
+            The declaration says exactly which subjects may transitively
+            influence <code>Report</code>. It is a complete set, not a comment.
+          </p>
+        </div>
+        <div>
+          <Hale code={dependencyDiagnostic} title="hale check" />
+          <p>
+            A violation names the architectural path, including the innocent-
+            looking republished subject that hid the original dependency.
+          </p>
+        </div>
+      </div>
+
+      <div class="proof-list proof-list-wide">
+        <article><b>Operational effects</b><p>Block, syscall, time, entropy, FFI, publish, spawn, recursion, and allocation.</p></article>
+        <article><b>Causal reach</b><p>What a function may cause through calls and topic publication.</p></article>
+        <article><b>Dependency sets</b><p>What may transitively influence a locus through its subscriptions.</p></article>
+        <article><b>Budgets</b><p>Hard bounds such as zero allocations per call on a hot path.</p></article>
+      </div>
+      <div class="section-link"><a href="/proof">What Hale checks, and where the limits are →</a></div>
+    </div>
+  </section>
+
+  <section class="container wide lifecycle-section">
+    <div class="section-intro center">
+      <p class="eyebrow">one line of development</p>
+      <h2>Declare it. Check it. Run it. Compare it with reality.</h2>
+      <p class="lede" style="margin-inline:auto;">
+        Hale's direction is not a pile of unrelated features. It is a progression
+        from architecture as source to architecture that can be observed,
+        replayed, and safely changed.
+      </p>
+    </div>
+    <StatusRail />
+    <p class="status-note">
+      Deterministic replay and verified deployment transitions are RFC work.
+      They are shown here as direction, not as shipped commands.
+    </p>
+  </section>
+
   <section class="container wide">
     <div class="band">
       <div class="split">
         <div>
-          <p class="eyebrow" style="color:var(--jade-deep);">tooling</p>
+          <p class="eyebrow" style="color:var(--jade-deep);">the toolchain</p>
           <h2>One binary, the whole loop.</h2>
           <p>
-            <code>hale check</code> answers in ~10&nbsp;ms with structured,
-            location-precise diagnostics; the LSP wires it into any editor, and
-            build, test, fmt, doc, bench, and an MCP server all ship in the same
-            binary. The compiler is the oracle — it says precisely what's wrong,
-            whoever the author is.
+            Build, run, check, test, format, document, benchmark, and verify.
+            The LSP and MCP server expose the same structured diagnostics to
+            editors, CI, and other tools.
           </p>
           <div class="hero-actions" style="margin-bottom:0;">
             <a class="btn btn-primary" href="/tooling">Tooling</a>
-            <a class="btn btn-ghost" href="/tooling#mcp">MCP server</a>
-            <a class="btn btn-ghost" href="/docs">Docs →</a>
+            <a class="btn btn-ghost" href="/docs">Read the guide</a>
           </div>
         </div>
-        <div>
-          <p class="seam-note" style="color:#8b95a7;">
-            write a locus<br/>
-            → <code style="color:var(--jade-deep);background:none;">hale check</code> (~10 ms)<br/>
-            → structured diagnostic<br/>
-            → fix → green
-          </p>
-        </div>
+        <Hale code={failure} title="supervision.hl" />
       </div>
     </div>
   </section>
 
-  <!-- FEATURE GRID -->
-  <section class="section-alt">
+  <section class="section-alt credibility">
     <div class="container wide">
-      <p class="eyebrow">more in the box</p>
-      <h2 style="margin-bottom:2rem;">The parts that make it cohere.</h2>
-      <div class="grid cols-3">
-        {features.map(([h, p]) => (
-          <div class="feature">
-            <h4>{h}</h4>
-            <p set:html={p.replace(/`([^`]+)`/g, '<code>$1</code>')} />
-          </div>
-        ))}
+      <div>
+        <p class="eyebrow">built to be inspected</p>
+        <h2>Claims should have somewhere to land.</h2>
+      </div>
+      <div class="credibility-links">
+        <a href="/proof"><strong>Verification</strong><span>Shipped checks, tracked limits, and RFC boundaries.</span></a>
+        <a href="/examples"><strong>Examples</strong><span>System shapes that cross ownership, messaging, and deployment.</span></a>
+        <a href="/articles"><strong>Articles</strong><span>Technical changes written in context.</span></a>
+        <a href="https://github.com/hale-lang"><strong>Source</strong><span>Compiler, runtime, libraries, and site.</span></a>
       </div>
     </div>
   </section>
 
-  <!-- ECOSYSTEM -->
-  <section class="container wide center">
-    <p class="eyebrow">ecosystem</p>
-    <h2>pond — the “non-std stdlib.”</h2>
-    <p class="lede" style="margin-inline:auto;max-width:54ch;">
-      Vendor what you need. Extensible by tier, from infrastructure to agents.
+  <section class="container center final-cta">
+    <p class="eyebrow">the shortest useful introduction</p>
+    <h2>Run a system, then change its deployment.</h2>
+    <p class="lede" style="margin-inline:auto;">
+      The playground tour starts with ordinary code and ends with typed
+      communication, ownership, supervision, and placement.
     </p>
-    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center;margin:1.5rem 0 1.75rem;">
-      {pondLibs.map((l) => (
-        <code style="font-size:0.9rem;">{l}</code>
-      ))}
+    <div class="hero-actions" style="justify-content:center;">
+      <a class="btn btn-primary" href="/playground">Open the playground</a>
+      <a class="btn btn-ghost" href="/model">Read the model</a>
     </div>
-    <a class="btn btn-ghost" href="/packages">Browse pond →</a>
   </section>
 </Base>

@@ -1,0 +1,19 @@
+---
+const stages = [
+  ['shipped', 'Describe', 'loci, topics, ownership'],
+  ['shipped', 'Check', 'effects, causality, budgets'],
+  ['shipped', 'Deploy', 'placement and bindings'],
+  ['shipped', 'Observe', 'runtime topology and events'],
+  ['rfc', 'Replay', 'recorded deterministic execution'],
+  ['rfc', 'Adapt', 'verified deployment transitions'],
+];
+---
+<div class="status-rail" aria-label="Hale system lifecycle and feature status">
+  {stages.map(([status, name, detail]) => (
+    <div class={`status-stage status-${status}`}>
+      <span class="status-badge">{status === 'shipped' ? 'shipped' : 'RFC'}</span>
+      <strong>{name}</strong>
+      <small>{detail}</small>
+    </div>
+  ))}
+</div>
