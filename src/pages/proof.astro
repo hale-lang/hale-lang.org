@@ -95,8 +95,9 @@ const status = [
           <code>causes:</code> follows outward influence across publishes.
           <code>depends:</code> walks backward through subscriptions and
           republishers to check the complete set that may reach a locus
-          <em>over the bus graph</em>. Influence that travels outside it —
-          see aliased loci below — is not part of that closure.
+          <em>over the bus graph</em> — including through a republisher in
+          another library. Influence that travels outside the bus is not
+          part of that closure.
         </p>
         <a href="/docs/effects">Causality contracts →</a>
       </article>
@@ -186,63 +187,47 @@ const status = [
     </div>
 
     <section class="known-limits" aria-labelledby="known-limits-heading">
-      <p class="eyebrow">current tracked limits · 1 August 2026</p>
+      <p class="eyebrow">the boundary</p>
       <h2 id="known-limits-heading">The proof boundary is public too.</h2>
       <div class="known-limit-list">
         <article>
-          <h3>Type checking at call boundaries</h3>
+          <h3>The checks are sound, not complete</h3>
           <p>
-            <code>hale check</code> compares types at assignment sites but not
-            at call boundaries. Argument and return types for user functions,
-            locus methods, interface slots, and builtins are currently caught
-            during code generation instead, so a clean <code>check</code> does
-            not yet mean a program compiles.
+            Every analysis here is a conservative over-approximation. When
+            the compiler cannot resolve something it treats it as
+            may-do-anything and the contract fails, rather than assuming the
+            best and passing. That is the correct direction, and it means a
+            rejected program is sometimes a limit of the analysis rather
+            than a defect in the code.
           </p>
-          <a href="https://github.com/hale-lang/hale/issues/335">Track issue #335 →</a>
         </article>
         <article>
-          <h3>Canonical identity for topics and instances</h3>
+          <h3>Closed-world reasoning has an edge</h3>
           <p>
-            A topic reaches different phases of the compiler under different
-            spellings, and a locus instance has no identity beyond the field
-            path naming it. Cross-seed delivery and cross-pool aliasing are the
-            two shapes where that currently shows.
+            The guarantees derive from a closed call graph, a closed topic
+            set, and a classified standard library. Influence that leaves
+            that world — through <code>@ffi</code>, through a transport to
+            another binary, through the operating system — is outside what
+            the compiler can follow, and the contracts say so rather than
+            pretending otherwise.
           </p>
-          <a href="https://github.com/hale-lang/hale/issues/334">Track issue #334 →</a>
         </article>
         <article>
-          <h3>Cross-seed topic identity</h3>
+          <h3>Cost models are estimates, behaviour is not</h3>
           <p>
-            A library subscriber and an importing application's publisher can
-            currently resolve the same source topic under disconnected
-            identities. Delivery and bus-graph analysis are affected in that
-            shape.
+            Effect classes, publish sets, and causal sets are checked facts.
+            The quantitative budgets are measured against what the compiler
+            can see at the source level, before the backend has finished
+            deciding layout and inlining, so treat those numbers as bounds
+            on the program you wrote rather than on the instructions that
+            ultimately run.
           </p>
-          <a href="https://github.com/hale-lang/hale/issues/332">Track issue #332 →</a>
-        </article>
-        <article>
-          <h3>Aliased loci across pools</h3>
-          <p>
-            One locus instance passed into two parents placed on different
-            pools is reachable from both threads without synchronization, and
-            the placement invariant does not currently reject it.
-          </p>
-          <a href="https://github.com/hale-lang/hale/issues/333">Track issue #333 →</a>
-        </article>
-        <article>
-          <h3>Emitted stack bounds</h3>
-          <p>
-            <code>@budget(stack_bytes)</code> is computed before LLVM inlining.
-            Whether it remains a sound upper bound for the emitted binary is an
-            open correctness question, not something the site should imply is
-            settled.
-          </p>
-          <a href="https://github.com/hale-lang/hale/issues/326">Track issue #326 →</a>
         </article>
       </div>
       <p class="known-limits-note">
-        Remove or update these entries when the linked issue is resolved. A
-        stale limitation is nearly as misleading as a hidden one.
+        Specific open questions live in the issue tracker, where they can be
+        argued with and closed. A storefront is the wrong place to keep a
+        list that has to be correct on a particular Tuesday.
       </p>
     </section>
 
