@@ -1,0 +1,147 @@
+---
+import Hale from './Hale.astro';
+import SystemMap from './SystemMap.astro';
+import StatusRail from './StatusRail.astro';
+
+const bus = `topic Reading { payload: Sample; }
+
+locus Ingest {
+    bus { publish Reading; }
+
+    fn received(s: Sample) {
+        Reading <- s;
+    }
+}
+
+locus Rollup {
+    bus { subscribe Reading as add; }
+
+    fn add(s: Sample) {
+        // owns the rolling state
+    }
+}`;
+
+const main = `main locus App {
+    params {
+        ingest: Ingest = Ingest { };
+        rollup: Rollup = Rollup { };
+    }
+
+    placement {
+        ingest: pinned(core = 1);
+        rollup: cooperative(pool = compute);
+    }
+
+    bindings {
+        Reading: unix("/run/readings.sock");
+    }
+}`;
+
+const dependency = `@effects(depends: {Reading, ConfigChanged})
+locus Rollup {
+    bus {
+        subscribe Reading as add;
+        subscribe ConfigChanged as configure;
+    }
+}`;
+---
+<section class="container prose model-page">
+  <span class="tag">/model</span>
+  <h1>Programs used to describe computations. Hale describes running systems.</h1>
+  <p class="lede">
+    Ownership, lifetime, concurrency, communication, supervision, and
+    deployment are usually documented in different languages. Hale treats them
+    as views of one program.
+  </p>
+
+  <div class="model-callout">
+    <strong>Code is getting cheaper. Consequences are not.</strong>
+    <p>
+      More implementations will be produced by more people and more tools. The
+      hard part is knowing what each part may touch, publish, block on,
+      allocate, depend on, or destroy. Hale makes those facts compiler input.
+    </p>
+  </div>
+
+  <h2>The locus is the situated part of the program</h2>
+  <p>
+    A <code>type</code> is data. A <code>locus</code> is anything that owns
+    state or participates in flow: an application, service, connection,
+    worker, cache, pipeline stage, or adapter.
+  </p>
+  <p>
+    Each locus has a parent, may own children, and owns a memory region. The
+    ownership tree is therefore also a lifetime and failure tree. When a locus
+    dissolves, its owned structure dissolves with it.
+  </p>
+
+  <SystemMap />
+
+  <h2>There are three graphs, and Hale knows how they meet</h2>
+  <div class="model-graphs">
+    <article><strong>Ownership</strong><p>Who owns state, lifetime, children, and recovery.</p></article>
+    <article><strong>Communication</strong><p>Which typed subjects connect publishers and subscribers.</p></article>
+    <article><strong>Placement</strong><p>Where each locus executes and how each edge is realized.</p></article>
+  </div>
+  <p>
+    Most stacks scatter those graphs across source code, runtime libraries,
+    broker configuration, and deployment manifests. Hale keeps them separate
+    enough to reason about and joined enough for the compiler to check.
+  </p>
+
+  <h2>Topics describe communication without smuggling in a mechanism</h2>
+  <p>
+    A topic is a typed, named edge. Publishers declare authority to send;
+    subscribers declare the handler that receives. No channel handle or broker
+    client is threaded through constructors.
+  </p>
+  <Hale code={bus} title="pipeline.hl" />
+  <p>
+    A closed-world local edge may lower to a direct call. Other local edges use
+    the bus. A binding can carry the same topic over a socket, shared memory,
+    UDP, or a user-written adapter.
+  </p>
+
+  <h2><code>main locus</code> is the architectural linker</h2>
+  <p>
+    Domain loci say what the system is. <code>main</code> says where its parts
+    run and how its topic edges travel. Tests can omit bindings; production can
+    split the same source across processes.
+  </p>
+  <Hale code={main} title="main.hl" />
+
+  <h2>Effects include causality, not only local side effects</h2>
+  <p>
+    Hale can constrain blocking, allocation, syscalls, time, entropy,
+    publication, spawning, and recursion across a reachable call path. It can
+    also state which subjects may transitively influence a locus, following the
+    path through republishers on the bus graph.
+  </p>
+  <Hale code={dependency} title="dependency-contract.hl" />
+
+  <h2>The Hale constitution</h2>
+  <ol class="constitution">
+    <li><strong>Nothing stateful is ownerless.</strong> State and lifetime have a structural home.</li>
+    <li><strong>No communication edge is ambient.</strong> It is named, typed, and authorized.</li>
+    <li><strong>Operational behavior can be surfaced.</strong> Blocking, allocation, publication, and dependence can become contracts.</li>
+    <li><strong>Failure goes somewhere structural.</strong> Recovery belongs to an owner with context.</li>
+    <li><strong>Deployment is part of the program.</strong> Placement and transport are not unrelated afterthoughts.</li>
+    <li><strong>Unknown is not proven.</strong> A hard guarantee must fail closed.</li>
+    <li><strong>Runtime change crosses declared seams.</strong> Dynamism should move between valid arrangements, not mutate the graph arbitrarily.</li>
+  </ol>
+
+  <h2>The direction</h2>
+  <p>
+    Hale first makes architecture declarative, then checkable, then observable.
+    The next steps are deterministic replay and verified deployment adaptation.
+    They are marked as RFC work, not shipped features.
+  </p>
+  <StatusRail />
+
+  <hr />
+  <p class="muted">
+    Continue with the <a href="/docs">guide</a>, inspect the
+    <a href="/proof">verification surface</a>, or
+    <a href="/playground">run the tour</a>.
+  </p>
+</section>

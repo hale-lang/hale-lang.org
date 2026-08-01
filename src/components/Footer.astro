@@ -1,19 +1,19 @@
 ---
 import Logo from './Logo.astro';
 const cols = [
-  { h: 'Learn', links: [['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Concurrent services', '/docs/services/lifecycle'], ['Playground', '/playground']] },
-  { h: 'Reference', links: [['Spec by topic', '/docs/reference'], ['Standard library', '/docs/spec/stdlib'], ['The design', '/docs/the-design'], ['Design rationale', '/docs/spec/design-rationale']] },
-  { h: 'Ecosystem', links: [['Packages (pond)', '/packages'], ['Playground', '/playground'], ['Roadmap', '/roadmap']] },
-  { h: 'Tooling', links: [['Toolchain', '/tooling'], ['Context pack', '/tooling#context-pack'], ['MCP server', '/tooling#mcp'], ['llms.txt', '/llms.txt']] },
+  { h: 'Learn', links: [['The model', '/model'], ['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Playground', '/playground']] },
+  { h: 'Build', links: [['Examples', '/examples'], ['Packages (pond)', '/packages'], ['Toolchain', '/tooling'], ['Roadmap', '/roadmap']] },
+  { h: 'Reference', links: [['Specification', '/docs/reference'], ['Standard library', '/docs/spec/stdlib'], ['Design', '/docs/the-design'], ['Proof', '/proof']] },
+  { h: 'Project', links: [['Articles', '/articles'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['llms.txt', '/llms.txt']] },
 ];
 ---
 <footer class="footer">
   <div class="container wide cols">
     <div>
       <a class="brand" href="/"><Logo /> hale</a>
-      <p class="muted" style="font-size:0.88rem; margin-top:0.8rem; max-width:30ch;">
-        A general-purpose language for robust, supervised systems —
-        written fluently by humans and LLMs.
+      <p class="muted" style="font-size:0.88rem; margin-top:0.8rem; max-width:32ch;">
+        Describe the running system — ownership, messages, placement,
+        causality, and recovery — then let the compiler check the arrangement.
       </p>
     </div>
     {cols.map((c) => (
@@ -25,6 +25,5 @@ const cols = [
   </div>
   <div class="container wide copy">
     Hale is open source. © {new Date().getFullYear()} the Hale authors.
-    <span style="margin-left:0.5rem;"><a href="https://github.com/hale-lang">GitHub</a> · <a href="/community">Community</a></span>
   </div>
 </footer>

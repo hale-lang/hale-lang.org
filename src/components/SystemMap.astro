@@ -1,0 +1,58 @@
+<figure class="system-map" aria-labelledby="system-map-caption">
+  <div class="map-stage">
+    <svg class="map-lines" viewBox="0 0 1000 430" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <marker id="topic-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" />
+        </marker>
+      </defs>
+
+      <path class="ownership-line" d="M500 110 V165 H165 V292" />
+      <path class="ownership-line" d="M500 165 V292" />
+      <path class="ownership-line" d="M500 165 H835 V292" />
+
+      <path class="topic-line" marker-end="url(#topic-arrow)" d="M165 292 V228 H500 V292" />
+      <path class="topic-line" marker-end="url(#topic-arrow)" d="M500 292 V246 H835 V292" />
+    </svg>
+
+    <div class="map-node map-main">
+      <span class="node-kind">main locus</span>
+      <strong>Telemetry</strong>
+      <span>owns the system root</span>
+      <small>deployment authority</small>
+    </div>
+
+    <div class="broker-plane">
+      <span class="node-kind">typed broker plane</span>
+      <strong>subjects are above publishers and subscribers</strong>
+      <div class="broker-topics"><code>Samples</code><code>Snapshot</code></div>
+    </div>
+
+    <div class="map-children">
+      <div class="map-node">
+        <span class="node-kind">locus</span>
+        <strong>Ingest</strong>
+        <span>owns socket + receive arena</span>
+        <small class="placement-badge">pinned · core 1</small>
+      </div>
+      <div class="map-node">
+        <span class="node-kind">locus</span>
+        <strong>Rollup</strong>
+        <span>owns windows + counters</span>
+        <small class="placement-badge">pool · compute</small>
+      </div>
+      <div class="map-node">
+        <span class="node-kind">locus</span>
+        <strong>Metrics</strong>
+        <span>owns HTTP server state</span>
+        <small class="placement-badge">pool · io</small>
+      </div>
+    </div>
+  </div>
+
+  <figcaption id="system-map-caption" class="system-legend">
+    <span><i class="legend-ownership"></i> ownership and lifetime</span>
+    <span><i class="legend-topic"></i> communication through a typed subject</span>
+    <span><i class="legend-placement"></i> physical placement</span>
+  </figcaption>
+</figure>

@@ -1,0 +1,227 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+import '../styles/storefront.css';
+
+const effectDiagnostic = `effect assertion violated:
+  price must not reach syscall
+
+reachable path:
+  price
+  -> Book.price_for
+  -> Book.reload
+  -> std::io::fs::read_file`;
+
+const dependencyDiagnostic = `declared dependency set violated:
+  StatedCarry can transitively depend on SumLookup
+
+Path:
+  subject SumLookup
+  -> Launderer
+  -> subject Recalled
+  -> StatedCarry`;
+
+const commands = `hale check .
+hale test .
+hale verify .
+hale bench .
+hale doc --stdlib
+hale lsp
+hale mcp`;
+
+const status = [
+  ['shipped', 'Typed broker and deployment bindings', 'In-process dispatch, Unix, UDP, shared-memory paths, codecs, and user adapter loci.'],
+  ['shipped', 'Effects, budgets, causes, and depends', 'Operational and causal contracts with witness paths.'],
+  ['shipped', 'Structural lifetime and supervision', 'Owned regions, child lifecycle, failure propagation, and restart policy.'],
+  ['shipped', 'Observation plane', 'Runtime birth, dissolve, publish, delivery, and transport evidence.'],
+  ['rfc', 'Deterministic record and replay', 'A self-describing execution record built from effects, deployment, and observation.'],
+  ['rfc', 'Deployment elaboration and meta-scheduling', 'Candidate arrangements verified before activation or transition.'],
+];
+---
+<Base
+  title="Hale proof"
+  description="The verification, diagnostics, tracked limits, and shipped-versus-RFC boundary behind Hale's systems-language claims."
+>
+  <section class="container wide proof-page">
+    <div class="section-intro">
+      <p class="eyebrow">proof</p>
+      <h1>What is checked, what is measured, and what is still open.</h1>
+      <p class="lede">
+        Hale makes broad architectural claims. This page keeps them tied to
+        compiler rules, runtime evidence, and public limitations. Ambition is
+        useful only when the status is legible.
+      </p>
+    </div>
+
+    <div class="feature-status-grid">
+      {status.map(([state, title, detail]) => (
+        <article class={`feature-status feature-status-${state}`}>
+          <span>{state === 'shipped' ? 'shipped' : 'RFC'}</span>
+          <h2>{title}</h2>
+          <p>{detail}</p>
+        </article>
+      ))}
+    </div>
+
+    <div class="proof-matrix">
+      <article>
+        <span>compiler</span>
+        <h2>Typed bus topology</h2>
+        <p>
+          Topic declarations establish payload type and publish/subscribe
+          authority. The compiler inspects the closed-world graph for orphaned
+          subjects, impossible handlers, routing-policy errors, and re-entrant
+          cycles.
+        </p>
+        <a href="/docs/services/bus">Bus semantics →</a>
+      </article>
+
+      <article>
+        <span>compiler</span>
+        <h2>Effect reachability</h2>
+        <p>
+          Assertions such as <code>@no_syscall</code>,
+          <code>@no_block</code>, <code>@deterministic</code>, and
+          <code>@budget</code> are checked across reachable calls, imported
+          seeds, handles, and interface dispatch.
+        </p>
+        <a href="/docs/effects">Effects and contracts →</a>
+      </article>
+
+      <article>
+        <span>compiler</span>
+        <h2>Causal bus contracts</h2>
+        <p>
+          <code>causes:</code> follows outward influence across publishes.
+          <code>depends:</code> walks backward through subscriptions and
+          republishers to check the complete set that may reach a locus.
+        </p>
+        <a href="/docs/effects">Causality contracts →</a>
+      </article>
+
+      <article>
+        <span>runtime + compiler</span>
+        <h2>Structural lifetime</h2>
+        <p>
+          Loci own regions and children. The compiler enforces managed-entity
+          rules; the runtime dissolves the owned structure deterministically
+          and reports residency when growth needs inspection.
+        </p>
+        <a href="/docs/systems/memory">Memory and lifetime →</a>
+      </article>
+
+      <article>
+        <span>runtime</span>
+        <h2>Supervised failure</h2>
+        <p>
+          Lifecycle failures travel to an owning parent. Binding startup
+          failures refuse birth instead of installing a route that silently
+          accepts and drops messages.
+        </p>
+        <a href="/docs/services/failure">Failure and supervision →</a>
+      </article>
+
+      <article>
+        <span>CI</span>
+        <h2>Concurrent substrate</h2>
+        <p>
+          Low-level runtime primitives are model-checked under legal thread
+          interleavings in CI. This narrows the trusted base beneath queues,
+          mailboxes, maps, and arenas.
+        </p>
+        <a href="https://github.com/hale-lang/hale">Inspect the repository →</a>
+      </article>
+    </div>
+
+    <div class="proof-detail">
+      <div>
+        <p class="eyebrow">operational witness</p>
+        <h2>The diagnostic names the call path.</h2>
+        <p>
+          A hard rule is useful only when a rejection shows how the forbidden
+          behavior became reachable.
+        </p>
+      </div>
+      <Hale code={effectDiagnostic} title="hale check" />
+    </div>
+
+    <div class="proof-detail rev">
+      <Hale code={dependencyDiagnostic} title="hale check" />
+      <div>
+        <p class="eyebrow">architectural witness</p>
+        <h2>The path continues through the broker.</h2>
+        <p>
+          Local inspection cannot see a dependency hidden behind a republisher.
+          The bus graph can, and the witness should name every step.
+        </p>
+      </div>
+    </div>
+
+    <div class="contract-bar">
+      <div>
+        <p class="eyebrow">the bar for a certificate</p>
+        <h2>Unknown is not proven.</h2>
+      </div>
+      <div class="contract-states">
+        <span><b>Proven</b> the build may continue</span>
+        <span><b>Violated</b> fail with a witness</span>
+        <span><b>Unknown</b> fail closed for a hard contract</span>
+        <span><b>Unsupported</b> say exactly what cannot be checked</span>
+      </div>
+    </div>
+
+    <div class="proof-detail">
+      <div>
+        <p class="eyebrow">reproduce it</p>
+        <h2>The checks ship with the language.</h2>
+        <p>
+          The command line, editor integration, CI, and MCP server all use the
+          compiler's structured diagnostics. The quickest evaluation is to run
+          the examples and make the compiler disagree with you.
+        </p>
+      </div>
+      <Hale code={commands} title="toolchain" />
+    </div>
+
+    <section class="known-limits" aria-labelledby="known-limits-heading">
+      <p class="eyebrow">current tracked limits · 31 July 2026</p>
+      <h2 id="known-limits-heading">The proof boundary is public too.</h2>
+      <div class="known-limit-list">
+        <article>
+          <h3>Cross-seed topic identity</h3>
+          <p>
+            A library subscriber and an importing application's publisher can
+            currently resolve the same source topic under disconnected
+            identities. Delivery and bus-graph analysis are affected in that
+            shape.
+          </p>
+          <a href="https://github.com/hale-lang/hale/issues/332">Track issue #332 →</a>
+        </article>
+        <article>
+          <h3>Emitted stack bounds</h3>
+          <p>
+            <code>@budget(stack_bytes)</code> is computed before LLVM inlining.
+            Whether it remains a sound upper bound for the emitted binary is an
+            open correctness question, not something the site should imply is
+            settled.
+          </p>
+          <a href="https://github.com/hale-lang/hale/issues/326">Track issue #326 →</a>
+        </article>
+      </div>
+      <p class="known-limits-note">
+        Remove or update these entries when the linked issue is resolved. A
+        stale limitation is nearly as misleading as a hidden one.
+      </p>
+    </section>
+
+    <div class="proof-caveat">
+      <h2>What this page does not claim</h2>
+      <p>
+        Hale does not prove arbitrary application correctness, make lossy
+        transports reliable, or remove the need to choose sensible bounds and
+        recovery policy. It makes more of those choices visible, checkable, and
+        attributable to the architecture that owns them.
+      </p>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,125 @@
+---
+import Base from '../layouts/Base.astro';
+import Hale from '../components/Hale.astro';
+import '../styles/storefront.css';
+
+const queue = `topic JobReady { payload: Job; keyed_by queue_id; }
+
+locus Worker {
+    params { queue_id: Int = 0; }
+
+    bus {
+        subscribe JobReady as perform
+            where key == self.queue_id;
+    }
+
+    fn perform(job: Job) {
+        // this worker receives only its shard
+    }
+}`;
+
+const transport = `main locus Production {
+    bindings {
+        JobReady: unix("/run/jobs.sock");
+    }
+
+    on_failure(t: std::bus::UnixTransport,
+               err: ClosureViolation) {
+        restart(t);
+    }
+}`;
+
+const causal = `@effects(depends: {Orders, RiskConfig, RiskSnapshot})
+locus RiskView {
+    bus {
+        subscribe RiskSnapshot as update;
+        subscribe RiskConfig as configure;
+    }
+}`;
+
+const hot = `@no_block @no_syscall @deterministic
+@budget(alloc_per_call = 0)
+fn score(sample: Sample) -> Float {
+    return sample.weighted_score();
+}`;
+---
+<Base
+  title="Hale examples"
+  description="Hale system shapes that combine ownership, typed communication, deployment, supervision, causality, and effects."
+>
+  <section class="container wide examples-page">
+    <div class="section-intro">
+      <p class="eyebrow">examples</p>
+      <h1>Examples that cross more than one feature.</h1>
+      <p class="lede">
+        Hale becomes interesting when ownership, messaging, placement, failure,
+        and contracts meet. These are compact views of those system shapes; the
+        linked guide chapters carry the full programs and explanation.
+      </p>
+    </div>
+
+    <div class="example-row">
+      <div>
+        <p class="eyebrow">sharded job queue</p>
+        <h2>Let the topic own the routing table.</h2>
+        <p>
+          A keyed topic sends each job only to the worker for that shard. The
+          handler does not receive every job and filter by hand.
+        </p>
+        <a href="/docs/tutorial/job-queue">Read the job-queue tutorial →</a>
+      </div>
+      <Hale code={queue} title="workers.hl" />
+    </div>
+
+    <div class="example-row rev">
+      <Hale code={transport} title="production.hl" />
+      <div>
+        <p class="eyebrow">supervised transport</p>
+        <h2>A broker connection is part of the lifecycle.</h2>
+        <p>
+          Bind the topic in <code>main</code>. If the transport loses its peer,
+          the binding locus fails structurally and the owning application
+          decides whether to restart it.
+        </p>
+        <a href="/docs/services/multi-binary">Read across binaries →</a>
+      </div>
+    </div>
+
+    <div class="example-row">
+      <div>
+        <p class="eyebrow">causal boundary</p>
+        <h2>State what may influence a subsystem.</h2>
+        <p>
+          The dependency set is checked transitively through the bus graph. A
+          republisher cannot quietly launder an undeclared source into this
+          locus.
+        </p>
+        <a href="/docs/effects">Read effects and causality →</a>
+      </div>
+      <Hale code={causal} title="risk-view.hl" />
+    </div>
+
+    <div class="example-row rev">
+      <Hale code={hot} title="score.hl" />
+      <div>
+        <p class="eyebrow">certified hot path</p>
+        <h2>Make the performance assumption reviewable.</h2>
+        <p>
+          This path is not merely intended to avoid the kernel, waiting, and
+          allocation. The compiler follows its callees and rejects the build
+          when the promise stops being true.
+        </p>
+        <a href="/docs/effects">Read effects and contracts →</a>
+      </div>
+    </div>
+
+    <div class="examples-next">
+      <h2>Try the full progression.</h2>
+      <p>
+        The browser tour moves from ordinary functions to loci, typed topics,
+        supervision, and deployment without changing tools.
+      </p>
+      <a class="btn btn-primary" href="/playground">Open the playground</a>
+    </div>
+  </section>
+</Base>
