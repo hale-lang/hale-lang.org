@@ -9,6 +9,10 @@ const posts = all.sort(
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-GB', {
+    // Frontmatter dates coerce to UTC midnight, so formatting in the
+    // build machine's local zone renders every article a day early
+    // anywhere west of UTC.
+    timeZone: 'UTC',
     day: 'numeric',
     month: 'long',
     year: 'numeric',

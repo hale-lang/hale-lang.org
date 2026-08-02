@@ -15,6 +15,10 @@ const { Content } = await render(post);
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-GB', {
+    // Frontmatter dates coerce to UTC midnight, so formatting in the
+    // build machine's local zone renders every article a day early
+    // anywhere west of UTC.
+    timeZone: 'UTC',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -31,6 +35,11 @@ const fmt = (d: Date) =>
       <time datetime={post.data.date.toISOString()}>
         {fmt(post.data.date)}
       </time>
+      {post.data.updated && (
+        <time class="upd" datetime={post.data.updated.toISOString()}>
+          updated {fmt(post.data.updated)}
+        </time>
+      )}
       {post.data.version && <span class="ver">{post.data.version}</span>}
     </div>
     <h1>{post.data.title}</h1>

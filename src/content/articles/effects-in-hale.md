@@ -2,11 +2,13 @@
 title: "Effects in Hale"
 kind: article
 date: 2026-07-31
+updated: 2026-08-02
 version: v0.12.0
 summary: >-
   A function can declare what it is allowed to reach, and the compiler proves
   the claim over the entire call graph. Effect classes, quantitative budgets,
-  per-phase contracts, and causal tracking across the bus.
+  per-phase contracts, causal tracking in both directions across the bus, and
+  effect classes a program declares for itself.
 ---
 
 Most concurrent systems languages give you tools to *write* correct code and then ask you to keep it that way. Hale takes a different stance on a narrow but high-leverage slice of that problem: a function can declare what it is allowed to reach, and the compiler proves the claim over the entire call graph.
@@ -166,6 +168,67 @@ through the bus … Path: `Api::handle` -> subject `Orders` -> `Audit::on_order`
 ```
 
 Only effects reached *through* the bus are counted here; direct effects remain under the ordinary `none:` / shorthand rules.
+
+## Effects that travel *toward* you
+
+`causes:` walks the bus graph forward. Its dual walks it backward. `@effects(depends: {…})` is the complete set of subjects that can transitively reach any of a locus's handlers:
+
+```hale
+@effects(depends: {Recalled})
+locus StatedCarry {
+    bus { subscribe SumLookup as on_sum; }
+}
+```
+
+Without it, an independence claim is unenforceable. A locus that subscribes only to `SumLookup` looks isolated from `Recalled` in every declaration it carries. But if some third locus subscribes to `Recalled` and republishes onto `SumLookup`, the influence arrives anyway — and nothing in the depending locus's source mentions it. That is precisely the shape that review misses, because reviewing the file in front of you is not enough to see it. The diagnostic names the laundering path:
+
+```
+type error: declared dependence set violated: `StatedCarry` can be
+transitively influenced by subject `Recalled`, which its
+`@effects(depends: …)` does not declare. Path: subject `Recalled` ->
+`Launderer` -> subject `SumLookup` -> `StatedCarry`.
+```
+
+It sits on the locus rather than a function: dependence enters through subscriptions, and subscriptions are declared per-locus. A function-level `depends:` is a parse error rather than a silent no-op.
+
+It is opt-in, and the reason is measured rather than aesthetic. Over a real application — 428 topics, 114 loci — transitivity added nothing beyond what the `bus {}` block already said for 87% of loci. A mandatory form would have been redundant far more often than it was informative. It earns its place where independence is load-bearing: a locus that must not see PII, a control plane that must not be influenced by user traffic.
+
+One boundary is worth stating plainly, because it is the kind of thing a certificate can be misread as covering. The closure is over the *bus graph*. Influence that travels outside it — through a shared form, through a file — is not part of it.
+
+## Effects you declare yourself
+
+Everything above concerns ten classes the compiler ships. As of this update, a program can name its own.
+
+```hale
+effect money;
+
+@effects(is: {money})
+fn charge(cents: Int) -> Bool { return cents > 0; }
+
+@effects(none: {money})
+fn quote(cents: Int) -> Int { return cents * 2; }
+
+fn main() { println(quote(100)); }
+```
+
+`effect money;` declares the class. `is:` classifies a function as a source of it. From there it is an ordinary effect in every respect: it propagates through the call graph, it travels over the bus under `causes:`, it can be forbidden with `none:`, and a violation produces the same witness path a built-in would.
+
+```
+type error: effect assertion violated: `quote` must not reach `money`,
+but reaches quote [`charge` declares it carries this effect class].
+```
+
+The obvious objection is that a user-defined effect has no frontier. The built-in classes are grounded: `syscall` is anchored in a classified standard library, and a call the compiler cannot classify fails closed. `money` has no such anchor, so `none: {money}` would seem to mean only "no function anybody remembered to annotate" — a linting convention wearing a type system's clothes.
+
+It is a fair objection, and worth answering rather than waving at.
+
+The answer is that the effects worth checking are about interaction with the outside, and that *is* the frontier. Money moves when the payment processor is called, when the ledger row is written, when the settlement message is published. Those are frontier calls already — the compiler classifies them today as `syscall` and `publish`. What `is:` does is add a row to a classification that already exists, at a different level of description. It does not introduce a second, ungrounded kind of grounding.
+
+So the split is: **the compiler owns propagation; the program owns classification.** That is exactly the arrangement the standard library registry already has. The registry is a table somebody maintains by hand, audited against the runtime; `is:` is the same table with a different owner.
+
+That framing is also the honest statement of the guarantee's limits. If you annotate `charge` and forget its sibling, `none: {money}` will not catch the sibling — no analysis can, because nothing in the program distinguishes the sibling from arithmetic. What the compiler does guarantee is that *given* your classification, no path escapes it. That is the part which is tedious and error-prone to maintain by review, and the part that stops holding the moment a call graph is more than a few edges deep. Classification is a judgement made once per function, in one place, by someone who knows the domain. Propagation is a whole-program problem that grows with the codebase. Splitting them puts each half where it can actually be done.
+
+Two limits at v1. Classes are single-seed: one declared in a given compilation seed does not resolve from another, because merging per-seed intern tables needs index remapping across the merged AST. And there are 22 of them, occupying the free bits above the built-ins in the effect bitmask — enough for a domain vocabulary, not for a per-module taxonomy.
 
 ## The assertion you do not have to write
 

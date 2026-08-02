@@ -18,6 +18,9 @@ const articles = defineCollection({
     summary: z.string(),
     // Optional: the release this piece accompanies.
     version: z.string().optional(),
+    // Optional: set when a published piece gains a section. The
+    // original date stays — these are permanent, not rolling.
+    updated: z.coerce.date().optional(),
   }),
 });
 
