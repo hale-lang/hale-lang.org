@@ -2,23 +2,52 @@
   "name": "hale",
   "scopeName": "source.hale",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#annotations" },
-    { "include": "#lifecycle" },
-    { "include": "#keywords" },
-    { "include": "#types" },
-    { "include": "#constants" },
-    { "include": "#operators" },
-    { "include": "#functions" },
-    { "include": "#identifiers" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#annotations"
+    },
+    {
+      "include": "#lifecycle"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#identifiers"
+    }
   ],
   "repository": {
     "comments": {
       "patterns": [
-        { "name": "comment.line.double-slash.hale", "match": "//.*$" },
-        { "name": "comment.block.hale", "begin": "/\\*", "end": "\\*/" }
+        {
+          "name": "comment.line.double-slash.hale",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.hale",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
       ]
     },
     "strings": {
@@ -27,91 +56,224 @@
           "name": "string.quoted.bytes.hale",
           "begin": "b\"",
           "end": "\"",
-          "patterns": [{ "name": "constant.character.escape.hale", "match": "\\\\." }]
+          "patterns": [
+            {
+              "name": "constant.character.escape.hale",
+              "match": "\\\\."
+            }
+          ]
         },
         {
           "name": "string.interpolated.hale",
           "begin": "f\"",
           "end": "\"",
           "patterns": [
-            { "name": "constant.character.escape.hale", "match": "\\\\." },
-            { "name": "meta.embedded.hale", "begin": "\\{", "end": "\\}", "patterns": [{ "include": "$self" }] }
+            {
+              "name": "constant.character.escape.hale",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.embedded.hale",
+              "begin": "\\{",
+              "end": "\\}",
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
           ]
         },
-        { "name": "string.quoted.raw.hale", "begin": "r\"", "end": "\"" },
+        {
+          "name": "string.quoted.raw.hale",
+          "begin": "r\"",
+          "end": "\""
+        },
         {
           "name": "string.quoted.double.hale",
           "begin": "\"",
           "end": "\"",
-          "patterns": [{ "name": "constant.character.escape.hale", "match": "\\\\." }]
+          "patterns": [
+            {
+              "name": "constant.character.escape.hale",
+              "match": "\\\\."
+            }
+          ]
         },
-        { "name": "string.quoted.time.hale", "begin": "`", "end": "`" }
+        {
+          "name": "string.quoted.time.hale",
+          "begin": "`",
+          "end": "`"
+        }
       ]
     },
     "numbers": {
       "patterns": [
-        { "name": "constant.numeric.hex.hale", "match": "\\b0x[0-9a-fA-F_]+\\b" },
-        { "name": "constant.numeric.oct.hale", "match": "\\b0o[0-7_]+\\b" },
-        { "name": "constant.numeric.bin.hale", "match": "\\b0b[01_]+\\b" },
-        { "name": "constant.numeric.duration.hale", "match": "\\b[0-9_]+(ns|us|ms|s|m|h|d)\\b" },
-        { "name": "constant.numeric.decimal.hale", "match": "\\b[0-9_]+\\.[0-9_]+d\\b" },
-        { "name": "constant.numeric.float.hale", "match": "\\b[0-9][0-9_]*\\.[0-9_]+([eE][+-]?[0-9]+)?\\b" },
-        { "name": "constant.numeric.integer.hale", "match": "\\b[0-9][0-9_]*\\b" }
+        {
+          "name": "constant.numeric.hex.hale",
+          "match": "\\b0x[0-9a-fA-F_]+\\b"
+        },
+        {
+          "name": "constant.numeric.oct.hale",
+          "match": "\\b0o[0-7_]+\\b"
+        },
+        {
+          "name": "constant.numeric.bin.hale",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.duration.hale",
+          "match": "\\b[0-9_]+(ns|us|ms|s|m|h|d)\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.hale",
+          "match": "\\b[0-9_]+\\.[0-9_]+d\\b"
+        },
+        {
+          "name": "constant.numeric.float.hale",
+          "match": "\\b[0-9][0-9_]*\\.[0-9_]+([eE][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.hale",
+          "match": "\\b[0-9][0-9_]*\\b"
+        }
       ]
     },
     "annotations": {
       "patterns": [
-        { "name": "meta.annotation.hale", "match": "@(form|ffi|locality)\\b", "captures": { "0": { "name": "entity.name.function.decorator.hale" } } }
+        {
+          "name": "meta.annotation.hale",
+          "match": "@(form|ffi|locality)\\b",
+          "captures": {
+            "0": {
+              "name": "entity.name.function.decorator.hale"
+            }
+          }
+        }
       ]
     },
     "lifecycle": {
       "patterns": [
-        { "name": "keyword.control.lifecycle.hale", "match": "\\b(birth|accept|release|run|drain|dissolve|on_failure)\\b" },
-        { "name": "keyword.control.recovery.hale", "match": "\\b(restart|restart_in_place|quarantine|reorganize|bubble|violate|terminate)\\b" },
-        { "name": "keyword.control.mode.hale", "match": "\\b(mode|bulk|harmonic|resolution)\\b" }
+        {
+          "name": "keyword.control.lifecycle.hale",
+          "match": "\\b(birth|accept|release|run|drain|dissolve|on_failure)\\b"
+        },
+        {
+          "name": "keyword.control.recovery.hale",
+          "match": "\\b(restart|restart_in_place|quarantine|reorganize|bubble|violate|terminate)\\b"
+        },
+        {
+          "name": "keyword.control.mode.hale",
+          "match": "\\b(mode|bulk|harmonic|resolution)\\b"
+        }
       ]
     },
     "keywords": {
       "patterns": [
-        { "name": "storage.type.declaration.hale", "match": "\\b(locus|type|interface|perspective|fn|const|import|export|module|topic|ring_layout|main)\\b" },
-        { "name": "keyword.other.member.hale", "match": "\\b(params|contract|bus|capacity|bindings|placement|closure)\\b" },
-        { "name": "keyword.other.bus.hale", "match": "\\b(subscribe|publish|expose|consume|inferred|keyed_by|on_unmatched)\\b" },
-        { "name": "keyword.other.placement.hale", "match": "\\b(cooperative|pinned|pool|core|projection|rich|chunked|recognition|tier|capacity)\\b" },
-        { "name": "keyword.other.closure.hale", "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|stable_when|serialize_as|where)\\b" },
-        { "name": "keyword.control.fallible.hale", "match": "\\b(fallible|fail|or|raise|discard)\\b" },
-        { "name": "keyword.control.flow.hale", "match": "\\b(if|else|match|for|in|while|return|break|continue|yield)\\b" },
-        { "name": "keyword.other.binding.hale", "match": "\\b(let|mut|as|of|on)\\b" },
-        { "name": "variable.language.hale", "match": "\\b(self)\\b" }
+        {
+          "name": "storage.type.declaration.hale",
+          "match": "\\b(locus|type|interface|perspective|fn|const|import|export|module|topic|ring_layout|main)\\b"
+        },
+        {
+          "name": "storage.type.declaration.claims.hale",
+          "match": "\\b(group|domain|effect)\\b"
+        },
+        {
+          "name": "keyword.other.claims.hale",
+          "match": "\\b(claims|forbid|reaches|via|during|avoiding|edges|bound|require|cover|count|seed|subscribes|publishes|publishers|subscribers|subscribed_by|some|paths|from|may_be_empty|effects)\\b"
+        },
+        {
+          "name": "keyword.other.member.hale",
+          "match": "\\b(params|contract|bus|capacity|bindings|placement|closure)\\b"
+        },
+        {
+          "name": "keyword.other.bus.hale",
+          "match": "\\b(subscribe|publish|expose|consume|inferred|keyed_by|on_unmatched)\\b"
+        },
+        {
+          "name": "keyword.other.placement.hale",
+          "match": "\\b(cooperative|pinned|pool|core|projection|rich|chunked|recognition|tier|capacity)\\b"
+        },
+        {
+          "name": "keyword.other.closure.hale",
+          "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|stable_when|serialize_as|where)\\b"
+        },
+        {
+          "name": "keyword.control.fallible.hale",
+          "match": "\\b(fallible|fail|or|raise|discard)\\b"
+        },
+        {
+          "name": "keyword.control.flow.hale",
+          "match": "\\b(if|else|match|for|in|while|return|break|continue|yield)\\b"
+        },
+        {
+          "name": "keyword.other.binding.hale",
+          "match": "\\b(let|mut|as|of|on)\\b"
+        },
+        {
+          "name": "variable.language.hale",
+          "match": "\\b(self)\\b"
+        }
       ]
     },
     "types": {
       "patterns": [
-        { "name": "support.type.primitive.hale", "match": "\\b(Int|Uint|Float|Decimal|String|Bool|Time|Duration|Bytes|BytesView|StringView)\\b" },
-        { "name": "entity.name.type.hale", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
+        {
+          "name": "support.type.primitive.hale",
+          "match": "\\b(Int|Uint|Float|Decimal|String|Bool|Time|Duration|Bytes|BytesView|StringView)\\b"
+        },
+        {
+          "name": "entity.name.type.hale",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
       ]
     },
     "constants": {
       "patterns": [
-        { "name": "constant.language.hale", "match": "\\b(true|false|nil)\\b" },
-        { "name": "constant.other.hale", "match": "\\b[A-Z][A-Z0-9_]+\\b" }
+        {
+          "name": "constant.language.hale",
+          "match": "\\b(true|false|nil)\\b"
+        },
+        {
+          "name": "constant.other.hale",
+          "match": "\\b[A-Z][A-Z0-9_]+\\b"
+        }
       ]
     },
     "operators": {
       "patterns": [
-        { "name": "keyword.operator.send.hale", "match": "<-" },
-        { "name": "keyword.operator.approx.hale", "match": "~~" },
-        { "name": "keyword.operator.arrow.hale", "match": "->|=>" },
-        { "name": "keyword.operator.hale", "match": "(==|!=|<=|>=|&&|\\|\\||[-+*/%<>=!&|^~])" }
+        {
+          "name": "keyword.operator.send.hale",
+          "match": "<-"
+        },
+        {
+          "name": "keyword.operator.approx.hale",
+          "match": "~~"
+        },
+        {
+          "name": "keyword.operator.arrow.hale",
+          "match": "->|=>"
+        },
+        {
+          "name": "keyword.operator.hale",
+          "match": "(==|!=|<=|>=|&&|\\|\\||[-+*/%<>=!&|^~])"
+        }
       ]
     },
     "functions": {
       "patterns": [
-        { "name": "entity.name.function.call.hale", "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=\\()" }
+        {
+          "name": "entity.name.function.call.hale",
+          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=\\()"
+        }
       ]
     },
     "identifiers": {
       "patterns": [
-        { "name": "variable.other.hale", "match": "\\b[a-z_][A-Za-z0-9_]*\\b" }
+        {
+          "name": "variable.other.hale",
+          "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+        }
       ]
     }
   }
