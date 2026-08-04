@@ -21,7 +21,16 @@ Path:
   -> subject Recalled
   -> StatedCarry`;
 
+const claimDiagnostic = `claim \`iso_dg\` violated:
+  \`delta_wing\` reaches \`gamma_wing\`
+
+witness:
+  delta::Triage::on_task
+  -(publishes "org.metrics")->
+  gamma::Research::on_metric`;
+
 const commands = `hale check .
+hale check . --dump-topology
 hale test .
 hale verify .
 hale bench .
@@ -34,6 +43,7 @@ const status = [
   ['shipped', 'Effects, budgets, causes, and depends', 'Operational and causal contracts with witness paths.'],
   ['shipped', 'Structural lifetime and supervision', 'Owned regions, child lifecycle, failure propagation, and restart policy.'],
   ['shipped', 'Observation plane', 'Runtime birth, dissolve, publish, delivery, and transport evidence.'],
+  ['shipped', 'Bundle-level claims and the topology artifact', 'Named sentences over the assembled graph — isolation, grants, coverage, cardinality, interposition, bounds — with countermodel witnesses and a committed model baseline.'],
   ['rfc', 'Deterministic record and replay', 'A self-describing execution record built from effects, deployment, and observation.'],
   ['rfc', 'Deployment elaboration and meta-scheduling', 'Candidate arrangements verified before activation or transition.'],
 ];
@@ -103,6 +113,20 @@ const status = [
       </article>
 
       <article>
+        <span>compiler</span>
+        <h2>System claims</h2>
+        <p>
+          Groups name the domains; the main locus states the law:
+          <code>forbid reaches</code>, <code>only edges</code> grants,
+          <code>require</code>/<code>cover</code>/<code>count</code>,
+          interposition via <code>avoiding</code>, and capability bounds.
+          Violations are errors with countermodels, and the checked model
+          exports as a diffable artifact under a shape hash.
+        </p>
+        <a href="/articles/claim-driven-development-in-hale">Claim-driven development →</a>
+      </article>
+
+      <article>
         <span>runtime + compiler</span>
         <h2>Structural lifetime</h2>
         <p>
@@ -158,6 +182,20 @@ const status = [
           The bus graph can, and the witness should name every step.
         </p>
       </div>
+    </div>
+
+    <div class="proof-detail">
+      <div>
+        <p class="eyebrow">system witness</p>
+        <h2>The law names its countermodel.</h2>
+        <p>
+          A bundle-level claim quantifies over every represented path. When
+          the assembled graph escapes its declared law, the diagnostic
+          returns the route — calls and message hops — that makes the
+          sentence false.
+        </p>
+      </div>
+      <Hale code={claimDiagnostic} title="hale check" />
     </div>
 
     <div class="contract-bar">
