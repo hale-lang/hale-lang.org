@@ -2,7 +2,7 @@
 title: "Claim-Driven Development in Hale"
 kind: article
 date: 2026-08-04
-version: v0.13.0
+version: v0.14.0
 summary: >-
   Write the system's laws before finishing its implementation, then let the
   compiler drive the program toward them. Named claims over Hale's call,
