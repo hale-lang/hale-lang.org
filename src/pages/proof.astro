@@ -21,6 +21,13 @@ Path:
   -> subject Recalled
   -> StatedCarry`;
 
+const fleetWitness = `fleet claim \`orders_pass_oms\` violated — witness:
+  prober-0::Probe::submit  [prober/main.hl]
+  -(route \`intent\`)->
+  oms-0::Oms::on_intent  [oms/main.hl]
+  -(route \`bypass\`)->
+  gw-0::Gateway::on_order  [gw/main.hl]`;
+
 const claimDiagnostic = `claim \`iso_dg\` violated:
   \`delta_wing\` reaches \`gamma_wing\`
 
@@ -44,6 +51,7 @@ const status = [
   ['shipped', 'Structural lifetime and supervision', 'Owned regions, child lifecycle, failure propagation, and restart policy.'],
   ['shipped', 'Observation plane', 'Runtime birth, dissolve, publish, delivery, and transport evidence.'],
   ['shipped', 'Bundle-level claims and the topology artifact', 'Named sentences over the assembled graph — isolation, grants, coverage, cardinality, interposition, bounds — with countermodel witnesses and a committed model baseline.'],
+  ['shipped', 'Fleet composition across binaries', 'Sealed application artifacts plus a routed deployment plan, checked as one model — with witnesses that cross artifacts. Topology is certified; delivery is not.'],
   ['rfc', 'Deterministic record and replay', 'A self-describing execution record built from effects, deployment, and observation.'],
   ['rfc', 'Deployment elaboration and meta-scheduling', 'Candidate arrangements verified before activation or transition.'],
 ];
@@ -57,9 +65,9 @@ const status = [
       <p class="eyebrow">proof</p>
       <h1>What is checked, what is measured, and what is still open.</h1>
       <p class="lede">
-        Hale makes broad architectural claims. This page keeps them tied to
-        compiler rules, runtime evidence, and public limitations. Ambition is
-        useful only when the status is legible.
+        These are the properties the compiler enforces, the ones the
+        runtime measures, and the ones nothing checks yet. The last group is
+        listed too — a guarantee you cannot point at is not one.
       </p>
     </div>
 
@@ -124,6 +132,36 @@ const status = [
           exports as a diffable artifact under a shape hash.
         </p>
         <a href="/articles/claim-driven-development-in-hale">Claim-driven development →</a>
+      </article>
+
+      <article>
+        <span>compiler</span>
+        <h2>One claimset, many worlds</h2>
+        <p>
+          A claim is evaluated in a closed world, so law used to be copied
+          into every entrypoint. A <code>constitution</code> moves the
+          authorship without moving the evaluation: each adopting main still
+          proves it in its own world. Composition only ever adds — a stricter
+          rule is a second clause, never a replacement — and identity follows
+          the normalized closure, so a shared name is not mistaken for a
+          shared claimset.
+        </p>
+        <a href="/articles/constitutions-in-hale">Constitutions in Hale →</a>
+      </article>
+
+      <article>
+        <span>compiler</span>
+        <h2>Across binaries</h2>
+        <p>
+          Sealed application artifacts compose into one deployment model.
+          A plan names deployed instances and the routes between them, and
+          law that no single binary can state — every order path crosses
+          risk, exactly one deployed publisher — is checked over the
+          arrangement. Composition takes artifacts, never merged source:
+          matching wire identities establish compatibility, and only an
+          explicit route creates an edge.
+        </p>
+        <a href="/docs/services/multi-binary">Across binaries →</a>
       </article>
 
       <article>
@@ -196,6 +234,21 @@ const status = [
         </p>
       </div>
       <Hale code={claimDiagnostic} title="hale check" />
+    </div>
+
+    <div class="proof-detail">
+      <div>
+        <p class="eyebrow">deployment witness</p>
+        <h2>The path is named across binaries.</h2>
+        <p>
+          The same sentence, one altitude up. Each component checked clean on
+          its own; the arrangement did not. The witness crosses artifacts —
+          every hop, the route carrying it, and the file each vertex lives in
+          — because a deployment defect is only actionable if it says which
+          config and which source to open.
+        </p>
+      </div>
+      <Hale code={fleetWitness} title="hale fleet check" />
     </div>
 
     <div class="contract-bar">
