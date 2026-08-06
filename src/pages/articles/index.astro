@@ -3,9 +3,27 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 
 const all = await getCollection('articles');
-const posts = all.sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
-);
+
+// A series is one argument in several parts, so it is listed in
+// READING order under its own heading; standalone pieces stay
+// newest-first below. Series are ordered by when each one started.
+const names = [
+  ...new Set(
+    all
+      .filter((p) => p.data.series)
+      .sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf())
+      .map((p) => p.data.series as string),
+  ),
+];
+const series = names.map((name) => ({
+  name,
+  posts: all
+    .filter((p) => p.data.series === name)
+    .sort((a, b) => (a.data.part ?? 0) - (b.data.part ?? 0)),
+}));
+const loose = all
+  .filter((p) => !p.data.series)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-GB', {
@@ -28,28 +46,107 @@ const fmt = (d: Date) =>
       pieces about one thing at a time. Everything here is dated and stays
       put — a note from a year ago describes the language as it was then.
     </p>
+    <p class="note">
+      Every piece says who wrote it. <span class="by by-ai">AI-written</span>
+      means the prose was drafted by an LLM and then checked against the
+      shipped implementation; <span class="by by-human">Human-written</span>
+      means a person wrote it.
+    </p>
 
-    <ul class="article-list">
-      {posts.map((p) => (
-        <li>
-          <div class="meta">
-            <span class={`kind kind-${p.data.kind}`}>
-              {p.data.kind === 'announcement' ? 'Announcement' : 'Article'}
-            </span>
-            <time datetime={p.data.date.toISOString()}>
-              {fmt(p.data.date)}
-            </time>
-            {p.data.version && <span class="ver">{p.data.version}</span>}
-          </div>
-          <a class="title" href={`/articles/${p.id}`}>{p.data.title}</a>
-          <p class="summary">{p.data.summary}</p>
-        </li>
-      ))}
-    </ul>
+    {series.map((s) => (
+      <section class="series-block">
+        <h2>{s.name}</h2>
+        <p class="series-lede">
+          Read in order — each part assumes the one before it.
+        </p>
+        <ul class="article-list">
+          {s.posts.map((p) => (
+            <li>
+              <div class="meta">
+                <span class="part">Part {p.data.part}</span>
+                <time datetime={p.data.date.toISOString()}>
+                  {fmt(p.data.date)}
+                </time>
+                {p.data.version && <span class="ver">{p.data.version}</span>}
+                <span class={`by by-${p.data.authorship}`}>
+                  {p.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
+                </span>
+              </div>
+              <a class="title" href={`/articles/${p.id}`}>{p.data.title}</a>
+              <p class="summary">{p.data.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    {loose.length > 0 && (
+      <section class="series-block">
+        {series.length > 0 && <h2>Everything else</h2>}
+        <ul class="article-list">
+          {loose.map((p) => (
+            <li>
+              <div class="meta">
+                <span class={`kind kind-${p.data.kind}`}>
+                  {p.data.kind === 'announcement' ? 'Announcement' : 'Article'}
+                </span>
+                <time datetime={p.data.date.toISOString()}>
+                  {fmt(p.data.date)}
+                </time>
+                {p.data.version && <span class="ver">{p.data.version}</span>}
+                <span class={`by by-${p.data.authorship}`}>
+                  {p.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
+                </span>
+              </div>
+              <a class="title" href={`/articles/${p.id}`}>{p.data.title}</a>
+              <p class="summary">{p.data.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
   </section>
 </Base>
 
 <style>
+  .note {
+    font-size: 0.92rem;
+    color: var(--muted);
+    margin-top: 1rem;
+  }
+  .by {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .by-ai {
+    color: var(--amber);
+  }
+  .by-human {
+    color: var(--jade);
+  }
+  .series-block {
+    margin-top: 2.75rem;
+  }
+  .series-block h2 {
+    margin-bottom: 0.25rem;
+  }
+  .series-lede {
+    font-size: 0.92rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .part {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--jade);
+    font-weight: 600;
+  }
   .article-list {
     list-style: none;
     padding: 0;

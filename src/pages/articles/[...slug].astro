@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import ArticleNav from '../../components/ArticleNav.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('articles');
@@ -12,6 +13,19 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
+
+// Next chapter, for readers who came in from a search result rather
+// than the sidebar — the end of a piece is where "what now?" happens.
+const all = await getCollection('articles');
+const siblings = post.data.series
+  ? all
+      .filter((p) => p.data.series === post.data.series)
+      .sort((a, b) => (a.data.part ?? 0) - (b.data.part ?? 0))
+  : [];
+const here = siblings.findIndex((p) => p.id === post.id);
+const prev = here > 0 ? siblings[here - 1] : undefined;
+const next =
+  here >= 0 && here < siblings.length - 1 ? siblings[here + 1] : undefined;
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-GB', {
@@ -26,30 +40,154 @@ const fmt = (d: Date) =>
 ---
 
 <Base title={post.data.title}>
-  <section class="container prose">
-    <span class="tag">/articles</span>
-    <div class="meta">
-      <span class={`kind kind-${post.data.kind}`}>
-        {post.data.kind === 'announcement' ? 'Announcement' : 'Article'}
-      </span>
-      <time datetime={post.data.date.toISOString()}>
-        {fmt(post.data.date)}
-      </time>
-      {post.data.updated && (
-        <time class="upd" datetime={post.data.updated.toISOString()}>
-          updated {fmt(post.data.updated)}
+  <div class="container wrap">
+    <aside class="side">
+      <ArticleNav current={post.id} />
+    </aside>
+
+    <article class="prose">
+      <span class="tag">/articles</span>
+      <div class="meta">
+        <span class={`kind kind-${post.data.kind}`}>
+          {post.data.kind === 'announcement' ? 'Announcement' : 'Article'}
+        </span>
+        <time datetime={post.data.date.toISOString()}>
+          {fmt(post.data.date)}
         </time>
+        {post.data.updated && (
+          <time class="upd" datetime={post.data.updated.toISOString()}>
+            updated {fmt(post.data.updated)}
+          </time>
+        )}
+        {post.data.version && <span class="ver">{post.data.version}</span>}
+        <span
+          class={`by by-${post.data.authorship}`}
+          title={
+            post.data.authorship === 'ai'
+              ? 'Drafted by an LLM, reviewed against the shipped implementation'
+              : 'Written by a person'
+          }
+        >
+          {post.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
+        </span>
+      </div>
+      {post.data.series && (
+        <p class="series">
+          {post.data.series} · part {post.data.part} of {siblings.length}
+        </p>
       )}
-      {post.data.version && <span class="ver">{post.data.version}</span>}
-    </div>
-    <h1>{post.data.title}</h1>
-    <Content />
-    <hr />
-    <p><a href="/articles">← All articles</a></p>
-  </section>
+      <h1>{post.data.title}</h1>
+      <Content />
+      <hr />
+      {(prev || next) && (
+        <nav class="pager" aria-label="Series">
+          {prev && (
+            <a class="p prev" href={`/articles/${prev.id}`}>
+              <span class="lbl">← Previous</span>
+              <span class="t">{prev.data.title}</span>
+            </a>
+          )}
+          {next && (
+            <a class="p next" href={`/articles/${next.id}`}>
+              <span class="lbl">Next →</span>
+              <span class="t">{next.data.title}</span>
+            </a>
+          )}
+        </nav>
+      )}
+      <p><a href="/articles">← All articles</a></p>
+    </article>
+  </div>
 </Base>
 
 <style>
+  /* Sidebar + article. The container widens beyond --maxw here so the
+     prose keeps its 72ch measure instead of paying for the sidebar. */
+  .wrap {
+    max-width: var(--maxw-wide);
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+  .side {
+    position: sticky;
+    /* clears the nav bar and leaves the list scrollable on short
+       viewports rather than clipping the last entry */
+    top: 5rem;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+  }
+  /* One column below the point where 15rem + 72ch stops fitting. The
+     sidebar leads, so the series is visible before the piece starts. */
+  @media (max-width: 900px) {
+    .wrap {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    .side {
+      position: static;
+      max-height: none;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+  }
+  /* Authorship reads as a fact about the text, so it is a quiet
+     marker rather than a warning — but it never blends into the date
+     either: it carries its own tint and stays legible at a glance. */
+  .by {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+  }
+  .by-ai {
+    color: var(--amber);
+  }
+  .by-human {
+    color: var(--jade);
+  }
+  .series {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0.75rem 0 0;
+  }
+  .pager {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 0 0 2rem;
+  }
+  .p {
+    flex: 1 1 14rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .p:hover {
+    border-color: var(--jade);
+    background: var(--jade-tint);
+  }
+  .p.next {
+    text-align: right;
+  }
+  .lbl {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+  .t {
+    font-weight: 600;
+    line-height: 1.3;
+  }
   .meta {
     display: flex;
     gap: 0.75rem;

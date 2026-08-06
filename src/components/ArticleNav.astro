@@ -1,0 +1,153 @@
+---
+// Sidebar for article pages: every article, with the ones that form a
+// series kept in reading order under their shared title.
+//
+// The list is deliberately complete rather than "related posts" — with
+// a handful of long pieces, seeing all of them is the navigation. It
+// grows badly past ~20, at which point this should collapse to the
+// current series plus a link to the index.
+import { getCollection } from 'astro:content';
+
+interface Props {
+  /** Slug of the article being read, so it can be marked current. */
+  current?: string;
+}
+const { current } = Astro.props;
+
+const all = await getCollection('articles');
+
+// Series first, in reading order; then everything else, newest first.
+// A series is ordered by `part`, never by date: the schema allows a
+// later piece to sit earlier in the sequence.
+const seriesNames = [
+  ...new Set(
+    all
+      .filter((p) => p.data.series)
+      .sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf())
+      .map((p) => p.data.series as string),
+  ),
+];
+
+const groups = seriesNames.map((name) => ({
+  name,
+  posts: all
+    .filter((p) => p.data.series === name)
+    .sort((a, b) => (a.data.part ?? 0) - (b.data.part ?? 0)),
+}));
+
+const loose = all
+  .filter((p) => !p.data.series)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<nav class="anav" aria-label="Articles">
+  {groups.map((g) => (
+    <div class="group">
+      <h2 class="gname">{g.name}</h2>
+      <ol class="items">
+        {g.posts.map((p) => (
+          <li>
+            <a
+              href={`/articles/${p.id}`}
+              class={p.id === current ? 'on' : undefined}
+              aria-current={p.id === current ? 'page' : undefined}
+            >
+              <span class="num">{p.data.part}</span>
+              <span class="txt">{p.data.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  ))}
+
+  {loose.length > 0 && (
+    <div class="group">
+      <h2 class="gname">More</h2>
+      <ul class="items">
+        {loose.map((p) => (
+          <li>
+            <a
+              href={`/articles/${p.id}`}
+              class={p.id === current ? 'on' : undefined}
+              aria-current={p.id === current ? 'page' : undefined}
+            >
+              <span class="txt">{p.data.title}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  <a class="all" href="/articles">All articles →</a>
+</nav>
+
+<style>
+  .anav {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .group + .group {
+    margin-top: 1.6rem;
+  }
+  .gname {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--faint);
+    font-weight: 600;
+    margin: 0 0 0.6rem;
+    /* the sidebar's own headings must not join the article's outline */
+    padding: 0;
+    border: 0;
+  }
+  .items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .items li {
+    margin: 0;
+  }
+  .items a {
+    display: flex;
+    gap: 0.55rem;
+    padding: 0.4rem 0.6rem 0.4rem 0.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--muted);
+    /* a transparent rail keeps text from shifting when it turns jade */
+    border-left: 2px solid transparent;
+  }
+  .items a:hover {
+    color: var(--ink);
+    background: var(--paper-2);
+  }
+  .items a.on {
+    color: var(--ink);
+    background: var(--jade-tint);
+    border-left-color: var(--jade);
+    font-weight: 600;
+  }
+  .num {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding-top: 0.1rem;
+    flex: none;
+  }
+  .items a.on .num {
+    color: var(--jade);
+  }
+  .all {
+    display: inline-block;
+    margin-top: 1.6rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .all:hover {
+    color: var(--jade);
+  }
+</style>

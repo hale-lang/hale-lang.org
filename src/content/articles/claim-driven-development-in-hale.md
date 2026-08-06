@@ -1,6 +1,9 @@
 ---
 title: "Claim-Driven Development in Hale"
 kind: article
+authorship: ai
+series: "Hale as a general model checker"
+part: 2
 date: 2026-08-04
 version: v0.14.0
 summary: >-

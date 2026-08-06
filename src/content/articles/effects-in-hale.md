@@ -1,6 +1,9 @@
 ---
 title: "Effects in Hale"
 kind: article
+authorship: ai
+series: "Hale as a general model checker"
+part: 1
 date: 2026-07-31
 updated: 2026-08-02
 version: v0.12.0

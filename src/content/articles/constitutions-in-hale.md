@@ -1,6 +1,9 @@
 ---
 title: "Constitutions in Hale"
 kind: article
+authorship: ai
+series: "Hale as a general model checker"
+part: 3
 date: 2026-08-05
 version: v0.15.0
 summary: >-
