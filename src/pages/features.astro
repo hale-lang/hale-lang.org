@@ -1,0 +1,189 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Language features">
+  <section class="container prose">
+    <span class="tag">/features</span>
+    <h1>Language features</h1>
+    <p class="lede">
+      Everything on this page is shipped and specified. For exact semantics,
+      read the <a href="/docs/spec/semantics">specification</a> — it describes
+      current behavior, and this page follows it.
+    </p>
+
+    <h2>One primitive</h2>
+    <ul>
+      <li><strong>The locus</strong> — one construct where other languages have
+        class, module, package, actor, and service. An app, a cache, a handler,
+        and a library are all loci; composition is locus-in-locus.</li>
+      <li><strong>Lifecycle</strong> — <code>birth</code> / <code>run</code> /
+        <code>dissolve</code>, <code>params { }</code> with defaults,
+        parent–child nesting with deterministic cleanup on dissolve.</li>
+      <li><strong>Perspectives</strong> — live hot code-swap at pointer-flip
+        cost: <code>reperspective</code> carries state across and re-points bus
+        edges without dropping messages.</li>
+      <li><strong>Modes</strong> — <code>bulk</code> / <code>harmonic</code> /
+        <code>resolution</code> projections over capacity slots, for programs
+        that reshape under load.</li>
+    </ul>
+
+    <h2>The typed bus</h2>
+    <ul>
+      <li><strong>Topics as declarations</strong> — <code>topic T &#123; payload:
+        P; &#125;</code> with wire subjects, routing keys
+        (<code>keyed_by</code>), and per-topic bounds with an explicit
+        backpressure contract (<code>or wait</code>).</li>
+      <li><strong>Loci never reach sideways</strong> — messages are copies;
+        subscription and publish are declared surface, so the compiler sees the
+        whole message graph.</li>
+      <li><strong>Topology checked at compile time</strong> — orphaned topics,
+        re-entrant cycles, unbounded backpressure, and payload mismatches are
+        build errors.</li>
+    </ul>
+
+    <h2>Types &amp; data</h2>
+    <ul>
+      <li><strong>Structural interfaces</strong> — an <code>interface</code> is
+        satisfied by shape; there is no <code>impl I for L</code> ceremony.</li>
+      <li><strong>Synthesized forms</strong> — <code>@form(vec | hashmap |
+        ring_buffer | lru_cache)</code> generates type-specialized collections;
+        <code>bounded[T; N]</code> for fixed capacity. No generics ceremony on
+        the everyday path.</li>
+      <li><strong>Element chains</strong> —
+        <code>xs.filter(it &gt; 2).count()</code> compiles to one loop,
+        allocation-free, with no closure or iterator object.</li>
+      <li><strong>Money and time as types</strong> — <code>Decimal</code>,
+        typed timestamps and durations; inference for <code>let</code>, returns,
+        and locus params; f-strings.</li>
+    </ul>
+
+    <h2>Failure</h2>
+    <ul>
+      <li><strong><code>fallible(E)</code> in the type</strong> — every fallible
+        call is addressed at the call site with a disposition
+        (<code>or default</code>, <code>or raise</code>, <code>or wait</code>,
+        …). No exceptions, no <code>panic</code>.</li>
+      <li><strong>Failures travel vertically</strong> — a child's failure goes
+        to its parent, which owns recovery. There is no sideways error
+        channel to leak through.</li>
+      <li><strong><code>closure</code> assertions</strong> — declared
+        invariants audited by the runtime at phase boundaries.</li>
+    </ul>
+
+    <h2>Law: effects, claims, constitutions, fleets</h2>
+    <ul>
+      <li><strong>Effect certificates</strong> — ten effect classes
+        (<code>syscall</code>, <code>block</code>, <code>time</code>,
+        <code>entropy</code>, <code>alloc</code>, …); opt-in assertions
+        (<code>@no_block</code>, <code>@deterministic</code>,
+        <code>@effects(only: …)</code>) proven transitively over the whole call
+        graph, with quantitative budgets (<code>@budget</code>) and
+        per-lifecycle-phase contracts (<code>@phase_effects</code>).
+        Incompleteness fails closed.</li>
+      <li><strong>Claims</strong> — named sentences over the assembled program
+        graph, declared in <code>main</code>, checked as errors, zero runtime
+        cost: <code>forbid reaches</code>, <code>only edges</code>,
+        <code>require</code> / <code>cover</code> / <code>count</code>,
+        <code>bound</code>, interposition (<code>avoiding</code>), lifecycle
+        slices (<code>during</code>). Violations return a minimal countermodel
+        in your own spelling.</li>
+      <li><strong>Constitutions</strong> — one claimset adopted by many
+        entrypoints, composed by union only (weakening is unexpressible),
+        bound per deployment target in <code>hale.toml</code> and proven
+        pairwise by <code>hale check --matrix</code>.</li>
+      <li><strong>Fleets</strong> — per-application topology artifacts compose
+        into a deployment model; cross-binary claims with cross-binary
+        witnesses. Only an explicit route creates an edge. Signing and binary
+        attestation carry the certificate to the machine that deploys it.</li>
+      <li><strong>The topology artifact</strong> — byte-reproducible JSON with
+        source maps, an integrity digest, and every claim verdict; commit it
+        and diff the architecture in review, not just the text.</li>
+    </ul>
+
+    <h2>Memory &amp; runtime</h2>
+    <ul>
+      <li><strong>Arena-per-locus</strong> — no garbage collector, no borrow
+        checker, no lifetime annotations; memory frees deterministically when a
+        locus dissolves.</li>
+      <li><strong>Model-checked substrate</strong> — every concurrent primitive
+        in the runtime (lock-free bus, mailboxes, arenas) is verified under
+        every legal interleaving with GenMC on each CI run.</li>
+      <li><strong>Static dispatch by default</strong> — devirtualized bus
+        delivery and calls; cooperative pools with epoll-backed parking;
+        pinned threads, NUMA-aware arena placement, and
+        <code>replicas = K</code> fan-out declared in <code>main</code>.</li>
+    </ul>
+
+    <h2>Deployment</h2>
+    <ul>
+      <li><strong>Same source, many shapes</strong> — <code>placement { }</code>
+        and <code>bindings { }</code> in <code>main</code> decide threads,
+        cores, and transports. A test, one binary, or a mesh of binaries is an
+        edit to one block.</li>
+      <li><strong>Transports</strong> — in-process queues, Unix sockets,
+        zero-copy shared-memory rings, and broker adapters written as ordinary
+        loci; pluggable codecs.</li>
+    </ul>
+
+    <h2>Interop</h2>
+    <ul>
+      <li><strong>C FFI</strong> — <code>@ffi("c")</code> bindings with
+        <code>[ffi] csrc</code> compilation, both directions across the
+        boundary.</li>
+      <li><strong>WebAssembly</strong> — <code>wasm32</code> target with
+        <code>@export</code> loci and <code>@ffi("js")</code>; the
+        <a href="/playground">playground</a> runs the result client-side.</li>
+      <li><strong>Packages</strong> — <code>hale fetch</code> vendors pinned git
+        dependencies; <a href="/packages">pond</a> is the contributed library
+        collection.</li>
+    </ul>
+
+    <h2>Standard library</h2>
+    <ul>
+      <li>Path-called, no imports: processes, env, filesystem, TCP/UDP
+        (zero-copy readers), TLS, HTTP (router and client), JSON (including a
+        streaming builder), metrics, logging with sinks, compression, tar,
+        crypto and hashing, encodings, randomness, strings, regex, sets, time.
+        <code>hale doc --stdlib</code> publishes each function's effect classes
+        from the same registry the checker proves against.</li>
+    </ul>
+
+    <h2>Toolchain</h2>
+    <ul>
+      <li><strong>One binary</strong> — <code>check</code>,
+        <code>verify</code> (advisories fail too — the CI gate),
+        <code>run</code>, <code>build</code>, <code>test</code>,
+        <code>bench</code> (ns/op, allocs/op), <code>fmt</code> (zero-config,
+        re-lex equivalence gated), <code>doc</code>, <code>fetch</code>,
+        <code>fleet</code>, <code>lsp</code>, <code>mcp</code>.</li>
+      <li><strong>Editor support</strong> — a stdio LSP in the compiler binary
+        (~10&nbsp;ms full re-check, contract-surfacing hover, bus-graph and
+        placement queries); a <a href="/tooling">tree-sitter grammar</a> for
+        the rest.</li>
+      <li><strong>Agent tooling</strong> — an MCP server in the compiler binary
+        (checks, builds, tests, bus graph, spec search), a checked-in
+        <code>AGENTS.md</code>, and machine-readable artifacts throughout. See
+        <a href="/tooling">tooling</a>.</li>
+    </ul>
+
+    <h2>Platforms</h2>
+    <ul>
+      <li>Linux x86-64 and ARM64, macOS on Apple&nbsp;Silicon, and
+        <code>wasm32</code>. Prebuilt binaries on GitHub Releases.</li>
+    </ul>
+
+    <h2>The frontier</h2>
+    <p class="muted">
+      Reserved surface, awaiting a workload that earns it:
+      <code>async</code>/<code>await</code> keywords, traits with explicit
+      impls, macros, richer form shapes. The runtime frontier is cost — a
+      cheaper call protocol and spawn path. The spec stays the arbiter: it
+      describes what ships, and this page follows it.
+    </p>
+
+    <p class="muted">
+      Want to nudge a priority? The fastest signal is a real program that needs
+      it — see <a href="/community">community</a>.
+    </p>
+  </section>
+</Base>

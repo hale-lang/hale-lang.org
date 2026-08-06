@@ -1,5 +1,5 @@
 ---
-title: "Claim-Driven Development in Hale"
+title: "Claims"
 kind: article
 authorship: ai
 series: "Hale as a general model checker"

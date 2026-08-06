@@ -31,7 +31,16 @@ const bookSidebar = JSON.parse(
 // https://astro.build/config
 export default defineConfig({
   site: 'https://hale-lang.org',
-  redirects: { '/agents': '/tooling' },
+  redirects: {
+    '/agents': '/tooling',
+    // The roadmap became a descriptive feature list — a roadmap
+    // advertises intent and rots; /features describes what ships.
+    '/roadmap': '/features',
+    // The series titles were normalized (effects / claims /
+    // constitutions / fleets); the old slug is linked from the
+    // compiler repo's docs and anywhere the article traveled.
+    '/articles/claim-driven-development-in-hale': '/articles/claims-in-hale',
+  },
   integrations: [
     starlight({
       title: 'Hale',

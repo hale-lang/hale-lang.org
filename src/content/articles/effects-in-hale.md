@@ -1,5 +1,5 @@
 ---
-title: "Effects in Hale"
+title: "Effects"
 kind: article
 authorship: ai
 series: "Hale as a general model checker"

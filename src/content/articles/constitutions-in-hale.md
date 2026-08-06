@@ -1,5 +1,5 @@
 ---
-title: "Constitutions in Hale"
+title: "Constitutions"
 kind: article
 authorship: ai
 series: "Hale as a general model checker"
@@ -12,7 +12,7 @@ summary: >-
   environments, compose only by addition, and make missing coverage an error.
 ---
 
-The [effects system](/articles/effects-in-hale/) lets one function make a promise. [Claims](/articles/claim-driven-development-in-hale/) let one `main locus` state a law over one assembled application.
+The [effects system](/articles/effects-in-hale/) lets one function make a promise. [Claims](/articles/claims-in-hale/) let one `main locus` state a law over one assembled application.
 
 That application-wide law still had to be authored in each main — correct for evaluation, awkward for a repository with several entrypoints. Constitutions separate the two concerns: write the law once, then prove it independently in every closed world that adopts it.
 
