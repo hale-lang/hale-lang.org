@@ -11,8 +11,7 @@ summary: >-
   A signing key the rest of the program cannot reach, using the ownership
   model that was already there. One annotation closes the gap in it, one
   built-in effect class marks the privileged operation, and the law is
-  written with claim forms that already existed — confinement, stated
-  precisely, with no information-flow analysis anywhere.
+  written with the claim forms the language already has.
 ---
 
 A signing key belongs to one component. Everything else should be able to *ask* for a signature and unable to obtain the key.
@@ -155,28 +154,10 @@ This is **confinement, not information flow**. A signature derived from the key 
 
 Those limits are in the specification, not a footnote. A checker's value is not that it says yes; it is that when it says yes, you know exactly what it said yes *to*.
 
-## Why the design is this small
-
-There is a well-established answer to "keep a value from reaching a sink": information-flow analysis. Labels on values, a lattice, propagation, declassification with named authority, program-counter labels for control dependence. It is a real body of theory and it would have been the largest subsystem in the language.
-
-Hale's design rule points elsewhere. The domain expresses the business; the library and runtime provide mechanism; the compiler assembles and asserts. That sounds like "the domain should say as little as possible" until you notice that `claims { }` is domain text and the language wants *more* of it.
-
-The distinction that resolves it:
-
-> **Tax** is what the domain must write *about mechanism* — wrappers, per-site releases, ownership modifiers, parameter markings.
->
-> **Law** is what the domain must write *about itself* — "plugins never touch secrets", "one signing operation per request". No library and no compiler can supply it, because it is business knowledge.
-
-Minimize tax. Law is not tax; law is the point. And the same feature is tax or machinery depending on who declares it: an opaque wrapper type written by an application is tax; shipped by `std::crypto`, it is machinery the domain merely uses.
-
-Sorted that way, a labelled-value system is tax from top to bottom. What remains is the ownership model, one word to close its gap, one class to mark the privileged operation, and sentences the domain was going to write anyway.
-
 ## What secrets are
 
-The first four parts of this series built upward: a function's effects, an application's claims, a shared constitution, a deployed fleet. Four closures, each emitting evidence the next composes.
+The other parts of this series each close a wider world: a function's effects, an application's claims, a shared constitution, a deployed fleet. Each closure emits evidence the next composes.
 
-Confinement adds no fifth closure. It is the same machinery, pointed at a problem that looks like it needs its own.
+Confinement adds no closure of its own. It is those same mechanisms — ownership, classification, claims — pointed at a problem that looks like it needs a subsystem.
 
 > **The secret is confined by ownership, marked by classification, and governed by law you already know how to write.**
-
-That is the useful test of a checker built over program structure. Not whether it proves the properties it was designed for — whether the next property needs a new machine.
