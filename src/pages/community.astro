@@ -1,7 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 ---
 <Base title="Hale community">
+  <Field kind="community" />
   <section class="container prose">
     <span class="tag">/community</span>
     <h1>Community</h1>
@@ -12,7 +14,7 @@ import Base from '../layouts/Base.astro';
 
     <h2>Where things happen</h2>
     <ul>
-      <li><strong>GitHub</strong> — the compiler, the spec, and the pond
+      <li><strong>GitHub</strong>: the compiler, the spec, and the pond
         libraries live under
         <a href="https://github.com/hale-lang">github.com/hale-lang</a>. Issues
         and discussions are the main channel today. The clearest way to help is
@@ -34,7 +36,7 @@ import Base from '../layouts/Base.astro';
 
     <p class="muted">
       A chat space and a formal contribution guide are on the way. Until then,
-      open an issue — early questions are welcome.
+      open an issue, early questions are welcome.
     </p>
   </section>
 </Base>

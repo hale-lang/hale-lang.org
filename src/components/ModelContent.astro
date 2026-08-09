@@ -119,7 +119,44 @@ locus Rollup {
   </p>
   <Hale code={dependency} title="dependency-contract.hl" />
 
-  <h2>The Hale constitution</h2>
+  <h2>The law keeps going past the executable</h2>
+  <p>
+    Effects close around a function; claims close around one assembled
+    application. Neither can say anything about the entrypoint next door, or
+    about the arrangement of binaries you actually deploy. The structure
+    continues, and the same checker follows it.
+  </p>
+  <p>
+    A <strong>constitution</strong> is a claimset authored once and adopted per
+    entrypoint. Every clause is still evaluated in the adopting main's own
+    closed world: one text, many worlds, many independent verdicts.
+    Composition is union only, so a derived constitution can add a rule and
+    can never replace one. Weakening isn't rejected, it's unexpressible.
+    Binding lives in <code>hale.toml</code>, because which law applies is a
+    property of where you deploy, and <code>hale check --matrix</code> proves
+    every entrypoint against every environment that runs it. An entrypoint
+    listed in no environment is an error rather than a skip, which is the one
+    hole composition cannot close by itself.
+  </p>
+  <p>
+    A <strong>fleet</strong> is one scale further out. Each application emits a
+    byte-reproducible topology artifact; a plan names deployed instances and
+    the routes between them; <code>hale fleet check</code> composes those
+    artifacts, never merged source, and proves law no single binary can
+    state. Matching topic declarations connect nothing: only an explicit route
+    creates an edge, because an unbound topic is in-process by default and
+    merging source would invent edges no deployment has. Signatures over the
+    artifact's exact bytes, and per-instance binary digests, carry the
+    certificate to the machine that runs it.
+  </p>
+  <p>
+    Note the shape of that last rung. A plan carries instances, routes, groups
+    and claims, which is a <code>main locus</code> with its children, its bus
+    edges, and its law, one scale out. The recursion did not stop at the
+    process boundary; it just changed what a component is.
+  </p>
+
+  <h2>The commitments</h2>
   <ol class="constitution">
     <li><strong>Nothing stateful is ownerless.</strong> State and lifetime have a structural home.</li>
     <li><strong>No communication edge is ambient.</strong> It is named, typed, and authorized.</li>
@@ -132,9 +169,8 @@ locus Rollup {
 
   <h2>The direction</h2>
   <p>
-    Hale first makes architecture declarative, then checkable, then observable.
-    The next steps are deterministic replay and verified deployment adaptation.
-    They are marked as RFC work, not shipped features.
+    Hale makes architecture declarative, then checkable, then observable,
+    each stage handing evidence to the next rather than asking to be trusted.
   </p>
   <StatusRail />
 

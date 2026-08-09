@@ -15,7 +15,7 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 
 // Next chapter, for readers who came in from a search result rather
-// than the sidebar — the end of a piece is where "what now?" happens.
+// than the sidebar, since the end of a piece is where "what now?" happens.
 const all = await getCollection('articles');
 const siblings = post.data.series
   ? all

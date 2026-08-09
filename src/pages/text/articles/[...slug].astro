@@ -1,0 +1,32 @@
+---
+import { getCollection, render } from 'astro:content';
+import Text from '../../../layouts/Text.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('articles');
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+---
+<Text
+  title={post.data.title}
+  description={post.data.summary}
+  up={{ href: '/text/', label: 'Contents' }}
+>
+  <h1>{post.data.title}</h1>
+  <p>
+    <em>
+      {post.data.kind === 'announcement' ? 'Announcement' : 'Technical article'}
+      {post.data.series && <>, {post.data.series} part {post.data.part}</>}
+      . {fmt(post.data.date)}
+      {post.data.updated && <>, updated {fmt(post.data.updated)}</>}
+      {post.data.version && <>. {post.data.version}</>}
+    </em>
+  </p>
+  <Content />
+</Text>

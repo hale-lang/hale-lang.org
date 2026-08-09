@@ -1,14 +1,16 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 ---
 <Base title="Hale playground">
+  <Field kind="playground" />
   <section class="container prose play-page">
     <span class="tag">/playground</span>
     <h1>Playground</h1>
     <p class="lede">
       Write and run real Hale in your browser. Your source is compiled to
       <code>WebAssembly</code> by a compile service written in Hale itself, and the
-      result runs fully client-side — the compiler is the same one you install
+      result runs fully client-side, the compiler is the same one you install
       locally.
     </p>
 
@@ -27,7 +29,7 @@ import Base from '../layouts/Base.astro';
 <style>
   .play-frame {
     margin-top: 1.5rem;
-    /* An editor is not prose — break it out of the reading measure and
+    /* An editor is not prose, break it out of the reading measure and
        centre it on the viewport, the way the model page's map does. */
     width: min(var(--maxw-wide), calc(100vw - 48px));
     margin-left: 50%;

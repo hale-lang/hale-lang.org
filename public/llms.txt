@@ -1,15 +1,23 @@
 # Hale
 
-> Hale is a general-purpose programming language built on one primitive — the
-> locus. It offers memory safety without a garbage collector or a borrow checker
-> (regions are freed when a locus dissolves), Erlang-style supervision, a
-> transport-agnostic bus, and compile-time structural verification. Its surface
-> (ASCII-only, names not symbols, explicit commitments, a small pattern catalog)
-> is designed to be written fluently by both humans and LLMs.
+> Hale is a general-purpose programming language with one structural
+> construct, the locus, that holds its shape at every scale: a value, a component, a
+> service, an application, a fleet of running binaries. Going down, a locus
+> contains loci; going up, loci compose into an application, and the recursion
+> continues past the process boundary into a deployment plan built from the same
+> parts. Wherever a scale closes, the compiler certifies it: effect classes and
+> budgets at a function, named claims over an assembled application, one
+> constitution proven in every environment that adopts it, and cross-binary law
+> over a signed fleet. Memory safety comes from the structure rather than a
+> garbage collector or a borrow checker. A locus owns a region, freed wholesale
+> when it dissolves. The surface (ASCII-only, names not symbols, explicit
+> commitments, a small pattern catalog) reads and writes fluently for humans and
+> LLMs alike.
 
 ## Start here
 
-- [Why Hale](https://hale-lang.org/why): the case for the language.
+- [The model](https://hale-lang.org/model): the structure, and why one shape holds at every scale.
+- [Proof](https://hale-lang.org/proof): what the compiler certifies, and the witness it returns.
 - [The guide](https://hale-lang.org/docs): a level-by-level tour, from scripts to systems.
 - [Install](https://hale-lang.org/docs/getting-started/install): get the toolchain.
 

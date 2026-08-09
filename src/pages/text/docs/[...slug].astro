@@ -1,0 +1,26 @@
+---
+import { getCollection, render } from 'astro:content';
+import Text from '../../../layouts/Text.astro';
+
+export async function getStaticPaths() {
+  const pages = await getCollection('docs');
+  // Collection ids carry the on-disk `docs/` prefix; the styled site drops it
+  // and so must this, or every URL doubles it and the canonical link lies.
+  return pages.map((page) => ({
+    params: { slug: page.id.replace(/^docs(\/|$)/, '') },
+    props: { page },
+  }));
+}
+
+const { page } = Astro.props;
+const { Content } = await render(page);
+---
+<Text
+  title={page.data.title}
+  description={page.data.description}
+  up={{ href: '/text/', label: 'Contents' }}
+>
+  <h1>{page.data.title}</h1>
+  {page.data.description && <p><em>{page.data.description}</em></p>}
+  <Content />
+</Text>

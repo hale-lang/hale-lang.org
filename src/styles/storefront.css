@@ -2,6 +2,8 @@
    navigation, and footer remain in global.css. */
 
 .storefront-hero h1 { max-width: 13ch; }
+/* one beat per line — see the note in index.astro */
+.storefront-hero h1 span { display: block; }
 .storefront-hero .lede { max-width: 52ch; }
 
 .section-intro { max-width: 780px; margin-bottom: 2.5rem; }
@@ -363,27 +365,20 @@
 .contract-states span { padding: 0.75rem; border: 1px solid #2c3340; border-radius: var(--radius); color: #aeb7c6; font-size: 0.86rem; }
 .contract-states b { display: block; color: #fff; }
 
-.known-limits {
+/* Scope, not caveat. Jade rather than amber: amber is reserved for
+   "RFC / not shipped", and a stated division of labor is neither. */
+.proof-scope {
   margin-top: 3rem;
   padding: clamp(1.5rem, 4vw, 2.2rem);
   border: 1px solid var(--border-2);
   border-radius: var(--radius-lg);
   background: var(--paper-2);
 }
-.known-limit-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.5rem; }
-.known-limit-list article { padding: 1rem; border-left: 3px solid var(--amber); background: var(--paper); }
-.known-limit-list h3 { font-size: 1rem; }
-.known-limit-list p { font-size: 0.9rem; }
-.known-limits-note { margin: 1.2rem 0 0; font-size: 0.82rem; color: var(--muted); }
-
-.proof-caveat {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  border-left: 3px solid var(--amber);
-  background: var(--paper-2);
-}
-.proof-caveat h2 { font-size: 1.15rem; }
-.proof-caveat p { margin: 0; }
+.proof-scope-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+.proof-scope-grid article { padding: 1rem; border-top: 2px solid var(--jade); background: var(--paper); }
+.proof-scope-grid h3 { font-size: 1rem; margin-top: 0; }
+.proof-scope-grid p { font-size: 0.9rem; margin-bottom: 0; }
+.proof-scope-note { margin: 1.4rem 0 0; font-size: 0.86rem; color: var(--muted); }
 
 @media (max-width: 1050px) {
   .proof-list-wide { grid-template-columns: repeat(2, 1fr); }
@@ -397,7 +392,7 @@
   .why-now-inner { grid-template-columns: 0.35fr 1fr; }
   .why-now-inner > p:last-child { grid-column: 2; }
   .consequence-grid { grid-template-columns: repeat(2, 1fr); }
-  .feature-status-grid, .proof-matrix { grid-template-columns: repeat(2, 1fr); }
+  .feature-status-grid, .proof-matrix, .proof-scope-grid { grid-template-columns: repeat(2, 1fr); }
   .model-graphs { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -409,7 +404,7 @@
   .feature-status-grid,
   .proof-matrix,
   .causal-proof,
-  .known-limit-list,
+  .proof-scope-grid,
   .contract-states { grid-template-columns: minmax(0, 1fr); }
 
   .why-now-inner { grid-template-columns: minmax(0, 1fr); gap: 0.7rem; }
@@ -446,6 +441,98 @@
 
   .credibility-links a:nth-child(odd),
   .credibility-links a:nth-child(even) { padding-inline: 0; border-left: 0; }
+}
+
+/* ---- the ladder: one structure, six rungs ---- */
+/* A vertical spine with the rungs ascending it. The spine is the recursion;
+   each rung is a scale at which the structure closes and can be certified. */
+.ladder {
+  position: relative;
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  counter-reset: rung;
+}
+.ladder::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.9rem;
+  left: 7.5rem;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--jade-ring) 12%,
+    var(--jade-ring) 88%,
+    transparent
+  );
+}
+.ladder > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 15rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 1.6rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.ladder > li:last-child { border-bottom: 0; }
+/* The node on the spine. Solid at the closures the compiler can certify. */
+.ladder > li::before {
+  content: "";
+  position: absolute;
+  left: 7.5rem;
+  top: 1.35rem;
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0 0 1.5px var(--jade);
+}
+.ladder > li:nth-child(n + 4)::before { background: var(--jade); }
+.rung-scale {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 1.4rem;
+}
+.ladder > li:nth-child(n + 4) .rung-scale { color: var(--jade); }
+.ladder code {
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: none;
+  padding: 0;
+}
+.ladder p {
+  margin: 0;
+  font-size: 0.93rem;
+  color: var(--muted);
+}
+.ladder-note {
+  margin: 1.6rem 0 0;
+  padding-left: 9.1rem;
+  font-size: 0.9rem;
+  color: var(--faint);
+  max-width: 62ch;
+}
+
+@media (max-width: 860px) {
+  .ladder::before,
+  .ladder > li::before { display: none; }
+  .ladder > li {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 1rem 0 1rem 0.9rem;
+    border-left: 2px solid var(--border-2);
+    border-bottom: 0;
+  }
+  .ladder > li:nth-child(n + 4) { border-left-color: var(--jade); }
+  .rung-scale { text-align: left; padding-right: 0; }
+  .ladder-note { padding-left: 0.9rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

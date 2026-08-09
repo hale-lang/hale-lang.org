@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 import ModelContent from '../components/ModelContent.astro';
 import '../styles/storefront.css';
 ---
@@ -7,5 +8,6 @@ import '../styles/storefront.css';
   title="The Hale model"
   description="The Hale programming model: loci own state and lifetime, typed topics describe communication, main selects deployment, and effects check operational and causal claims."
 >
+  <Field kind="model" />
   <ModelContent />
 </Base>

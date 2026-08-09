@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import Field from '../../components/Field.astro';
 
 const all = await getCollection('articles');
 
@@ -37,7 +38,7 @@ const fmt = (d: Date) =>
   });
 
 // One line of plain text under the title. The pieces are
-// self-describing — a date is a date, a kind is a kind — so they are
+// self-describing (a date is a date, a kind is a kind) so they are
 // joined rather than each given a badge.
 const meta = (p: (typeof all)[number]) =>
   [
@@ -51,6 +52,7 @@ const meta = (p: (typeof all)[number]) =>
 ---
 
 <Base title="Articles">
+  <Field kind="articles" />
   <section class="container prose">
     <span class="tag">/articles</span>
     <h1>Articles &amp; announcements</h1>

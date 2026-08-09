@@ -1,50 +1,52 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 const tiers = [
-  ['Tier 0 — internals', [
-    ['_util/*', 'intfloat, decimal_float, duration_int, kvpack, rowbuf — shared primitives'],
+  ['Tier 0: internals', [
+    ['_util/*', 'intfloat, decimal_float, duration_int, kvpack, rowbuf: shared primitives'],
   ]],
-  ['Tier 0 — infrastructure', [
+  ['Tier 0: infrastructure', [
     ['crypto', 'HMAC-SHA256, SHA-256, ECDSA P-256, CSPRNG, hex'],
     ['subprocess', 'fork/exec with pipes, timeout, try_wait + signal'],
     ['math/matrix · math/stats', 'dense matrix, matmul, online moments'],
   ]],
-  ['Tier 1 — data + web', [
+  ['Tier 1: data + web', [
     ['db', 'backend-neutral DbDriver interface (Go database/sql shape)'],
-    ['pq', 'Postgres driver — pgwire v3 over TCP, + pool'],
-    ['sqlite', 'SQLite driver via @ffi — prepared statements + rows'],
+    ['pq', 'Postgres driver: pgwire v3 over TCP, + pool'],
+    ['sqlite', 'SQLite driver via @ffi: prepared statements + rows'],
     ['sessions · jobs · migrations', 'cookie sessions, job queue, schema runner'],
   ]],
-  ['Tier 2 — observability', [
+  ['Tier 2: observability', [
     ['tracing', 'span tree mirroring the locus tower'],
     ['logfmt · supervisor', 'structured log sinks, restart strategies'],
   ]],
-  ['Tier 3 — realtime', [
+  ['Tier 3: realtime', [
     ['websocket', 'RFC 6455 client + server-side upgrade'],
   ]],
-  ['Tier 5 — agents', [
+  ['Tier 5: agents', [
     ['agent/llm', 'Anthropic / OpenAI clients with SSE streaming'],
     ['agent/tools · conversation · sandbox · embeddings', 'tool registry, chat history, code sandbox, vector store'],
     ['ml/neural', 'tiny NN trainer'],
   ]],
 ];
 ---
-<Base title="pond — Hale packages">
+<Base title="pond: Hale packages">
+  <Field kind="packages" />
   <section class="container prose">
     <span class="tag">/packages</span>
     <h1>pond</h1>
     <p class="lede">
-      The “non-std stdlib” — opinionated, domain-shaped libraries you vendor and
+      The “non-std stdlib”: opinionated, domain-shaped libraries you vendor and
       import. Extensible by tier, from infrastructure to agent orchestration.
     </p>
     <div class="install" style="margin-bottom:0.5rem;">
       <span class="sigil">$</span><span class="cmd">hale fetch</span>
     </div>
-    <p class="muted" style="font-size:0.9rem;">Vendoring is the v1 dependency primitive — pin a git ref, vendor the source.</p>
+    <p class="muted" style="font-size:0.9rem;">Vendoring is the v1 dependency primitive, pin a git ref, vendor the source.</p>
 
     <div class="callout" style="margin-top:1.25rem;">
       <strong>Graduated to the stdlib:</strong> the HTTP client, the router, and
-      metrics were promoted out of pond — they now ship as
+      metrics were promoted out of pond, they now ship as
       <code>std::http</code> (client + <code>Router</code>) and
       <code>std::metrics</code>, no import needed. pond keeps tracking copies;
       new code should use the stdlib.
@@ -62,7 +64,7 @@ const tiers = [
                     min-content wider than a phone. */}
                 <td class="lib">
                   {name.split(' · ').map((n, i) => (
-                    <>{i > 0 ? ' · ' : ''}<code>{n}</code></>
+                    <>{i > 0 ? ' · ': ''}<code>{n}</code></>
                   ))}
                 </td>
                 <td>{desc}</td>

@@ -5,8 +5,11 @@ import Footer from '../components/Footer.astro';
 
 interface Props { title?: string; description?: string; }
 const {
-  title = 'Hale — a language for running systems',
-  description = 'Hale describes services, messages, ownership, placement, causality, and recovery in one program, then checks and specializes the resulting architecture.',
+  title = 'Hale: one structure, from a value to a fleet',
+  // Read cold, in a search result, by someone who has never heard of Hale —
+  // so this stays in the factual register. "Say less. Spell more." is the
+  // line to remember, not the line to explain with.
+  description = "Hale compresses whole-system meaning into one scale-invariant construct: the locus. From value to fleet, structure, behavior, topology, effects, and architectural law compose in a single language the compiler can certify.",
 } = Astro.props;
 ---
 <!doctype html>
@@ -21,7 +24,14 @@ const {
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Hale" />
-    <meta name="twitter:card" content="summary" />
+    {/* Absolute, because most scrapers will not resolve a relative one.
+        See scripts/og-card.html for the source of the image. */}
+    <meta property="og:image" content="https://hale-lang.org/og.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:image:alt" content="Hale — a concurrent systems language with a model-checked, GC-free runtime." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://hale-lang.org/og.png" />
     <meta name="theme-color" content="#0e7c66" />
   </head>
   <body>

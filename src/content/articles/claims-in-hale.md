@@ -28,8 +28,7 @@ Some requirements do not belong to one function:
 - processing one task may invoke the model at most once
 
 Those are laws of the assembled system. Spreading them across function
-annotations would make completeness depend on remembering every entry point —
-and the requirement itself would have no name, no location, no source line a
+annotations would make completeness depend on remembering every entry point, and the requirement itself would have no name, no location, no source line a
 reviewer could point to as the place where the law changed.
 
 A claim is a **named sentence over the program graph**. It is evaluated by
@@ -54,7 +53,7 @@ the whole.
 Most architecture work is implementation-first: create components, wire
 topics, and eventually inspect the result to see whether the intended
 boundaries survived. Claim-driven development reverses a narrow but important
-part of that order — name the domains and state the law while the system is
+part of that order, name the domains and state the law while the system is
 still a skeleton.
 
 Consider an application shared by two semi-independent organizations. Delta
@@ -96,7 +95,7 @@ claim `tasks_are_consumed` violated:
 no member of `delta_wing` subscribes `t::Tasks`
 ```
 
-Add the subscription and the obligation is satisfied — while the negative
+Add the subscription and the obligation is satisfied, while the negative
 boundary claim stays in force as the handler is filled in. Later, if a helper
 call or message route crosses into Gamma, the same check turns red again.
 
@@ -112,11 +111,11 @@ A conventional compiler sees syntax, types, and calls. Hale sees more because
 more of the system is written in the language: subscriptions and publishes
 are declarations, ownership lives in `params`, placement and transport
 boundaries are blocks, topics are a closed vocabulary, effects attach to
-declared frontiers. Together those form a finite model — sorts, relations,
-labels, weights — and a claim is a sentence evaluated over it.
+declared frontiers. Together those form a finite model, sorts, relations,
+labels, weights, and a claim is a sentence evaluated over it.
 
 The claim language is intentionally fixed. There is no user-defined inference
-and no embedded theorem prover — reachability, existence, coverage,
+and no embedded theorem prover: reachability, existence, coverage,
 cardinality, interposition, and bounded cost have compiler-defined semantics.
 That restriction is what keeps claims predictable, decidable, and capable of
 returning small counterexamples.
@@ -139,7 +138,7 @@ declarations but projects to no executable vertices is refused too:
 
 ## The law belongs in `main`
 
-A library seed is not a closed world — another program can import it, add
+A library seed is not a closed world: another program can import it, add
 subscribers, bind its topics outward. `main locus` is the closing point: it
 owns the assembled application and is unique within it. Its blocks are four
 projections of one object:
@@ -151,14 +150,14 @@ bindings     its external boundary
 claims       its law
 ```
 
-Claims gate `hale check` as **errors**, never advisories — a warning that
+Claims gate `hale check` as **errors**, never advisories, a warning that
 says "tenant isolation is false" reads like a law while behaving like a
 suggestion. Weakening a claim requires a source diff: remove a prohibition,
 widen a grant, raise a bound. That diff is the review event.
 
 ## The verbs
 
-**`forbid reaches(A, B)`** — no path from A to B, composing calls with
+**`forbid reaches(A, B)`**: no path from A to B, composing calls with
 message dispatch by default. Restrict with `via { calls }` or `via { bus }`
 when the distinction is the requirement; omitting `via` is the conservative
 default. When it fails, the countermodel is the next task:
@@ -173,10 +172,10 @@ witness:
 `gamma::Research::on_metric`
 ```
 
-Remove the publish, move the subscriber, route through a gateway — or change
+Remove the publish, move the subscriber, route through a gateway, or change
 the law, which is a categorically different kind of edit.
 
-**`only edges A -> B { … }`** — the boundary form. Gamma may intentionally
+**`only edges A -> B { … }`**, the boundary form. Gamma may intentionally
 send one digest to Delta while everything else stays forbidden:
 
 ```hale
@@ -187,20 +186,17 @@ gamma_to_delta_boundary:
 ```
 
 Every direct edge must match a granted line; an unlisted topic is an error,
-and call edges are never grantable — a permitted cross-domain dependency
+and call edges are never grantable: a permitted cross-domain dependency
 should be a named bus edge, not an invisible method call. Widening the grant
 list is a one-line diff that visibly widens the system's authority.
 
-**`forbid reaches(A, effects(C))`** — data-plane isolation. Two domains with
+**`forbid reaches(A, effects(C))`**, data-plane isolation. Two domains with
 no direct route can still share authority through a common helper that reads
-the wrong store. Declare the vocabulary once —
-
+the wrong store. Declare the vocabulary once: 
 ```hale
 domain wing = { delta, gamma };
 effect knowledge(wing);
-```
-
-— classify each store read where the domain fact enters the program
+```, classify each store read where the domain fact enters the program
 (`@effects(is: {knowledge(delta)})`), and state the rule:
 
 ```hale
@@ -211,7 +207,7 @@ delta_cannot_read_gamma:
 Control-plane and data-plane isolation are separate obligations; a serious
 boundary often wants both.
 
-**`require` / `cover` / `count`** — the positive forms:
+**`require` / `cover` / `count`**, the positive forms:
 
 ```hale
 task_worker_exists:
@@ -225,12 +221,12 @@ one_task_ingress:
 ```
 
 `require` demands the declared bus end exists. `cover` quantifies over an
-imported vocabulary — every topic the seed declares must have a handler, and
+imported vocabulary: every topic the seed declares must have a handler, and
 an empty coverage domain is a vacuity error, not a trivial pass. `count` is
 the cardinality family; `== 1` is the invariant behind every single-writer
 pattern, and a failure names the competing loci.
 
-**`bound C <= N on paths from G`** — a capability budget over a named part
+**`bound C <= N on paths from G`**, a capability budget over a named part
 of the system:
 
 ```hale
@@ -245,7 +241,7 @@ certification rather than counting as zero. The claim makes a domain
 statement possible: a position may use the model, but one task may not fan
 out into an unbounded agent tree.
 
-**`avoiding G`** — interposition. Sometimes the law is not "A cannot reach
+**`avoiding G`**, interposition. Sometimes the law is not "A cannot reach
 B" but "A may reach B only through G":
 
 ```hale
@@ -258,7 +254,7 @@ route passes through authorization, the graph disconnects and the claim
 holds; a bypass returns the path that avoids the gate. The same pattern
 covers validation, redaction, audit, and admission control.
 
-**`during P`** — a lifecycle slice. `forbid reaches(positions, effects(llm))
+**`during P`**, a lifecycle slice. `forbid reaches(positions, effects(llm))
 during birth` is the quiet-boot claim: model use is fine in steady state,
 forbidden during startup. A phase that names nothing in the group is an
 error, not a vacuous pass.
@@ -289,7 +285,7 @@ hale check app --check-topology .hale.topology
 The artifact carries the sorts, relations, groups, labels, and unknowns in
 author spelling, plus every claim's result, under a `shape_hash` that
 identifies the model half. A helper that adds a call, a new subscription, or
-a newly unresolvable edge changes the report even when no claim fails — which
+a newly unresolvable edge changes the report even when no claim fails, which
 separates two review questions: *does the program still satisfy the law?*
 and *did the graph change in a way reviewers should see?*
 
@@ -309,12 +305,11 @@ behavior lives in.
 
 **Not design by contract.** A precondition surrounds one operation; a
 claim's witness may cross files, seeds, and message boundaries. The function
-annotation and the claim are complementary grains of the same machinery —
-one attaches a law to a declaration, the other quantifies over the world.
+annotation and the claim are complementary grains of the same machinery: one attaches a law to a declaration, the other quantifies over the world.
 
 **Not a runtime policy engine.** Claims lower to no code, inspect no
-traffic, authorize no requests. What is not knowable statically — a computed
-subject, an un-elaborated deployment — is exposed as a boundary, never
+traffic, authorize no requests. What is not knowable statically, a computed
+subject, an un-elaborated deployment, is exposed as a boundary, never
 silently approximated in the unsafe direction.
 
 ## The proof depends on derivation
@@ -331,21 +326,20 @@ third is the compiler's soundness boundary, and the direction is fixed:
 An indirect call, an untypeable receiver, or a computed publish subject on a
 forbidden path refuses certification rather than counting as nothing. Each
 judgment form ships with a canary (a program where the claim must fail) and
-a control (one where it must hold) — a checker that cannot fail proves
+a control (one where it must hold): a checker that cannot fail proves
 nothing.
 
 ## Looking ahead
 
 The countermodel already answers a practical version of "what should I do
 next": the missing subscriber, the uncovered topics, the competing
-publishers, the path that crossed the boundary. An idea being explored —
-`hale next` — would rank candidate repairs against the same objects the
+publishers, the path that crossed the boundary. An idea being explored, `hale next`, would rank candidate repairs against the same objects the
 workflow already produces, distinguishing law-preserving edits from
 authority-increasing and law-changing ones. It is an idea, not a
 prerequisite: the law, the model, and the countermodel come first, and they
 exist today.
 
-Likewise, a more dynamic `main` adds an elaboration stage — configuration
+Likewise, a more dynamic `main` adds an elaboration stage: configuration
 in, concrete deployment out, claims evaluated per elaborated deployment, so
 a configuration matrix becomes a proof matrix. The static source states the
 law either way.

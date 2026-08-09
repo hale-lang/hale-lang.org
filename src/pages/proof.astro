@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
 import '../styles/storefront.css';
 
@@ -50,32 +51,34 @@ const status = [
   ['shipped', 'Effects, budgets, causes, and depends', 'Operational and causal contracts with witness paths.'],
   ['shipped', 'Structural lifetime and supervision', 'Owned regions, child lifecycle, failure propagation, and restart policy.'],
   ['shipped', 'Observation plane', 'Runtime birth, dissolve, publish, delivery, and transport evidence.'],
-  ['shipped', 'Bundle-level claims and the topology artifact', 'Named sentences over the assembled graph — isolation, grants, coverage, cardinality, interposition, bounds — with countermodel witnesses and a committed model baseline.'],
-  ['shipped', 'Fleet composition across binaries', 'Sealed application artifacts plus a routed deployment plan, checked as one model — with witnesses that cross artifacts. Topology is certified; delivery is not.'],
-  ['shipped', 'Confined state and attributed boundaries', 'A locus whose state is reachable only from inside it, one classified privileged operation, and universals over the closed world: every member of a group confined, every boundary crossing named. Confinement, not information flow.'],
-  ['rfc', 'Deterministic record and replay', 'A self-describing execution record built from effects, deployment, and observation.'],
-  ['rfc', 'Deployment elaboration and meta-scheduling', 'Candidate arrangements verified before activation or transition.'],
+  ['shipped', 'Bundle-level claims and the topology artifact', 'Named sentences over the assembled graph: isolation, grants, coverage, cardinality, interposition, bounds: with countermodel witnesses and a committed model baseline.'],
+  ['shipped', 'Fleet composition across binaries', 'Sealed application artifacts plus a routed deployment plan, checked as one model, with witnesses that cross artifacts. Topology is certified; delivery is not.'],
+  ['shipped', 'Confined state and attributed boundaries', 'A locus whose state is reachable only from inside it, one classified privileged operation, and universals over the closed world: every member of a group confined, every boundary crossing named.'],
+  ['shipped', 'One claimset, every environment', 'A constitution authored once and proven independently in each world that adopts it. Composition is union only, so a rule can be added and never quietly weakened.'],
+  ['shipped', 'Signed artifacts and binary attestation', 'ES256 over the artifact’s exact bytes, and per-instance binary digests. Declared trust is strict: an unsigned component is refused, not admitted.'],
 ];
 ---
 <Base
   title="Hale proof"
-  description="The verification, diagnostics, tracked limits, and shipped-versus-RFC boundary behind Hale's systems-language claims."
+  description="Every property the Hale compiler certifies, from a function's effect classes to a signed fleet: each with the witness it returns when the property is false."
 >
+  <Field kind="proof" />
   <section class="container wide proof-page">
     <div class="section-intro">
       <p class="eyebrow">proof</p>
-      <h1>What is checked, what is measured, and what is still open.</h1>
+      <h1>What the compiler certifies, and the witness it hands back.</h1>
       <p class="lede">
-        These are the properties the compiler enforces, the ones the
-        runtime measures, and the ones nothing checks yet. The last group is
-        listed too — a guarantee you cannot point at is not one.
+        Each rung of the structure closes at a different scale, and each one is
+        checked as an error rather than a suggestion. When a property is false,
+        the answer is a countermodel in your own spelling: the path, the route,
+        and the three places you would edit.
       </p>
     </div>
 
     <div class="feature-status-grid">
       {status.map(([state, title, detail]) => (
         <article class={`feature-status feature-status-${state}`}>
-          <span>{state === 'shipped' ? 'shipped' : 'RFC'}</span>
+          <span>{state === 'shipped' ? 'shipped': 'RFC'}</span>
           <h2>{title}</h2>
           <p>{detail}</p>
         </article>
@@ -114,7 +117,7 @@ const status = [
           <code>causes:</code> follows outward influence across publishes.
           <code>depends:</code> walks backward through subscriptions and
           republishers to check the complete set that may reach a locus
-          <em>over the bus graph</em> — including through a republisher in
+          <em>over the bus graph</em>, including through a republisher in
           another library. Influence that travels outside the bus is not
           part of that closure.
         </p>
@@ -142,8 +145,8 @@ const status = [
           A claim is evaluated in a closed world, so law used to be copied
           into every entrypoint. A <code>constitution</code> moves the
           authorship without moving the evaluation: each adopting main still
-          proves it in its own world. Composition only ever adds — a stricter
-          rule is a second clause, never a replacement — and identity follows
+          proves it in its own world. Composition only ever adds: a stricter
+          rule is a second clause, never a replacement, and identity follows
           the normalized closure, so a shared name is not mistaken for a
           shared claimset.
         </p>
@@ -156,8 +159,8 @@ const status = [
         <p>
           Sealed application artifacts compose into one deployment model.
           A plan names deployed instances and the routes between them, and
-          law that no single binary can state — every order path crosses
-          risk, exactly one deployed publisher — is checked over the
+          law that no single binary can state, every order path crosses
+          risk, exactly one deployed publisher, is checked over the
           arrangement. Composition takes artifacts, never merged source:
           matching wire identities establish compatibility, and only an
           explicit route creates an edge.
@@ -180,8 +183,8 @@ const status = [
         <p>
           The law is then ordinary: one classified operation, and claims
           that say who may reach it and how often. Two verbs quantify over
-          the whole program rather than a path — every locus in a group
-          confined, every boundary crossing naming a purpose — so code
+          the whole program rather than a path, every locus in a group
+          confined, every boundary crossing naming a purpose, so code
           written next month is covered without editing the claim.
         </p>
         <p>
@@ -258,7 +261,7 @@ const status = [
         <p>
           A bundle-level claim quantifies over every represented path. When
           the assembled graph escapes its declared law, the diagnostic
-          returns the route — calls and message hops — that makes the
+          returns the route, calls and message hops, that makes the
           sentence false.
         </p>
       </div>
@@ -271,9 +274,7 @@ const status = [
         <h2>The path is named across binaries.</h2>
         <p>
           The same sentence, one altitude up. Each component checked clean on
-          its own; the arrangement did not. The witness crosses artifacts —
-          every hop, the route carrying it, and the file each vertex lives in
-          — because a deployment defect is only actionable if it says which
+          its own; the arrangement did not. The witness crosses artifacts,           every hop, the route carrying it, and the file each vertex lives in, because a deployment defect is only actionable if it says which
           config and which source to open.
         </p>
       </div>
@@ -306,59 +307,40 @@ const status = [
       <Hale code={commands} title="toolchain" />
     </div>
 
-    <section class="known-limits" aria-labelledby="known-limits-heading">
-      <p class="eyebrow">the boundary</p>
-      <h2 id="known-limits-heading">The proof boundary is public too.</h2>
-      <div class="known-limit-list">
+    <section class="proof-scope" aria-labelledby="proof-scope-heading">
+      <p class="eyebrow">the division of labor</p>
+      <h2 id="proof-scope-heading">Compile time certifies the structure. Runtime measures the world.</h2>
+      <div class="proof-scope-grid">
         <article>
-          <h3>The checks are sound, not complete</h3>
+          <h3>Proven before it runs</h3>
           <p>
-            Every analysis here is a conservative over-approximation. When
-            the compiler cannot resolve something it treats it as
-            may-do-anything and the contract fails, rather than assuming the
-            best and passing. That is the correct direction, and it means a
-            rejected program is sometimes a limit of the analysis rather
-            than a defect in the code.
+            Reachability, topology, causality, cardinality, confinement, and
+            bounds, over every path in the closed world, not the ones a test
+            happened to take.
           </p>
         </article>
         <article>
-          <h3>Closed-world reasoning has an edge</h3>
+          <h3>Measured while it runs</h3>
           <p>
-            The guarantees derive from a closed call graph, a closed topic
-            set, and a classified standard library. Influence that leaves
-            that world — through <code>@ffi</code>, through a transport to
-            another binary, through the operating system — is outside what
-            the compiler can follow, and the contracts say so rather than
-            pretending otherwise.
+            Birth, dissolve, publish, delivery, and transport evidence, emitted
+            by the observation plane and read against the same model the
+            compiler certified.
           </p>
         </article>
         <article>
-          <h3>Cost models are estimates, behaviour is not</h3>
+          <h3>Carried between them</h3>
           <p>
-            Effect classes, publish sets, and causal sets are checked facts.
-            The quantitative budgets are measured against what the compiler
-            can see at the source level, before the backend has finished
-            deciding layout and inlining, so treat those numbers as bounds
-            on the program you wrote rather than on the instructions that
-            ultimately run.
+            The topology artifact: a byte-reproducible record of the checked
+            model, signed and attested, so the fleet that runs is the fleet
+            that was certified.
           </p>
         </article>
       </div>
-      <p class="known-limits-note">
-        Specific open questions live in the issue tracker, where they can be
-        argued with and closed. A storefront is the wrong place to keep a
-        list that has to be correct on a particular Tuesday.
+      <p class="proof-scope-note">
+        <a href="/docs/verification">The verification chapter</a> specifies the
+        analysis boundary: what closed world reasoning covers, and where a
+        budget is a source level bound.
       </p>
     </section>
-
-    <div class="proof-caveat">
-      <h2>What this page does not claim</h2>
-      <p>
-        Hale does not prove arbitrary application correctness, make lossy
-        transports reliable, or remove the need to choose sensible bounds and
-        recovery policy. It makes more of those choices visible, checkable, and
-        attributable to the architecture that owns them.
-      </p>
-    </div>
   </section>
 </Base>

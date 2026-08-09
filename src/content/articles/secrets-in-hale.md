@@ -16,7 +16,7 @@ summary: >-
 
 A signing key belongs to one component. Everything else should be able to *ask* for a signature and unable to obtain the key.
 
-That is a confinement problem, and Hale answers it with the ownership model it already had — plus one word.
+That is a confinement problem, and Hale answers it with the ownership model it already had, plus one word.
 
 ## The gap in the ownership model
 
@@ -47,7 +47,7 @@ For ordinary configuration that is convenient. For a key it means "the key never
 }
 ```
 
-A sealed locus's `params` are reachable only from inside its own methods — reads and writes both. Others may still **call** it, which is the entire point.
+A sealed locus's `params` are reachable only from inside its own methods, reads and writes both. Others may still **call** it, which is the entire point.
 
 ```text
 `Signer` is `@sealed`: its `params` are readable only from inside its own
@@ -55,7 +55,7 @@ methods, and `Signer.key` reads one from outside — call one of its methods
 instead (sign)
 ```
 
-Reads and writes matter equally. A locus whose state can be replaced from outside doesn't merely leak the key — it lets a caller *choose* it.
+Reads and writes matter equally. A locus whose state can be replaced from outside doesn't merely leak the key: it lets a caller *choose* it.
 
 The annotation is opt-in, and `hale check --sealable` reports what taking it would cost:
 
@@ -69,7 +69,7 @@ sealability: 4 of 5 loci can be `@sealed` today
     Exposed — 1 external access(es): Exposed.k
 ```
 
-Most loci already qualify: across Hale's own corpus, 148 of 151. The ones that don't share a shape — a parent reading a child's *result* field instead of calling a method, which the language's Law-of-Demeter rule already discourages.
+Most loci already qualify: across Hale's own corpus, 148 of 151. The ones that don't share a shape: a parent reading a child's *result* field instead of calling a method, which the language's Law-of-Demeter rule already discourages.
 
 ## Name the source, not the value
 
@@ -89,9 +89,9 @@ locus Gateway {
 
 The material is read during `birth`. It exists inside a sealed locus from the moment it enters the program, and there is no line anywhere in your code where you hold it. `self.s.key` is a compile error.
 
-Two details make that hold. `birth` is the only writer, including the case where no source is configured — otherwise a caller seeds `key:` directly and the discipline evaporates. And every privileged method consults `ready()`: a signer that computes under an empty key returns a MAC anyone can forge, and a credential that compares against an empty value accepts the empty candidate.
+Two details make that hold. `birth` is the only writer, including the case where no source is configured, otherwise a caller seeds `key:` directly and the discipline evaporates. Every privileged method consults `ready()`: a signer that computes under an empty key returns a MAC anyone can forge, and a credential that compares against an empty value accepts the empty candidate.
 
-`std::secret::Credential` is the same discipline for a token or password, with a `fingerprint()` — the first eight bytes of SHA-256, hex — for correlation in logs.
+`std::secret::Credential` is the same discipline for a token or password, with a `fingerprint()`, the first eight bytes of SHA-256, hex, for correlation in logs.
 
 ## One classified operation
 
@@ -128,7 +128,7 @@ claims {
 
 `require sealed(all G)` demands confinement across a group. Sealing is otherwise per-locus discipline, and one unsealed member of a vault group is the whole hole.
 
-`require attributed(all C)` demands that every function directly performing built-in class `C` names a user-declared purpose — every place the program touches the OS says what for.
+`require attributed(all C)` demands that every function directly performing built-in class `C` names a user-declared purpose: every place the program touches the OS says what for.
 
 That second one is easy to mistake for a weaker version of routing all I/O through a vetted component, which is already expressible:
 
@@ -136,21 +136,21 @@ That second one is easy to mistake for a weaker version of routing all I/O throu
 all_io_is_gated: forbid reaches(app, effects(syscall)) avoiding safe_io;
 ```
 
-They are independent. Interposition constrains **where** a boundary is crossed and says nothing about **what for**: all I/O can funnel through one `write(path, bytes)` that everyone calls for everything — perfectly gated, and you have no idea why any particular write happened. Attribution constrains what for and says nothing about where. A real system usually wants both.
+They are independent. Interposition constrains **where** a boundary is crossed and says nothing about **what for**: all I/O can funnel through one `write(path, bytes)` that everyone calls for everything: perfectly gated, and you have no idea why any particular write happened. Attribution constrains what for and says nothing about where. A real system usually wants both.
 
 Because both universals quantify over the program rather than a named group, they also cover code nobody has written yet. A locus added next month is inside the law without anyone editing it.
 
 ## In the artifact
 
-`sealed` is a hashed row in the topology model. A locus gaining or losing it moves `shape_hash`, so a `--check-topology` gate in CI sees the change. Confinement is a structural property of the program, not only an input to a claim — a seal changing with no topology diff would be the invisible security change the artifact exists to surface.
+`sealed` is a hashed row in the topology model. A locus gaining or losing it moves `shape_hash`, so a `--check-topology` gate in CI sees the change. Confinement is a structural property of the program, not only an input to a claim, a seal changing with no topology diff would be the invisible security change the artifact exists to surface.
 
-`require sealed` replays from the artifact. `require attributed` does not: it turns on *direct* effect sites, and the artifact exports inferred per-function effect sets, so that form is compiler-certified — the artifact carries its verdict, not the facts to recompute it.
+`require sealed` replays from the artifact. `require attributed` does not: it turns on *direct* effect sites, and the artifact exports inferred per-function effect sets, so that form is compiler-certified: the artifact carries its verdict, not the facts to recompute it.
 
 ## What it guarantees
 
 > The secret lives in a locus that owns it, the domain cannot obtain it, the only operations on it are compiler-classified, and the domain's claims constrain who may reach them and how often.
 
-This is **confinement, not information flow**. A signature derived from the key is not tracked. A constant-time comparison still lets the *verdict* be published. And the sealed locus's own body is trusted, which is why the standard library ships this shape small enough to review rather than leaving everyone to write their own.
+This is **confinement, not information flow**. A signature derived from the key is not tracked. A constant-time comparison still lets the *verdict* be published. The sealed locus's own body is trusted, which is why the standard library ships this shape small enough to review rather than leaving everyone to write their own.
 
 Those limits are in the specification, not a footnote. A checker's value is not that it says yes; it is that when it says yes, you know exactly what it said yes *to*.
 
@@ -158,6 +158,6 @@ Those limits are in the specification, not a footnote. A checker's value is not 
 
 The other parts of this series each close a wider world: a function's effects, an application's claims, a shared constitution, a deployed fleet. Each closure emits evidence the next composes.
 
-Confinement adds no closure of its own. It is those same mechanisms — ownership, classification, claims — pointed at a problem that looks like it needs a subsystem.
+Confinement adds no closure of its own. It is those same mechanisms, ownership, classification, claims, pointed at a problem that looks like it needs a subsystem.
 
 > **The secret is confined by ownership, marked by classification, and governed by law you already know how to write.**

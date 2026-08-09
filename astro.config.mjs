@@ -1,6 +1,42 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+
+/*
+  The text-only tree promises no script and no stylesheet of ours. It renders
+  the same collections as the styled site, so it inherits that pipeline's
+  assets: Astro's page script, and Expressive Code's copy-button JS and CSS
+  that ride along with any rendered code fence.
+
+  Neither is opt-out-able per route, and the alternative — parsing the
+  markdown ourselves — would fork the content pipeline for the sake of a tag.
+  So strip the references once the build is written. The pages then are what
+  they claim to be: semantic HTML and the reader's own defaults.
+*/
+function textOnlyAssets() {
+  return {
+    name: 'text-only-assets',
+    hooks: {
+      'astro:build:done': ({ dir, logger }) => {
+        const walk = (u) => readdirSync(u, { withFileTypes: true }).flatMap((e) =>
+          e.isDirectory() ? walk(new URL(`${e.name}/`, u)) : [new URL(e.name, u)]);
+        let n = 0;
+        for (const file of walk(new URL('text/', dir))) {
+          if (!file.pathname.endsWith('.html')) continue;
+          const before = readFileSync(file, 'utf8');
+          const after = before
+            .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
+            .replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/g, '');
+          if (after !== before) {
+            writeFileSync(file, after);
+            n++;
+          }
+        }
+        logger.info(`text-only: stripped script and stylesheet refs from ${n} pages`);
+      },
+    },
+  };
+}
 
 // Guard against a polluted BASE_URL in the shell environment. Some dev
 // setups export e.g. `BASE_URL=http://localhost:3000`; at SSR Astro reads
@@ -40,8 +76,11 @@ export default defineConfig({
     // constitutions / fleets); the old slug is linked from the
     // compiler repo's docs and anywhere the article traveled.
     '/articles/claim-driven-development-in-hale': '/articles/claims-in-hale',
+    // /why was a byte-identical copy of /model. One page, one URL.
+    '/why': '/model',
   },
   integrations: [
+    textOnlyAssets(),
     starlight({
       title: 'Hale',
       description: 'The Hale programming language documentation.',

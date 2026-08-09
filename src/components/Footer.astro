@@ -4,7 +4,7 @@ const cols = [
   { h: 'Learn', links: [['The model', '/model'], ['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Playground', '/playground']] },
   { h: 'Build', links: [['Examples', '/examples'], ['Packages (pond)', '/packages'], ['Toolchain', '/tooling'], ['Features', '/features']] },
   { h: 'Reference', links: [['Specification', '/docs/reference'], ['Standard library', '/docs/spec/stdlib'], ['Design', '/docs/the-design'], ['Proof', '/proof']] },
-  { h: 'Project', links: [['Articles', '/articles'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['llms.txt', '/llms.txt']] },
+  { h: 'Project', links: [['Articles', '/articles'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only site', '/text/'], ['llms.txt', '/llms.txt']] },
 ];
 ---
 <footer class="footer">
@@ -12,8 +12,8 @@ const cols = [
     <div>
       <a class="brand" href="/"><Logo /> hale</a>
       <p class="muted" style="font-size:0.88rem; margin-top:0.8rem; max-width:32ch;">
-        Describe the running system — ownership, messages, placement,
-        causality, and recovery — then let the compiler check the arrangement.
+        One structural construct, holding its shape from a value to a fleet.
+        Wherever the structure closes, the compiler certifies it.
       </p>
     </div>
     {cols.map((c) => (

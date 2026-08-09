@@ -2,7 +2,7 @@
 // Sidebar for article pages: every article, with the ones that form a
 // series kept in reading order under their shared title.
 //
-// The list is deliberately complete rather than "related posts" — with
+// The list is deliberately complete rather than "related posts": with
 // a handful of long pieces, seeing all of them is the navigation. It
 // grows badly past ~20, at which point this should collapse to the
 // current series plus a link to the index.
@@ -49,8 +49,8 @@ const loose = all
           <li>
             <a
               href={`/articles/${p.id}`}
-              class={p.id === current ? 'on' : undefined}
-              aria-current={p.id === current ? 'page' : undefined}
+              class={p.id === current ? 'on': undefined}
+              aria-current={p.id === current ? 'page': undefined}
             >
               <span class="num">{p.data.part}</span>
               <span class="txt">{p.data.title}</span>
@@ -69,8 +69,8 @@ const loose = all
           <li>
             <a
               href={`/articles/${p.id}`}
-              class={p.id === current ? 'on' : undefined}
-              aria-current={p.id === current ? 'page' : undefined}
+              class={p.id === current ? 'on': undefined}
+              aria-current={p.id === current ? 'page': undefined}
             >
               <span class="txt">{p.data.title}</span>
             </a>

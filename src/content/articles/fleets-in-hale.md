@@ -22,14 +22,14 @@ one law without copying it.
 
 All three stop at the same wall: the process boundary. A system built from
 several independently compiled binaries has laws that live above every one
-of them —
+of them:
 
 - traffic from one domain must not reach a privileged sink except through a
   designated mediator
 - exactly one *deployed process* may publish an authoritative channel
 - an operator surface may command a service without acquiring its authority
 
-— and every binary can be locally correct while the assembled system is
+Every binary can be locally correct while the assembled system is
 wrong. Recursively checking each application proves each local law and says
 nothing about whether the deployed processes are connected in the intended
 arrangement.
@@ -52,8 +52,8 @@ reasons, not taste:
   flattening turns serialized messaging into ordinary reachability.
 
 So the unit of composition is the **artifact**, never the source. Each
-application's `hale check` emits a topology artifact — the model, the claim
-verdicts, the topics table, source maps, an integrity digest — and the fleet
+application's `hale check` emits a topology artifact, the model, the claim
+verdicts, the topics table, source maps, an integrity digest, and the fleet
 tier reads exactly what any third party would read. It never reopens the
 source.
 
@@ -63,8 +63,8 @@ hale check apps/gw  --dump-topology=artifacts/gw.json
 hale fleet check prod.plan.json
 ```
 
-A plan names deployed **instances** — `oms-0` is a process, `oms` is merely
-a program — and the explicit routes between them:
+A plan names deployed **instances**, `oms-0` is a process, `oms` is merely
+a program, and the explicit routes between them:
 
 ```json
 { "schema": "1.1", "name": "prod",
@@ -82,9 +82,9 @@ a program — and the explicit routes between them:
 ```
 
 Two rules carry the tier's soundness. **Matching wire identities establish
-compatibility; only an explicit route creates an edge** — three binaries
+compatibility; only an explicit route creates an edge**: three binaries
 declaring the same topics with no routes compose to zero connections, which
-is precisely the property a source merge destroys silently. And endpoints
+is precisely the property a source merge destroys silently. Endpoints
 join on `(wire subject, payload hash)`, never on a local name: the same
 identifier can mean different wire shapes in different applications, and
 different identifiers can deliberately denote one contract.
@@ -99,8 +99,7 @@ fleet claim `orders_pass_oms` violated — witness:
   gw-0::Gateway::on_order  [gw/main.hl]
 ```
 
-Both components check clean on their own. Only the deployment is wrong —
-which is the entire justification for the tier, and something no
+Both components check clean on their own. Only the deployment is wrong, which is the entire justification for the tier, and something no
 per-application check can see.
 
 ## The lifecycle, tier by tier
@@ -117,20 +116,19 @@ deployment    fleet plan over artifacts               hale fleet check
 
 **While developing**, the law is feedback. Write the claim before the
 wiring; the countermodel is the task list. A new subscription that crosses a
-boundary turns the check red in the same edit-check loop as a type error —
-architecture drift surfaces at the moment of drift, not in a quarterly
+boundary turns the check red in the same edit-check loop as a type error: architecture drift surfaces at the moment of drift, not in a quarterly
 diagram review.
 
 **In review**, the artifact separates two questions: does the program still
 satisfy the law, and did the graph change in a way reviewers should see?
 Commit the topology artifact and diff it in CI. Three kinds of pull request
 become structurally distinguishable: implementation under the same law,
-topology change under the same law, and law change — where the `claims`
+topology change under the same law, and law change: where the `claims`
 block itself moved, and the diff of the law is the review event.
 
 **In CI**, the gates compose. `hale verify` fails on any advisory.
 `hale check --matrix` proves every entrypoint under the law of every
-environment that deploys it — an entrypoint listed nowhere is an error, not
+environment that deploys it: an entrypoint listed nowhere is an error, not
 a skip. `hale fleet check` with no argument checks **every** deployment the
 workspace declares:
 
@@ -147,13 +145,13 @@ same partial-coverage hole the matrix closes for entrypoints.
 ## The certificate travels
 
 Everything so far proves things on the machine that ran the check. A
-deployment usually happens somewhere else — a deploy box that did not build
+deployment usually happens somewhere else: a deploy box that did not build
 the artifacts, a CI stage that did not run the checks. The remaining gap is
 not analysis; it is custody.
 
-Two properties close it. Artifacts are **byte-reproducible** — the same
-sources produce the identical document from any working directory — so a
-signature over exact bytes is meaningful. And the fleet tier already refuses
+Two properties close it. Artifacts are **byte-reproducible**, the same
+sources produce the identical document from any working directory, so a
+signature over exact bytes is meaningful. The fleet tier already refuses
 components it cannot verify, so signatures slot into an admission pipeline
 that exists:
 
@@ -163,13 +161,13 @@ hale fleet sign artifacts/oms.json --key ops.pem
 hale fleet check prod.plan.json --trust ops.pub.pem
 ```
 
-Trust is **strict when declared**. With trust roots present — `--trust`
-flags, or `[fleet_trust] keys = [...]` in the manifest — an unsigned,
+Trust is **strict when declared**. With trust roots present, `--trust`
+flags, or `[fleet_trust] keys = [...]` in the manifest, an unsigned,
 tampered, or wrong-key component is a composition error, ordered before any
 claim runs. There is no `require = true` knob: a trust set that quietly
 admits unsigned artifacts would be law that looks bound and binds nothing.
-The fleet artifact records what admitted each component — the SHA-256 of the
-bytes and the identity of the verifying key — so a reader can tell "verified
+The fleet artifact records what admitted each component, the SHA-256 of the
+bytes and the identity of the verifying key, so a reader can tell "verified
 under this key" from "composed without trust", and the signature suite is
 the one `std::crypto` already speaks, so a Hale program can verify the same
 sidecar with the language's own stdlib.
@@ -181,8 +179,7 @@ hash of the binary it is supposed to run, and attestation is all-or-nothing:
 hale fleet attest prod.plan.json
 ```
 
-An instance without the rows fails the attestation rather than thinning it —
-a partial attestation would report coverage it does not have.
+An instance without the rows fails the attestation rather than thinning it: a partial attestation would report coverage it does not have.
 
 Assembled, the lifecycle reads as a chain of custody:
 
@@ -206,12 +203,12 @@ green pipeline is easy to over-read.
 
 A signature certifies **provenance and integrity, never behavior**. It says
 these exact artifacts, checked under this exact law, are the ones a
-key-holder meant — not that the code is good, and not that a compromised
+key-holder meant, not that the code is good, and not that a compromised
 builder or a malicious compiler produced honest evidence in the first place.
 
 The fleet model certifies **topology, never delivery**. Which routes exist,
-which instances they connect, what each carries — yes. That a message will
-arrive — no. Delivery is a property of the protocol and the peer, not of the
+which instances they connect, what each carries, yes. That a message will
+arrive, no. Delivery is a property of the protocol and the peer, not of the
 calling code, and no static analysis changes that. Runtime observation is
 the measuring instrument, and it complements the static tier rather than
 duplicating it: the plan says which routes should exist; the counters say
@@ -226,13 +223,13 @@ states; transitions are sequenced deployments of certified states, not yet a
 certified object themselves.
 
 Where the model is uncertain, it says so. Uncertainty may add possible
-edges; it may never delete one and report success — the rule is the same at
+edges; it may never delete one and report success, the rule is the same at
 every tier, and it is what makes the green worth trusting.
 
 ## What fleets are
 
 The tiers share one design: a **closed world is not the whole repository or
-the whole fleet — it is a stage boundary at which a graph becomes exact
+the whole fleet, it is a stage boundary at which a graph becomes exact
 enough to certify.** A function's frontier, an application's `main`, an
 entrypoint under an environment, a deployment under a plan. Each closure
 emits evidence the next closure composes without reopening what produced it.
@@ -244,6 +241,6 @@ Policy may be dynamic; validity is not.
 Write the law at every tier. Prove every world that adopts it. Sign what
 you proved, compose what you signed, and deploy nothing you didn't.
 
-That is the fleet tier in Hale — and with it, the series' claim is complete:
+That is the fleet tier in Hale, and with it, the series' claim is complete:
 one checker, four horizons, from a function's syscall set to the arrangement
 of a production fleet.

@@ -14,7 +14,7 @@ summary: >-
 
 The [effects system](/articles/effects-in-hale/) lets one function make a promise. [Claims](/articles/claims-in-hale/) let one `main locus` state a law over one assembled application.
 
-That application-wide law still had to be authored in each main — correct for evaluation, awkward for a repository with several entrypoints. Constitutions separate the two concerns: write the law once, then prove it independently in every closed world that adopts it.
+That application-wide law still had to be authored in each main: correct for evaluation, awkward for a repository with several entrypoints. Constitutions separate the two concerns: write the law once, then prove it independently in every closed world that adopts it.
 
 ## One text, many worlds
 
@@ -182,7 +182,7 @@ still has an identity even though it contributes no clause of its own.
 For every evaluation, the topology artifact records:
 
 - the environment being checked;
-- the root constitutions selected directly — the workspace base and
+- the root constitutions selected directly: the workspace base and
   the environment's own addition, since both are named rather than
   inherited;
 - the complete closure those roots reach, with a digest for each;

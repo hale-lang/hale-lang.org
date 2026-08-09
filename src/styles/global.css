@@ -292,6 +292,41 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 .footer a:hover { color: var(--jade-deep); text-decoration: none; }
 .footer .copy { margin-top: 2rem; color: var(--faint); font-size: 0.82rem; }
 
+/*
+  Section padding is a half-gap: two of them meet at every seam, so the
+  clamp above spends ~193px of empty screen between one section's last line
+  and the next section's first. On a page that is mostly seams — the
+  homepage runs eight of them — that reads as the page having lost its
+  thread rather than as breathing room. Two thirds of it is plenty.
+
+  The hero and the why-now band set their own block padding for reasons of
+  their own — the band's is zero, and it carries its padding on the inner
+  element — so leave those two alone rather than flattening the page to one
+  number.
+*/
+body:has(.unfold) main > section:not(.hero, .why-now) {
+  padding-block: clamp(2.25rem, 4.5vw, 3.5rem);
+}
+
+/*
+  The homepage runs a live field behind the whole document (see Unfold). In
+  dark mode the sections ride on it rather than hide it: each keeps its own
+  colour and loses a little opacity, so the field reads as ground the page
+  sits on instead of a panel bolted into the middle of it.
+
+  Light mode is untouched — the medium is dark, the paper is warm, and a
+  wash of one under the other is only ever mud.
+*/
+@media (prefers-color-scheme: dark) and (prefers-reduced-motion: no-preference) {
+  body:has(.unfold) .section-alt { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
+  body:has(.unfold) .why-now,
+  body:has(.unfold) .band { background: color-mix(in srgb, var(--code-bg) 82%, transparent); }
+  body:has(.unfold) .card,
+  body:has(.unfold) .feature,
+  body:has(.unfold) .callout { background: color-mix(in srgb, var(--paper) 74%, transparent); }
+  body:has(.unfold) .footer { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
+}
+
 /* ---- misc page content ---- */
 .prose { max-width: var(--measure); }
 .prose h2 { margin-top: 2.5rem; }

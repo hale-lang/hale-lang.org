@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
 import '../styles/storefront.css';
 
@@ -47,14 +48,14 @@ fn score(sample: Sample) -> Float {
   title="Hale examples"
   description="Hale system shapes that combine ownership, typed communication, deployment, supervision, causality, and effects."
 >
+  <Field kind="examples" />
   <section class="container wide examples-page">
     <div class="section-intro">
       <p class="eyebrow">examples</p>
       <h1>Examples that cross more than one feature.</h1>
       <p class="lede">
         Ownership, messaging, placement, failure and contracts get
-        interesting where they meet. Each of these is the compact version —
-        follow the link for the whole program and the walkthrough.
+        interesting where they meet. Each of these is the compact version,         follow the link for the whole program and the walkthrough.
       </p>
     </div>
 

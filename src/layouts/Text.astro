@@ -1,0 +1,56 @@
+---
+/*
+  The text-only site.
+
+  One rule: nothing here may need a stylesheet to make sense. No script, no
+  webfont, no image, no colour of our own — the page is semantic HTML and
+  the reader's browser decides how it looks. What little CSS there is sets
+  a measure and honours the reader's theme, and is inlined so the page is a
+  single request.
+
+  It is not a stripped copy of the styled site kept in parallel. It renders
+  the same collections, so a change to an article or a docs page appears in
+  both without anyone remembering to mirror it.
+*/
+interface Props { title: string; description?: string; up?: { href: string; label: string } }
+const { title, description, up } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} — Hale (text)</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={`https://hale-lang.org${Astro.url.pathname.replace(/^\/text/, '') || '/'}`} />
+    <style>
+      html { color-scheme: light dark; }
+      body {
+        max-width: 42em;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      pre { overflow-x: auto; padding: 0.5em; }
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid; padding: 0.2em 0.5em; text-align: left; }
+      img { max-width: 100%; }
+      nav { margin-bottom: 2rem; }
+      footer { margin-top: 3rem; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/text/">Hale (text)</a>
+      {up && <> &middot; <a href={up.href}>{up.label}</a></>}
+    </nav>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <hr />
+      <p><a href={Astro.url.pathname.replace(/^\/text/, '') || '/'}>Same page, styled</a></p>
+    </footer>
+  </body>
+</html>

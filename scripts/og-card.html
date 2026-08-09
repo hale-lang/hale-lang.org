@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  Source for public/og.png — the link-preview / GitHub social card.
+
+  Regenerate after editing:
+    google-chrome --headless --disable-gpu --hide-scrollbars \
+      --screenshot=public/og.png --window-size=1280,640 scripts/og-card.html
+
+  1280x640 is GitHub's social-preview size and a clean 2:1 for OG. The card
+  is deliberately plain: mark, name, one sentence, the domain. It has to
+  survive being rendered at 320px wide in a chat client.
+
+  GitHub does not read og:image from the site — the repo social preview is
+  a manual upload under Settings -> Social preview.
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; }
+  body {
+    background: #0e1014;
+    color: #eef0f3;
+    font-family: ui-sans-serif, system-ui, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 110px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mark { display: flex; align-items: center; gap: 22px; }
+  .mark svg { width: 76px; height: 76px; flex: none; }
+  .name { font-size: 84px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+  .tag {
+    margin-top: 36px;
+    font-size: 35px;
+    line-height: 1.34;
+    color: #9aa1ac;
+    max-width: 34ch;
+    letter-spacing: -0.012em;
+  }
+  .foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 66px;
+    font-family: ui-monospace, "DejaVu Sans Mono", "Liberation Mono", monospace;
+    font-size: 25px;
+    color: #2ec4a3;
+    letter-spacing: 0.01em;
+  }
+</style>
+</head>
+<body>
+  <div class="mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#2ec4a3" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.5 C 13.7 7, 13.7 10, 12 12.6 C 10.3 10, 10.3 7, 12 3.5 Z" />
+      <path d="M12 12.6 C 8.9 10.6, 6.2 11.1, 4.7 13.2 C 7.3 14.9, 10 14.6, 12 12.6 Z" />
+      <path d="M12 12.6 C 15.1 10.6, 17.8 11.1, 19.3 13.2 C 16.7 14.9, 14 14.6, 12 12.6 Z" />
+      <path d="M4 13.8 C 6.2 19.2, 17.8 19.2, 20 13.8" />
+    </svg>
+    <div class="name">hale</div>
+  </div>
+  <p class="tag">A concurrent systems language with a model-checked, GC-free runtime.</p>
+  <div class="foot">hale-lang.org</div>
+</body>
+</html>

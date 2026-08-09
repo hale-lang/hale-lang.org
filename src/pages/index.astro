@@ -2,8 +2,7 @@
 import Base from '../layouts/Base.astro';
 import Hale from '../components/Hale.astro';
 import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
-import StatusRail from '../components/StatusRail.astro';
-import SystemMap from '../components/SystemMap.astro';
+import Unfold from '../components/Unfold.astro';
 import '../styles/storefront.css';
 
 const room = `type Msg { room: String; user: String; text: String; }
@@ -53,13 +52,15 @@ const failure = `locus WorkerPool {
   <section class="container wide hero storefront-hero">
     <div class="split">
       <div>
-        <p class="eyebrow">a language for running systems</p>
-        <h1>Describe the system. Hale compiles the mechanism.</h1>
+        <p class="eyebrow">a new semantic compression for software</p>
+        {/* Two beats, so the break is authored rather than left to the
+            measure — at 13ch the natural wrap falls after "Spell". */}
+        <h1><span>Say less.</span><span>Spell more.</span></h1>
         <p class="lede">
-          Write the services, messages, ownership, placement, and recovery as
-          one program. Hale turns that description into direct calls, queues,
-          sockets, shared memory, or broker adapters — and checks the resulting
-          system before it runs.
+          Hale compresses whole-system meaning into a single scale-invariant
+          construct. From value to fleet, loci compose without falling out of
+          the language — and wherever the structure closes, the compiler can
+          certify its shape.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/playground">Run the tour</a>
@@ -95,6 +96,60 @@ const failure = `locus WorkerPool {
     </div>
   </section>
 
+  <Unfold />
+
+  <section class="container wide ladder-section">
+    <div class="section-intro center">
+      <p class="eyebrow">one ladder, six rungs</p>
+      <h2>The same structure, from a value to a fleet.</h2>
+      <p class="lede" style="margin-inline:auto;">
+        Going down, a locus contains loci. Going up, loci compose into an
+        application, and the recursion does not stop at the process boundary.
+        Wherever a scale closes, the compiler certifies it, and the certificate
+        becomes a component of the scale above.
+      </p>
+    </div>
+
+
+    <ol class="ladder">
+      <li>
+        <span class="rung-scale">value &amp; behavior</span>
+        <code>type · fn</code>
+        <p>Effect classes, budgets, and phase contracts, proven across the whole call graph.</p>
+      </li>
+      <li>
+        <span class="rung-scale">component</span>
+        <code>locus</code>
+        <p>An owned region and a structural lifetime. Confinement is checked, not conventional.</p>
+      </li>
+      <li>
+        <span class="rung-scale">service</span>
+        <code>topic · bus · placement</code>
+        <p>Bus topology, causal reach, and dependency sets. The call graph continues past the publish.</p>
+      </li>
+      <li>
+        <span class="rung-scale">application</span>
+        <code>main locus · claims</code>
+        <p>Named law over the assembled graph, checked as errors, answered with a countermodel.</p>
+      </li>
+      <li>
+        <span class="rung-scale">environment</span>
+        <code>constitution · --matrix</code>
+        <p>One authored claimset, proven independently in every world that adopts it.</p>
+      </li>
+      <li>
+        <span class="rung-scale">fleet</span>
+        <code>plan: instances + routes</code>
+        <p>Law across separately compiled binaries, with the certificate signed and attested.</p>
+      </li>
+    </ol>
+
+    <p class="ladder-note">
+      Only an explicit route creates a fleet edge, and unknown means violation
+      at every rung: uncertainty may add a path, never erase one.
+    </p>
+  </section>
+
   <section class="section-alt">
     <div class="container wide">
       <div class="section-intro">
@@ -115,43 +170,6 @@ const failure = `locus WorkerPool {
         while dropping everything.
       </p>
       <div class="section-link"><a href="/docs/services/multi-binary">Across binaries →</a></div>
-    </div>
-  </section>
-
-  <section class="container wide">
-    <div class="section-intro center">
-      <p class="eyebrow">one recursive structure</p>
-      <h2>The architecture carries the runtime semantics.</h2>
-      <p class="lede" style="margin-inline:auto;">
-        A locus is not just an actor or an object. It is where domain identity,
-        owned state, memory lifetime, execution, children, and failure policy
-        meet.
-      </p>
-    </div>
-
-    <SystemMap />
-
-    <div class="consequence-grid">
-      <article>
-        <span>ownership</span>
-        <h3>Structure is the lifetime.</h3>
-        <p>A locus owns its region and children. Dissolve it and the owned memory is reclaimed deterministically.</p>
-      </article>
-      <article>
-        <span>communication</span>
-        <h3>Topics name the edge.</h3>
-        <p>Publishers and subscribers declare intent. They do not hold references to one another.</p>
-      </article>
-      <article>
-        <span>execution</span>
-        <h3>Placement is separate from logic.</h3>
-        <p>The same locus can share a pool, own a thread, pin to a core, or sit across a process boundary.</p>
-      </article>
-      <article>
-        <span>failure</span>
-        <h3>Recovery belongs to the owner.</h3>
-        <p>Structural failures reach the parent with enough context to restart, quarantine, or let them bubble.</p>
-      </article>
     </div>
   </section>
 
@@ -189,25 +207,8 @@ const failure = `locus WorkerPool {
         <article><b>Dependency sets</b><p>What may transitively influence a locus through its subscriptions.</p></article>
         <article><b>Budgets</b><p>Hard bounds such as zero allocations per call on a hot path.</p></article>
       </div>
-      <div class="section-link"><a href="/proof">What Hale checks, and where the limits are →</a></div>
+      <div class="section-link"><a href="/proof">Everything the compiler certifies →</a></div>
     </div>
-  </section>
-
-  <section class="container wide lifecycle-section">
-    <div class="section-intro center">
-      <p class="eyebrow">one line of development</p>
-      <h2>Declare it. Check it. Run it. Compare it with reality.</h2>
-      <p class="lede" style="margin-inline:auto;">
-        Hale's direction is not a pile of unrelated features. It is a progression
-        from architecture as source to architecture that can be observed,
-        replayed, and safely changed.
-      </p>
-    </div>
-    <StatusRail />
-    <p class="status-note">
-      Deterministic replay and verified deployment transitions are RFC work.
-      They are shown here as direction, not as shipped commands.
-    </p>
   </section>
 
   <section class="container wide">
@@ -238,7 +239,7 @@ const failure = `locus WorkerPool {
         <h2>Claims should have somewhere to land.</h2>
       </div>
       <div class="credibility-links">
-        <a href="/proof"><strong>Verification</strong><span>Shipped checks, tracked limits, and RFC boundaries.</span></a>
+        <a href="/proof"><strong>Verification</strong><span>Every check the compiler runs, with the witness it returns.</span></a>
         <a href="/examples"><strong>Examples</strong><span>System shapes that cross ownership, messaging, and deployment.</span></a>
         <a href="/articles"><strong>Articles</strong><span>Technical changes written in context.</span></a>
         <a href="https://github.com/hale-lang"><strong>Source</strong><span>Compiler, runtime, libraries, and site.</span></a>

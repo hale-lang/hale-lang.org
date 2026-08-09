@@ -118,7 +118,7 @@ fn reply(o: Order) { ... }          // exactly-once reply
 fn notify(e: Ev) { ... }            // bounded amplification
 ```
 
-`alloc_per_call = N` is enforced as a hard error. It counts arena allocations the compiler can see—literals, `@form` inserts, transitive callees, and the known-allocating `recv` family. A loop-nested allocation is unbounded per call. `N = 0` is the zero-allocation certificate.
+`alloc_per_call = N` is enforced as a hard error. It counts arena allocations the compiler can see: literals, `@form` inserts, transitive callees, and the known-allocating `recv` family. A loop-nested allocation is unbounded per call. `N = 0` is the zero-allocation certificate.
 
 `stack_bytes` measures the deepest call *chain*, not the sum of everything reachable. Side-by-side helpers of 100 bytes each cost 100, not 200. Recursion makes the bound unbounded, which is why the annotation pairs naturally with `@no_recursion`.
 
@@ -183,7 +183,7 @@ locus StatedCarry {
 }
 ```
 
-Without it, an independence claim is unenforceable. A locus that subscribes only to `SumLookup` looks isolated from `Recalled` in every declaration it carries. But if some third locus subscribes to `Recalled` and republishes onto `SumLookup`, the influence arrives anyway — and nothing in the depending locus's source mentions it. That is precisely the shape that review misses, because reviewing the file in front of you is not enough to see it. The diagnostic names the laundering path:
+Without it, an independence claim is unenforceable. A locus that subscribes only to `SumLookup` looks isolated from `Recalled` in every declaration it carries. But if some third locus subscribes to `Recalled` and republishes onto `SumLookup`, the influence arrives anyway, and nothing in the depending locus's source mentions it. That is precisely the shape that review misses, because reviewing the file in front of you is not enough to see it. The diagnostic names the laundering path:
 
 ```
 type error: declared dependence set violated: `StatedCarry` can be
@@ -194,9 +194,9 @@ transitively influenced by subject `Recalled`, which its
 
 It sits on the locus rather than a function: dependence enters through subscriptions, and subscriptions are declared per-locus. A function-level `depends:` is a parse error rather than a silent no-op.
 
-It is opt-in, and the reason is measured rather than aesthetic. Over a real application — 428 topics, 114 loci — transitivity added nothing beyond what the `bus {}` block already said for 87% of loci. A mandatory form would have been redundant far more often than it was informative. It earns its place where independence is load-bearing: a locus that must not see PII, a control plane that must not be influenced by user traffic.
+It is opt-in, and the reason is measured rather than aesthetic. Over a real application, 428 topics, 114 loci, transitivity added nothing beyond what the `bus {}` block already said for 87% of loci. A mandatory form would have been redundant far more often than it was informative. It earns its place where independence is load-bearing: a locus that must not see PII, a control plane that must not be influenced by user traffic.
 
-One boundary is worth stating plainly, because it is the kind of thing a certificate can be misread as covering. The closure is over the *bus graph*. Influence that travels outside it — through a shared form, through a file — is not part of it.
+One boundary is worth stating plainly, because it is the kind of thing a certificate can be misread as covering. The closure is over the *bus graph*. Influence that travels outside it, through a shared form, through a file, is not part of it.
 
 ## Effects you declare yourself
 
@@ -221,21 +221,21 @@ type error: effect assertion violated: `quote` must not reach `money`,
 but reaches quote [`charge` declares it carries this effect class].
 ```
 
-The obvious objection is that a user-defined effect has no frontier. The built-in classes are grounded: `syscall` is anchored in a classified standard library, and a call the compiler cannot classify fails closed. `money` has no such anchor, so `none: {money}` would seem to mean only "no function anybody remembered to annotate" — a linting convention wearing a type system's clothes.
+The obvious objection is that a user-defined effect has no frontier. The built-in classes are grounded: `syscall` is anchored in a classified standard library, and a call the compiler cannot classify fails closed. `money` has no such anchor, so `none: {money}` would seem to mean only "no function anybody remembered to annotate": a linting convention wearing a type system's clothes.
 
 It is a fair objection, and worth answering rather than waving at.
 
-The answer is that the effects worth checking are about interaction with the outside, and that *is* the frontier. Money moves when the payment processor is called, when the ledger row is written, when the settlement message is published. Those are frontier calls already — the compiler classifies them today as `syscall` and `publish`. What `is:` does is add a row to a classification that already exists, at a different level of description. It does not introduce a second, ungrounded kind of grounding.
+The answer is that the effects worth checking are about interaction with the outside, and that *is* the frontier. Money moves when the payment processor is called, when the ledger row is written, when the settlement message is published. Those are frontier calls already, the compiler classifies them today as `syscall` and `publish`. What `is:` does is add a row to a classification that already exists, at a different level of description. It does not introduce a second, ungrounded kind of grounding.
 
 So the split is: **the compiler owns propagation; the program owns classification.** That is exactly the arrangement the standard library registry already has. The registry is a table somebody maintains by hand, audited against the runtime; `is:` is the same table with a different owner.
 
-The vocabulary itself is checked, which matters more than it sounds. A class name becomes real only by being declared; asserting about one that never was is an error, with the nearest declared name offered. Without that, `@effects(none: { monye })` would intern a fresh class nothing carries, hold vacuously, and report success — a contract quietly true of nothing, which reads exactly like one that is true of something.
+The vocabulary itself is checked, which matters more than it sounds. A class name becomes real only by being declared; asserting about one that never was is an error, with the nearest declared name offered. Without that, `@effects(none: { monye })` would intern a fresh class nothing carries, hold vacuously, and report success: a contract quietly true of nothing, which reads exactly like one that is true of something.
 
-That framing is also the honest statement of the guarantee's limits. If you annotate `charge` and forget its sibling, `none: {money}` will not catch the sibling — no analysis can, because nothing in the program distinguishes the sibling from arithmetic. What the compiler does guarantee is that *given* your classification, no path escapes it. That is the part which is tedious and error-prone to maintain by review, and the part that stops holding the moment a call graph is more than a few edges deep. Classification is a judgement made once per function, in one place, by someone who knows the domain. Propagation is a whole-program problem that grows with the codebase. Splitting them puts each half where it can actually be done.
+That framing is also the honest statement of the guarantee's limits. If you annotate `charge` and forget its sibling, `none: {money}` will not catch the sibling: no analysis can, because nothing in the program distinguishes the sibling from arithmetic. What the compiler does guarantee is that *given* your classification, no path escapes it. That is the part which is tedious and error-prone to maintain by review, and the part that stops holding the moment a call graph is more than a few edges deep. Classification is a judgement made once per function, in one place, by someone who knows the domain. Propagation is a whole-program problem that grows with the codebase. Splitting them puts each half where it can actually be done.
 
-Classes cross seed boundaries — one declared in a library resolves from the application that imports it, which is the whole point: `money` should hold everywhere the money goes, and in a real codebase the money goes through `lib/`. That took work, because `User(i)` indexes the *declaring* seed's table and every seed interns from zero, so two seeds each declaring one class both use index 0 for different names. Merging without remapping puts `money` and some library's `pii` on the same bit — and a `none: {money}` then gets checked against `pii`. The merge unions the tables and rewrites each seed's indices before combining them.
+Classes cross seed boundaries: one declared in a library resolves from the application that imports it, which is the whole point: `money` should hold everywhere the money goes, and in a real codebase the money goes through `lib/`. That took work, because `User(i)` indexes the *declaring* seed's table and every seed interns from zero, so two seeds each declaring one class both use index 0 for different names. Merging without remapping puts `money` and some library's `pii` on the same bit, and a `none: {money}` then gets checked against `pii`. The merge unions the tables and rewrites each seed's indices before combining them.
 
-There are 54 available, occupying the bits above the built-ins in the effect mask — a domain vocabulary, not a per-module taxonomy. Writing this section is what surfaced why that number needs a guard at all. The mask originally held 22, and a class past the ceiling had no bit, so it unioned as `PURE` — "reaches nothing". Which meant `@effects(none: {overflowed})` *passed* on a function calling a declared source of it. The analysis failed open, silently, in the one direction it must never fail: everything else here treats what it cannot see as doing anything. A certificate that is quietly false is worse than no certificate, because it gets believed. Declaring past the ceiling is now an error at the `effect NAME;` line.
+There are 54 available, occupying the bits above the built-ins in the effect mask: a domain vocabulary, not a per-module taxonomy. Writing this section is what surfaced why that number needs a guard at all. The mask originally held 22, and a class past the ceiling had no bit, so it unioned as `PURE`, "reaches nothing". Which meant `@effects(none: {overflowed})` *passed* on a function calling a declared source of it. The analysis failed open, silently, in the one direction it must never fail: everything else here treats what it cannot see as doing anything. A certificate that is quietly false is worse than no certificate, because it gets believed. Declaring past the ceiling is now an error at the `effect NAME;` line.
 
 ## The assertion you do not have to write
 
@@ -262,7 +262,7 @@ Annotations only describe the functions someone remembered to annotate. The mani
 hale check app.hl --dump-effects-manifest > .hale.effects
 ```
 
-Each line records the declared contract (if any) and a `does={…}` column—the transitive effects the compiler observes, for free functions, methods, and lifecycle hooks alike:
+Each line records the declared contract (if any) and a `does={…}` column, the transitive effects the compiler observes, for free functions, methods, and lifecycle hooks alike:
 
 ```
 App::run       does={syscall,block,time}
@@ -280,13 +280,13 @@ hale check app.hl --check-effects-manifest .hale.effects
 + Api::emit  none={block}  does={syscall,publish,alloc}
 ```
 
-`Api::emit` gained filesystem I/O; nothing in its own source changed—a helper three calls away did. No declared contract was violated. The behaviour simply drifted. As a CI gate the drift becomes a one-line review diff.
+`Api::emit` gained filesystem I/O; nothing in its own source changed; a helper three calls away did. No declared contract was violated. The behaviour simply drifted. As a CI gate the drift becomes a one-line review diff.
 
 ## Relevance to safety-critical and certified systems
 
 Several of the properties the effect system makes checkable line up with evidence that certification regimes already ask for.
 
-DO-178C (and related standards such as IEC 61508, ISO 26262, and EN 50128) places heavy weight on demonstrable control of resource use, absence of unintended control flow, and traceable restrictions on what software may do in each operational phase. A function annotated `@no_block @no_syscall @deterministic @budget(alloc_per_call = 0)` is making a precise, machine-checked claim: it performs no kernel entries, never waits, depends only on its inputs, and allocates nothing. A `@phase_effects(birth: {alloc, syscall}, run: {})` declaration encodes the common safety pattern that dynamic allocation and certain side effects are confined to initialization. The effects manifest turns the inferred behaviour of every reachable function into a reviewable artifact that can be diffed under configuration control—exactly the kind of stable, auditable output that certification processes prefer over informal review comments.
+DO-178C (and related standards such as IEC 61508, ISO 26262, and EN 50128) places heavy weight on demonstrable control of resource use, absence of unintended control flow, and traceable restrictions on what software may do in each operational phase. A function annotated `@no_block @no_syscall @deterministic @budget(alloc_per_call = 0)` is making a precise, machine-checked claim: it performs no kernel entries, never waits, depends only on its inputs, and allocates nothing. A `@phase_effects(birth: {alloc, syscall}, run: {})` declaration encodes the common safety pattern that dynamic allocation and certain side effects are confined to initialization. The effects manifest turns the inferred behaviour of every reachable function into a reviewable artifact that can be diffed under configuration control: exactly the kind of stable, auditable output that certification processes prefer over informal review comments.
 
 Bus causality adds a further axis: because the topic graph is closed and typed, the transitive effects of a publish can be stated and checked. That is closer to an explicit data- and control-coupling analysis than to the usual informal argument that “messages only go to the intended subscribers.”
 
@@ -298,7 +298,7 @@ The effect system is a static analysis layered on top of ordinary type checking 
 
 The quality of the proofs depends on accurate classification of the standard library and on conservative treatment of `@ffi`. Unknown calls fail closed; that is the soundness-preserving choice, at the cost of requiring the registry to stay complete.
 
-The surface is intentionally local. A codebase can adopt effect certificates only on the paths that need them. The rest of the language’s guarantees—data-race freedom by construction, supervised failure, region lifetimes, bus topology checks—continue to apply whether or not any function carries an effect annotation.
+The surface is intentionally local. A codebase can adopt effect certificates only on the paths that need them. The rest of the language’s guarantees (data-race freedom by construction, supervised failure, region lifetimes, bus topology checks) continue to apply whether or not any function carries an effect annotation.
 
 ## A concrete shape
 
@@ -320,10 +320,9 @@ locus Ingest {
 }
 ```
 
-No payload is constructed in the handler — the decoded value is forwarded
-— so `{publish}` alone is satisfiable here; a handler that built its own
+No payload is constructed in the handler, the decoded value is forwarded, so `{publish}` alone is satisfiable here; a handler that built its own
 message would need `alloc` as well.
 
 Startup may allocate and touch the kernel. The per-message path may not block, may not perform syscalls, may not read time or entropy, may allocate nothing, and may amplify to at most four subscriber deliveries. The compiler enforces each of those claims over the reachable call graph and the bus topology.
 
-That is the effects system: a small set of classes, opt-in assertions that become total proofs, quantitative budgets, phase contracts, and causal tracking across the message bus—aimed at the properties concurrent systems code actually needs to keep, and structured so the same claims can later serve as evidence under formal audit.
+That is the effects system: a small set of classes, opt-in assertions that become total proofs, quantitative budgets, phase contracts, and causal tracking across the message bus: aimed at the properties concurrent systems code actually needs to keep, and structured so the same claims can later serve as evidence under formal audit.

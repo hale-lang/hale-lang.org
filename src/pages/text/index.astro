@@ -1,0 +1,85 @@
+---
+import { getCollection } from 'astro:content';
+import Text from '../../layouts/Text.astro';
+
+const docs = (await getCollection('docs')).sort((a, b) => a.id.localeCompare(b.id));
+const articles = (await getCollection('articles')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+
+// Collection ids carry the on-disk `docs/` prefix that the URLs drop. The
+// section root's id is the bare prefix, so it strips to nothing and has to
+// link at the section itself rather than at an empty path segment.
+const path = (id: string) => id.replace(/^docs(\/|$)/, '');
+const href = (id: string) => {
+  const p = path(id);
+  return p ? `/text/docs/${p}/` : '/text/docs/';
+};
+
+// Docs are already filed by directory; the path is the grouping, so use it
+// rather than inventing a second taxonomy that can disagree with the first.
+// Directory names are the grouping; make them read as headings without
+// inventing a title the directory does not have.
+const label = (g: string) =>
+  g.split('/').map((s) => s.replace(/-/g, ' ')).join(' / ').replace(/^./, (c) => c.toUpperCase());
+
+const groups = new Map<string, typeof docs>();
+for (const d of docs) {
+  const key = path(d.id).split('/').slice(0, -1).join('/') || 'Introduction';
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key)!.push(d);
+}
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+---
+<Text
+  title="Text"
+  description="Hale's documentation and articles as plain HTML: no script, no webfont, no images."
+>
+  <h1>Hale, in text</h1>
+  <p>
+    The whole of the documentation and every article, as plain HTML. No
+    script, no webfont, no images, no colours of ours — your browser decides
+    how this looks. Same source as the styled site, so it does not go stale.
+  </p>
+  <p>
+    Hale is a concurrent systems language with a model-checked, GC-free
+    runtime: typed message-bus concurrency, data-race-free by design.
+  </p>
+
+  <h2>Install</h2>
+  <pre><code>curl -fsSL https://hale-lang.org/install.sh | sh</code></pre>
+
+  <h2>Documentation</h2>
+  {[...groups].map(([group, entries]) => (
+    <>
+      <h3>{label(group)}</h3>
+      <ul>
+        {entries.map((d) => (
+          <li>
+            <a href={href(d.id)}>{d.data.title}</a>
+            {d.data.description && <> — {d.data.description}</>}
+          </li>
+        ))}
+      </ul>
+    </>
+  ))}
+
+  <h2>Articles</h2>
+  <ul>
+    {articles.map((a) => (
+      <li>
+        <a href={`/text/articles/${a.id}/`}>{a.data.title}</a>
+        {' — '}{fmt(a.data.date)}. {a.data.summary}
+      </li>
+    ))}
+  </ul>
+
+  <h2>Elsewhere</h2>
+  <ul>
+    <li><a href="https://github.com/hale-lang">Source, on GitHub</a></li>
+    <li><a href="/">The styled site</a>, which has a playground and diagrams</li>
+    <li><a href="/llms.txt">llms.txt</a></li>
+  </ul>
+</Text>
