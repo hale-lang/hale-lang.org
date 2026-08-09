@@ -98,57 +98,15 @@ const failure = `locus WorkerPool {
 
   <Unfold />
 
-  <section class="container wide ladder-section">
-    <div class="section-intro center">
-      <p class="eyebrow">one ladder, six rungs</p>
-      <h2>The same structure, from a value to a fleet.</h2>
-      <p class="lede" style="margin-inline:auto;">
-        Going down, a locus contains loci. Going up, loci compose into an
-        application, and the recursion does not stop at the process boundary.
-        Wherever a scale closes, the compiler certifies it, and the certificate
-        becomes a component of the scale above.
-      </p>
-    </div>
-
-
-    <ol class="ladder">
-      <li>
-        <span class="rung-scale">value &amp; behavior</span>
-        <code>type · fn</code>
-        <p>Effect classes, budgets, and phase contracts, proven across the whole call graph.</p>
-      </li>
-      <li>
-        <span class="rung-scale">component</span>
-        <code>locus</code>
-        <p>An owned region and a structural lifetime. Confinement is checked, not conventional.</p>
-      </li>
-      <li>
-        <span class="rung-scale">service</span>
-        <code>topic · bus · placement</code>
-        <p>Bus topology, causal reach, and dependency sets. The call graph continues past the publish.</p>
-      </li>
-      <li>
-        <span class="rung-scale">application</span>
-        <code>main locus · claims</code>
-        <p>Named law over the assembled graph, checked as errors, answered with a countermodel.</p>
-      </li>
-      <li>
-        <span class="rung-scale">environment</span>
-        <code>constitution · --matrix</code>
-        <p>One authored claimset, proven independently in every world that adopts it.</p>
-      </li>
-      <li>
-        <span class="rung-scale">fleet</span>
-        <code>plan: instances + routes</code>
-        <p>Law across separately compiled binaries, with the certificate signed and attested.</p>
-      </li>
-    </ol>
-
-    <p class="ladder-note">
-      Only an explicit route creates a fleet edge, and unknown means violation
-      at every rung: uncertainty may add a path, never erase one.
-    </p>
-  </section>
+  {/*
+    The "one ladder, six rungs" section stood here: value & behavior /
+    component / service / application / environment / fleet, each with a
+    line of prose. Unfold's beats, directly above, walk the same scales in
+    the same order — three of the eyebrows were verbatim identical — so a
+    reader met the argument twice in a row and the second telling added
+    one scale the first had missed. That scale is now a beat of its own
+    (environment/constitution), and the restatement is gone.
+  */}
 
   <section class="section-alt">
     <div class="container wide">
@@ -173,7 +131,7 @@ const failure = `locus WorkerPool {
     </div>
   </section>
 
-  <section class="section-alt causal-section">
+  <section class="section-alt causal-section" id="causality">
     <div class="container wide">
       <div class="section-intro">
         <p class="eyebrow">causality as a contract</p>
@@ -216,11 +174,17 @@ const failure = `locus WorkerPool {
       <div class="split">
         <div>
           <p class="eyebrow" style="color:var(--jade-deep);">the toolchain</p>
-          <h2>One binary, the whole loop.</h2>
+        {/* This was "One binary, the whole loop." over a list of the
+            subcommands — which is /tooling's own headline and opening
+            sentence, near enough word for word. A teaser that previews the
+            page it links to gives a reader nothing to click for, so this
+            states the consequence instead and leaves the inventory there. */}
+          <h2>The checker is fast enough to be a keystroke.</h2>
           <p>
-            Build, run, check, test, format, document, benchmark, and verify.
-            The LSP and MCP server expose the same structured diagnostics to
-            editors, CI, and other tools.
+            <code>hale check</code> answers in about ten milliseconds, so the
+            same structured diagnostic reaches an editor, a CI job, and a
+            coding assistant — and the one that fails your build is the one
+            you already read while typing.
           </p>
           <div class="hero-actions" style="margin-bottom:0;">
             <a class="btn btn-primary" href="/tooling">Tooling</a>

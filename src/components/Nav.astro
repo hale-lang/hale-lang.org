@@ -7,7 +7,7 @@ import { navLinks } from '../nav-links';
     <a class="brand" href="/"><Logo /> hale</a>
     <div class="links">
       {navLinks.map((l) => (
-        <a href={l.href} class={l.sm ? 'hide-sm' : ''}>{l.label}</a>
+        <a href={l.href}>{l.label}</a>
       ))}
       <a class="cta" href="https://github.com/hale-lang">GitHub ↗</a>
     </div>

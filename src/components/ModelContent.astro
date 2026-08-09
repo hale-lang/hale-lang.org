@@ -37,13 +37,6 @@ const main = `main locus App {
     }
 }`;
 
-const dependency = `@effects(depends: {Reading, ConfigChanged})
-locus Rollup {
-    bus {
-        subscribe Reading as add;
-        subscribe ConfigChanged as configure;
-    }
-}`;
 ---
 <section class="container prose model-page">
   <span class="tag">/model</span>
@@ -113,11 +106,20 @@ locus Rollup {
   <h2>Effects include causality, not only local side effects</h2>
   <p>
     Hale can constrain blocking, allocation, syscalls, time, entropy,
-    publication, spawning, and recursion across a reachable call path. It can
-    also state which subjects may transitively influence a locus, following the
-    path through republishers on the bus graph.
+    publication, spawning, and recursion across a reachable call path. What
+    makes causality an <em>effect</em> rather than a separate analysis is that
+    it obeys the same rule as the rest: a property is declared at one site and
+    proven over everything that site can reach. Reaching, here, does not stop
+    where the call stack does.
   </p>
-  <Hale code={dependency} title="dependency-contract.hl" />
+  <p>
+    That is the whole of the idea. A function that publishes has not ended its
+    influence; it has handed it to whoever subscribes, and to whoever they
+    publish to in turn. Declaring a dependency set says which subjects may
+    arrive at the end of that chain, and the compiler walks it.
+    {' '}<a href="/#causality">See it reject one</a>, or read
+    {' '}<a href="/proof">the witness it hands back</a>.
+  </p>
 
   <h2>The law keeps going past the executable</h2>
   <p>

@@ -126,6 +126,25 @@ main locus Fleet {
         one_writer: count publishers(topic Tasks) <= 1;
     }
 }` },
+  { title: 'constitution.hl', code: `group billing  = { Billing };
+group research = { Research };
+
+// Authored once. Every world that adopts it proves it again,
+// against its own graph.
+constitution Core {
+    tenant_iso: forbid reaches(billing, research);
+    one_writer: count publishers(topic Settled) == 1;
+}
+
+main locus App {
+    params {
+        b: Billing = Billing { };
+        r: Research = Research { };
+        l: Ledger = Ledger { };
+    }
+
+    claims { adopt Core; }
+}` },
   { title: 'prod.plan.json', code: `{
   "schema": "1.1", "name": "prod",
   "instances": [
@@ -251,6 +270,21 @@ main locus Fleet {
     </article>
 
     <article class="beat">
+      <div class="beat-copy">      <p class="eyebrow">environment</p>
+      <h3>The law outlives the program that states it.</h3>
+      <p>
+        A claimset can be authored once and adopted by every world that has
+        to hold it. Each proves it independently, against its own graph.
+        Composition is union only, so a rule can be added and never quietly
+        weakened.
+      </p>
+      </div>
+      <div class="beat-viz">
+        <Hale code={panels[7].code} title={panels[7].title} />
+      </div>
+    </article>
+
+    <article class="beat">
       <div class="beat-copy">      <p class="eyebrow">fleet</p>
       <h3>The recursion does not stop at the process.</h3>
       <p>
@@ -261,7 +295,7 @@ main locus Fleet {
       </p>
       </div>
       <div class="beat-viz">
-        <Hale code={panels[7].code} title={panels[7].title} />
+        <Hale code={panels[8].code} title={panels[8].title} />
       </div>
     </article>
   </div>
@@ -457,7 +491,10 @@ main locus Fleet {
     const NEAR = 300 / leaf.r, FAR = 1000 / FW;
 
     // Eight beats, in the order they are written above.
-    const span = 1 / 8;
+    // Beat cues are expressed in spans, never in bare fractions: 0.80 meant
+    // "beat 6.4 of 8" and silently became a different beat the moment a
+    // ninth was added. Anything after the constitution beat is +1 span.
+    const span = 1 / 9;
 
     /*
       The camera runs on f.p (the whole document, when page-wide), but the
@@ -498,7 +535,7 @@ main locus Fleet {
       }
 
       // Routes join instances, and only once a fleet is legible.
-      const routeA = clamp01((bp - 0.80) / 0.14);
+      const routeA = clamp01((bp - 7.4 * span) / (1.26 * span));
       if (routeA > 0) {
         for (const [a, b] of routes) {
           const [ax, ay] = S(a.x, a.y);
@@ -512,7 +549,7 @@ main locus Fleet {
         }
       }
 
-      const busA = clamp01((bp - 3 * span) / 0.1) * (1 - clamp01((bp - 0.86) / 0.14));
+      const busA = clamp01((bp - 3 * span) / (0.9 * span)) * (1 - clamp01((bp - 7.88 * span) / (1.26 * span)));
       const busY = H * 0.17;
       topicLine(f, busY, busA);
 
@@ -565,7 +602,7 @@ main locus Fleet {
       }
 
       // Law: the world closes, and the closure is what can be certified.
-      const seal = window_(bp, 6 * span, 7.4 * span, 0.3);
+      const seal = window_(bp, 7 * span, 8.4 * span, 0.3);
       if (seal > 0) {
         const inst = world[1];
         const [ix, iy] = S(inst.x, inst.y);
@@ -580,7 +617,7 @@ main locus Fleet {
       }
 
       // The certificate, once the whole arrangement is in view.
-      const cert = clamp01((bp - 0.9) / 0.08);
+      const cert = clamp01((bp - 8.2 * span) / (0.72 * span));
       if (cert > 0) {
         for (const inst of world) {
           const [ix, iy] = S(inst.x, inst.y);

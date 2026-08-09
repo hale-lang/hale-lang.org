@@ -223,10 +223,10 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 .nav .links a:hover { color: var(--jade-deep); text-decoration: none; }
 .nav .links a.cta { color: var(--jade-deep); }
 @media (max-width: 820px) {
-  .nav .links a.hide-sm { display: none; }
-  /* Even the reduced set outgrows a narrow phone. Let the row scroll
-     inside itself rather than widen the page — every link stays
-     reachable, which a hidden one would not be. */
+  /* The row scrolls inside itself rather than widening the page, so it
+     no longer has to drop links to fit. It used to hide Features,
+     Examples and Articles below this width — three whole sections of
+     the site, unreachable on a phone with no way to know they existed. */
   .nav .links {
     min-width: 0;
     gap: 1rem;

@@ -209,13 +209,6 @@
 }
 .consequence-grid article > span,
 .proof-matrix article > span,
-.feature-status > span {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--jade);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
 .consequence-grid h3 { margin-top: 0.55rem; }
 .consequence-grid p { margin: 0; font-size: 0.92rem; }
 
@@ -321,21 +314,6 @@
   background: var(--paper-2);
 }
 
-.feature-status-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 4rem;
-}
-.feature-status {
-  padding: 1.2rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.feature-status-rfc { border-style: dashed; }
-.feature-status-rfc > span { color: var(--amber); }
-.feature-status h2 { margin-top: 0.55rem; font-size: 1.05rem; }
-.feature-status p { margin: 0; font-size: 0.9rem; }
 
 .proof-matrix {
   display: grid;
@@ -392,7 +370,7 @@
   .why-now-inner { grid-template-columns: 0.35fr 1fr; }
   .why-now-inner > p:last-child { grid-column: 2; }
   .consequence-grid { grid-template-columns: repeat(2, 1fr); }
-  .feature-status-grid, .proof-matrix, .proof-scope-grid { grid-template-columns: repeat(2, 1fr); }
+  .proof-matrix, .proof-scope-grid { grid-template-columns: repeat(2, 1fr); }
   .model-graphs { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -401,7 +379,6 @@
   .proof-list,
   .proof-list-wide,
   .credibility-links,
-  .feature-status-grid,
   .proof-matrix,
   .causal-proof,
   .proof-scope-grid,

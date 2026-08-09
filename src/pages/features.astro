@@ -149,22 +149,20 @@ import Field from '../components/Field.astro';
         from the same registry the checker proves against.</li>
     </ul>
 
+    {/*
+      This was the whole toolchain inventory — every subcommand, the LSP, the
+      MCP server — which is /tooling's entire subject, restated on a page
+      that already links to it twice. An inventory page reprinting another
+      page's inventory ages badly in one direction: they drift. One sentence
+      and the link.
+    */}
     <h2>Toolchain</h2>
     <ul>
-      <li><strong>One binary</strong>: <code>check</code>,
-        <code>verify</code> (advisories fail too: the CI gate),
-        <code>run</code>, <code>build</code>, <code>test</code>,
-        <code>bench</code> (ns/op, allocs/op), <code>fmt</code> (zero-config,
-        re-lex equivalence gated), <code>doc</code>, <code>fetch</code>,
-        <code>fleet</code>, <code>lsp</code>, <code>mcp</code>.</li>
-      <li><strong>Editor support</strong>, a stdio LSP in the compiler binary
-        (~10&nbsp;ms full re-check, contract-surfacing hover, bus-graph and
-        placement queries); a <a href="/tooling">tree-sitter grammar</a> for
-        the rest.</li>
-      <li><strong>Agent tooling</strong>, an MCP server in the compiler binary
-        (checks, builds, tests, bus graph, spec search), a checked-in
-        <code>AGENTS.md</code>, and machine-readable artifacts throughout. See
-        <a href="/tooling">tooling</a>.</li>
+      <li>Everything ships in the one <code>hale</code> binary — build, run,
+        check, verify, test, bench, fmt, doc, fetch, fleet — with the language
+        server and the MCP server compiled into it, so an editor, a CI job and
+        a coding assistant all read the same diagnostic.
+        <a href="/tooling">The toolchain, in full →</a></li>
     </ul>
 
     <h2>Platforms</h2>
