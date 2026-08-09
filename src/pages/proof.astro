@@ -52,6 +52,7 @@ const status = [
   ['shipped', 'Observation plane', 'Runtime birth, dissolve, publish, delivery, and transport evidence.'],
   ['shipped', 'Bundle-level claims and the topology artifact', 'Named sentences over the assembled graph — isolation, grants, coverage, cardinality, interposition, bounds — with countermodel witnesses and a committed model baseline.'],
   ['shipped', 'Fleet composition across binaries', 'Sealed application artifacts plus a routed deployment plan, checked as one model — with witnesses that cross artifacts. Topology is certified; delivery is not.'],
+  ['shipped', 'Confined state and attributed boundaries', 'A locus whose state is reachable only from inside it, one classified privileged operation, and universals over the closed world: every member of a group confined, every boundary crossing named. Confinement, not information flow.'],
   ['rfc', 'Deterministic record and replay', 'A self-describing execution record built from effects, deployment, and observation.'],
   ['rfc', 'Deployment elaboration and meta-scheduling', 'Candidate arrangements verified before activation or transition.'],
 ];
@@ -162,6 +163,34 @@ const status = [
           explicit route creates an edge.
         </p>
         <a href="/docs/services/multi-binary">Across binaries →</a>
+      </article>
+
+      <article>
+        <span>compiler</span>
+        <h2>State a caller cannot reach</h2>
+        <p>
+          A locus marked <code>@sealed</code> keeps its params to itself:
+          others may call it, not read or write it. That closes the one gap
+          in the ownership model — a parent otherwise reads a child's state
+          directly — and turns confinement from something you verify by
+          reading into something the compiler knows. The library's key
+          holders take the <em>name</em> of a source rather than the bytes,
+          so no line of application code ever holds the material.
+        </p>
+        <p>
+          The law is then ordinary: one classified operation, and claims
+          that say who may reach it and how often. Two verbs quantify over
+          the whole program rather than a path — every locus in a group
+          confined, every boundary crossing naming a purpose — so code
+          written next month is covered without editing the claim.
+        </p>
+        <p>
+          What this is: confinement. What it is not: information flow. A
+          value derived from the key is not tracked, and a constant-time
+          compare still lets the verdict be published. Both limits are in
+          the specification rather than left for a green result to imply.
+        </p>
+        <a href="/docs/verification#secrets-confine-classify-claim">Confine, classify, claim →</a>
       </article>
 
       <article>
