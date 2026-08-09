@@ -35,44 +35,35 @@ const fmt = (d: Date) =>
     month: 'long',
     year: 'numeric',
   });
+
+// One line of plain text under the title. The pieces are
+// self-describing — a date is a date, "AI-written" needs no key — so
+// they are joined rather than each given a badge.
+const meta = (p: (typeof all)[number]) =>
+  [
+    p.data.part ? `Part ${p.data.part}` : null,
+    p.data.kind === 'announcement' ? 'Announcement' : null,
+    fmt(p.data.date),
+    p.data.version ?? null,
+    p.data.authorship === 'ai' ? 'AI-written' : 'Human-written',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 ---
 
 <Base title="Articles">
   <section class="container prose">
     <span class="tag">/articles</span>
     <h1>Articles &amp; announcements</h1>
-    <p class="lede">
-      Releases written as prose rather than a list of commits, and technical
-      pieces about one thing at a time. Everything here is dated and stays
-      put — a note from a year ago describes the language as it was then.
-    </p>
-    <p class="note">
-      Every piece says who wrote it. <span class="by by-ai">AI-written</span>
-      means the prose was drafted by an LLM and then checked against the
-      shipped implementation; <span class="by by-human">Human-written</span>
-      means a person wrote it.
-    </p>
 
     {series.map((s) => (
-      <section class="series-block">
+      <section class="block">
         <h2>{s.name}</h2>
-        <p class="series-lede">
-          Read in order — each part assumes the one before it.
-        </p>
-        <ul class="article-list">
+        <ul class="list">
           {s.posts.map((p) => (
             <li>
-              <div class="meta">
-                <span class="part">Part {p.data.part}</span>
-                <time datetime={p.data.date.toISOString()}>
-                  {fmt(p.data.date)}
-                </time>
-                {p.data.version && <span class="ver">{p.data.version}</span>}
-                <span class={`by by-${p.data.authorship}`}>
-                  {p.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
-                </span>
-              </div>
-              <a class="title" href={`/articles/${p.id}`}>{p.data.title}</a>
+              <a href={`/articles/${p.id}`}>{p.data.title}</a>
+              <p class="meta">{meta(p)}</p>
               <p class="summary">{p.data.summary}</p>
             </li>
           ))}
@@ -81,24 +72,13 @@ const fmt = (d: Date) =>
     ))}
 
     {loose.length > 0 && (
-      <section class="series-block">
+      <section class="block">
         {series.length > 0 && <h2>Everything else</h2>}
-        <ul class="article-list">
+        <ul class="list">
           {loose.map((p) => (
             <li>
-              <div class="meta">
-                <span class={`kind kind-${p.data.kind}`}>
-                  {p.data.kind === 'announcement' ? 'Announcement' : 'Article'}
-                </span>
-                <time datetime={p.data.date.toISOString()}>
-                  {fmt(p.data.date)}
-                </time>
-                {p.data.version && <span class="ver">{p.data.version}</span>}
-                <span class={`by by-${p.data.authorship}`}>
-                  {p.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
-                </span>
-              </div>
-              <a class="title" href={`/articles/${p.id}`}>{p.data.title}</a>
+              <a href={`/articles/${p.id}`}>{p.data.title}</a>
+              <p class="meta">{meta(p)}</p>
               <p class="summary">{p.data.summary}</p>
             </li>
           ))}
@@ -109,85 +89,33 @@ const fmt = (d: Date) =>
 </Base>
 
 <style>
-  .note {
-    font-size: 0.92rem;
-    color: var(--muted);
-    margin-top: 1rem;
+  .block {
+    margin-top: 2.5rem;
   }
-  .by {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.72rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 3px;
-    border: 1px solid currentColor;
-    white-space: nowrap;
-  }
-  .by-ai {
-    color: var(--amber);
-  }
-  .by-human {
-    color: var(--jade);
-  }
-  .series-block {
-    margin-top: 2.75rem;
-  }
-  .series-block h2 {
-    margin-bottom: 0.25rem;
-  }
-  .series-lede {
-    font-size: 0.92rem;
-    color: var(--muted);
-    margin: 0;
-  }
-  .part {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--jade);
-    font-weight: 600;
-  }
-  .article-list {
+  .list {
     list-style: none;
     padding: 0;
-    margin: 2rem 0 0;
+    margin: 1.25rem 0 0;
   }
-  .article-list li {
-    padding: 1.25rem 0;
-    border-top: 1px solid var(--border, #2a2a2a);
+  .list li + li {
+    margin-top: 1.75rem;
   }
-  .meta {
-    display: flex;
-    gap: 0.75rem;
-    align-items: baseline;
-    font-size: 0.85rem;
-    opacity: 0.75;
-    margin-bottom: 0.35rem;
-    flex-wrap: wrap;
-  }
-  .kind {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.72rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 3px;
-    border: 1px solid currentColor;
-  }
-  .ver {
-    font-family: var(--font-mono, monospace);
-  }
-  a.title {
-    display: block;
-    font-size: 1.25rem;
+  .list a {
+    font-size: 1.15rem;
     font-weight: 600;
     text-decoration: none;
-    margin-bottom: 0.3rem;
   }
-  a.title:hover {
+  .list a:hover {
     text-decoration: underline;
+  }
+  .meta {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin: 0.2rem 0 0.4rem;
   }
   .summary {
     margin: 0;
     opacity: 0.85;
+    max-width: 64ch;
   }
 </style>
