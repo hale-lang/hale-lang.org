@@ -49,7 +49,7 @@ const fmt = (d: Date) =>
       <span class="tag">/articles</span>
       <div class="meta">
         <span class={`kind kind-${post.data.kind}`}>
-          {post.data.kind === 'announcement' ? 'Announcement' : 'Article'}
+          {post.data.kind === 'announcement' ? 'Announcement' : 'Technical article'}
         </span>
         <time datetime={post.data.date.toISOString()}>
           {fmt(post.data.date)}
@@ -60,16 +60,6 @@ const fmt = (d: Date) =>
           </time>
         )}
         {post.data.version && <span class="ver">{post.data.version}</span>}
-        <span
-          class={`by by-${post.data.authorship}`}
-          title={
-            post.data.authorship === 'ai'
-              ? 'Drafted by an LLM, reviewed against the shipped implementation'
-              : 'Written by a person'
-          }
-        >
-          {post.data.authorship === 'ai' ? 'AI-written' : 'Human-written'}
-        </span>
       </div>
       {post.data.series && (
         <p class="series">
@@ -101,12 +91,14 @@ const fmt = (d: Date) =>
 </Base>
 
 <style>
-  /* Sidebar + article. The container widens beyond --maxw here so the
-     prose keeps its 72ch measure instead of paying for the sidebar. */
+  /* Sidebar + article. The prose column is pinned to the reading
+     measure and the pair is centred as a unit — a 1fr second column
+     would leave the whole block hugging the left of the container. */
   .wrap {
     max-width: var(--maxw-wide);
     display: grid;
-    grid-template-columns: 15rem minmax(0, 1fr);
+    grid-template-columns: 15rem minmax(0, var(--measure));
+    justify-content: center;
     gap: 3rem;
     align-items: start;
   }
@@ -118,11 +110,11 @@ const fmt = (d: Date) =>
     max-height: calc(100vh - 7rem);
     overflow-y: auto;
   }
-  /* One column below the point where 15rem + 72ch stops fitting. The
-     sidebar leads, so the series is visible before the piece starts. */
+  /* One column below the point where 15rem + the measure stops fitting.
+     The sidebar leads, so the series is visible before the piece starts. */
   @media (max-width: 900px) {
     .wrap {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 2rem;
     }
     .side {
@@ -131,23 +123,6 @@ const fmt = (d: Date) =>
       padding-bottom: 1.25rem;
       border-bottom: 1px solid var(--border);
     }
-  }
-  /* Authorship reads as a fact about the text, so it is a quiet
-     marker rather than a warning — but it never blends into the date
-     either: it carries its own tint and stays legible at a glance. */
-  .by {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.72rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 3px;
-    border: 1px solid currentColor;
-  }
-  .by-ai {
-    color: var(--amber);
-  }
-  .by-human {
-    color: var(--jade);
   }
   .series {
     font-size: 0.85rem;

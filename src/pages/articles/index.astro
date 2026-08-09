@@ -37,15 +37,14 @@ const fmt = (d: Date) =>
   });
 
 // One line of plain text under the title. The pieces are
-// self-describing — a date is a date, "AI-written" needs no key — so
-// they are joined rather than each given a badge.
+// self-describing — a date is a date, a kind is a kind — so they are
+// joined rather than each given a badge.
 const meta = (p: (typeof all)[number]) =>
   [
     p.data.part ? `Part ${p.data.part}` : null,
-    p.data.kind === 'announcement' ? 'Announcement' : null,
+    p.data.kind === 'announcement' ? 'Announcement' : 'Technical article',
     fmt(p.data.date),
     p.data.version ?? null,
-    p.data.authorship === 'ai' ? 'AI-written' : 'Human-written',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -116,6 +115,5 @@ const meta = (p: (typeof all)[number]) =>
   .summary {
     margin: 0;
     opacity: 0.85;
-    max-width: 64ch;
   }
 </style>

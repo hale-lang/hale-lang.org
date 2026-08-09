@@ -34,8 +34,11 @@
           Menlo, Consolas, "Liberation Mono", monospace;
 
   /* scale */
-  --maxw: 1080px;
-  --maxw-wide: 1200px;
+  --maxw: 1180px;
+  --maxw-wide: 1400px;
+  /* reading measure — the only thing that stays narrow, because it is
+     the only thing narrowness helps. Everything else uses --maxw. */
+  --measure: 80ch;
   --radius: 10px;
   --radius-lg: 16px;
 
@@ -99,6 +102,9 @@ code { font-family: var(--mono); font-size: 0.875em; }
   padding: 0.12em 0.4em;
   border-radius: 5px;
   font-size: 0.84em;
+  /* an identifier like @effects(only: …) is one unbreakable word and is
+     wider than a small phone; break it rather than the page */
+  overflow-wrap: break-word;
 }
 
 .eyebrow {
@@ -142,9 +148,13 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
   background: var(--code-bg); color: #d6deeb;
   border: 1px solid var(--code-bd);
   padding: 0.7rem 0.9rem; border-radius: var(--radius);
+  max-width: 100%;
 }
 .install .sigil { color: var(--jade-deep); user-select: none; }
-.install .cmd { white-space: nowrap; overflow-x: auto; }
+/* min-width:0 is what makes the overflow-x actually engage — without it
+   the nowrap command sits at its content size and pushes the hero past
+   the viewport on a phone. */
+.install .cmd { white-space: nowrap; overflow-x: auto; min-width: 0; }
 
 /* ---- code panels (Shiki) ---- */
 .code {
@@ -212,7 +222,20 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 }
 .nav .links a:hover { color: var(--jade-deep); text-decoration: none; }
 .nav .links a.cta { color: var(--jade-deep); }
-@media (max-width: 820px) { .nav .links a.hide-sm { display: none; } }
+@media (max-width: 820px) {
+  .nav .links a.hide-sm { display: none; }
+  /* Even the reduced set outgrows a narrow phone. Let the row scroll
+     inside itself rather than widen the page — every link stays
+     reachable, which a hidden one would not be. */
+  .nav .links {
+    min-width: 0;
+    gap: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav .links::-webkit-scrollbar { display: none; }
+  .nav .links a { white-space: nowrap; }
+}
 
 /* ---- brand mark ---- */
 .brand { display: inline-flex; align-items: center; gap: 0.55rem; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); font-size: 1.05rem; }
@@ -232,10 +255,13 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 }
 
 /* ---- pillars: code beside copy ---- */
-.split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: center; }
-.split.rev { grid-template-columns: 1fr 1.1fr; }
+/* minmax(0, …) rather than a bare fr: an fr track floors at min-content,
+   so one nowrap line or a wide code panel would otherwise stretch the
+   track and take the page with it. */
+.split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 2rem; align-items: center; }
+.split.rev { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
 .split.rev .copy { order: 2; }
-@media (max-width: 880px) { .split, .split.rev { grid-template-columns: 1fr; } .split.rev .copy { order: 0; } }
+@media (max-width: 880px) { .split, .split.rev { grid-template-columns: minmax(0, 1fr); } .split.rev .copy { order: 0; } }
 
 /* ---- callout (compiler-rejects) ---- */
 .callout {
@@ -267,7 +293,7 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 .footer .copy { margin-top: 2rem; color: var(--faint); font-size: 0.82rem; }
 
 /* ---- misc page content ---- */
-.prose { max-width: 72ch; }
+.prose { max-width: var(--measure); }
 .prose h2 { margin-top: 2.5rem; }
 .prose h3 { margin-top: 1.8rem; }
 .prose ul { padding-left: 1.2rem; }
@@ -281,6 +307,21 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 .center { text-align: center; }
 hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
 
+/* Markdown tables in long-form articles carry no class of their own. A
+   three-column table has a min-content width wider than a phone, so let
+   the table scroll inside itself rather than widen the page. */
+.prose table:not(.matrix) {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.prose table:not(.matrix) :is(th, td) { text-align: left; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.prose table:not(.matrix) th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
+
 table.matrix { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
 table.matrix th, table.matrix td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 table.matrix th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
+table.matrix td.lib code { white-space: nowrap; }

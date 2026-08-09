@@ -56,7 +56,17 @@ const tiers = [
         <table class="matrix">
           <tbody>
             {libs.map(([name, desc]) => (
-              <tr><td style="white-space:nowrap;"><code>{name}</code></td><td>{desc}</td></tr>
+              <tr>
+                {/* Each name stays whole; a cell listing several breaks
+                    between them. A nowrap cell instead pins the table's
+                    min-content wider than a phone. */}
+                <td class="lib">
+                  {name.split(' · ').map((n, i) => (
+                    <>{i > 0 ? ' · ' : ''}<code>{n}</code></>
+                  ))}
+                </td>
+                <td>{desc}</td>
+              </tr>
             ))}
           </tbody>
         </table>

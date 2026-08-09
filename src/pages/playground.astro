@@ -27,6 +27,11 @@ import Base from '../layouts/Base.astro';
 <style>
   .play-frame {
     margin-top: 1.5rem;
+    /* An editor is not prose — break it out of the reading measure and
+       centre it on the viewport, the way the model page's map does. */
+    width: min(var(--maxw-wide), calc(100vw - 48px));
+    margin-left: 50%;
+    transform: translateX(-50%);
     border: 1px solid var(--border, #2a2f3a);
     border-radius: 12px;
     overflow: hidden;
