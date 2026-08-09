@@ -170,12 +170,12 @@ const status = [
         <h2>State a caller cannot reach</h2>
         <p>
           A locus marked <code>@sealed</code> keeps its params to itself:
-          others may call it, not read or write it. That closes the one gap
-          in the ownership model — a parent otherwise reads a child's state
-          directly — and turns confinement from something you verify by
-          reading into something the compiler knows. The library's key
-          holders take the <em>name</em> of a source rather than the bytes,
-          so no line of application code ever holds the material.
+          others may call it, not read or write it. Loci are not otherwise
+          encapsulated at the field level, so this is what makes
+          confinement a fact the compiler knows rather than one you verify
+          by reading. The library's key holders take the <em>name</em> of a
+          source rather than the bytes, so no line of application code
+          holds the material.
         </p>
         <p>
           The law is then ordinary: one classified operation, and claims
@@ -185,10 +185,10 @@ const status = [
           written next month is covered without editing the claim.
         </p>
         <p>
-          What this is: confinement. What it is not: information flow. A
-          value derived from the key is not tracked, and a constant-time
-          compare still lets the verdict be published. Both limits are in
-          the specification rather than left for a green result to imply.
+          Confinement, not information flow: a value derived from the key
+          is not tracked, and a constant-time compare still lets the
+          verdict be published. Both limits are stated in the
+          specification.
         </p>
         <a href="/docs/verification#secrets-confine-classify-claim">Confine, classify, claim →</a>
       </article>

@@ -5,34 +5,25 @@ authorship: ai
 series: "Hale as a general model checker"
 part: 5
 date: 2026-08-08
+updated: 2026-08-09
 version: v0.16.0
 summary: >-
-  Four rounds of design converged on almost nothing: one annotation, one
-  built-in effect class, and claim forms that already existed. The story of
-  a feature that kept getting smaller, what the ownership model was already
-  doing, and why the interesting test of a checker is not what it proves but
-  whether the next problem needs new machinery.
+  A signing key the rest of the program cannot reach, using the ownership
+  model that was already there. One annotation closes the gap in it, one
+  built-in effect class marks the privileged operation, and the law is
+  written with claim forms that already existed — confinement, stated
+  precisely, with no information-flow analysis anywhere.
 ---
 
-The request was ordinary enough: a signing key that the rest of the program cannot get at.
+A signing key belongs to one component. Everything else should be able to *ask* for a signature and unable to obtain the key.
 
-The first design answered it with information-flow analysis. Labels on values, a lattice, propagation through a semantic-event IR, declassification with named authority, program-counter labels for control dependence. It was a coherent design and a well-known one. It was also six phases of new compiler machinery, and it would have been the largest subsystem in the language.
+That is a confinement problem, and Hale answers it with the ownership model it already had — plus one word.
 
-What shipped was one annotation, one built-in effect class, and claim forms that already existed.
+## The gap in the ownership model
 
-This is the story of the shrinking, because the shrinking is the point. The first four articles in this series argued that Hale is a model checker over its own structure. The interesting test of that claim is not another proof — it is what happens when a genuinely new problem arrives. If the answer requires a new subsystem every time, the structure was never doing the work.
+Hale programs are made of **loci**. A locus owns its state, its region, and its children; the typed bus is how loci talk. Put the key in a locus, give that locus one method, and everyone else has a phone number rather than the key.
 
-## What the ownership model was already doing
-
-Hale's programs are made of **loci**: a locus owns its state, its region, and its children, and the typed bus is how loci talk. That is not a security feature. It is the ordinary way you write anything.
-
-But read it as a confinement primitive and it is almost exactly what a secret wants. Put the key inside a locus. Give that locus one method. Nobody else has the key; they have a phone number.
-
-The word "almost" was carrying real weight, and it took building the thing to find out where.
-
-## The one word that was missing
-
-Loci turn out not to be encapsulated at the field level. This typechecks:
+Almost. Loci are not encapsulated at the field level, so this typechecks:
 
 ```hale
 locus Gateway {
@@ -44,9 +35,9 @@ locus Gateway {
 }
 ```
 
-A parent reads its child's params directly. For ordinary configuration that is convenient and harmless. For a key it is the whole ballgame: "the key never leaves the locus that owns it" was something you could check by reading, not something the compiler knew.
+For ordinary configuration that is convenient. For a key it means "the key never leaves the locus that owns it" is a property you verify by reading rather than one the compiler knows.
 
-So: `@sealed`.
+`@sealed` closes it:
 
 ```hale
 @sealed locus Signer {
@@ -57,7 +48,7 @@ So: `@sealed`.
 }
 ```
 
-A sealed locus's `params` are reachable only from inside its own methods. Others may still **call** it — that is the entire point — they may not touch its state.
+A sealed locus's `params` are reachable only from inside its own methods — reads and writes both. Others may still **call** it, which is the entire point.
 
 ```text
 `Signer` is `@sealed`: its `params` are readable only from inside its own
@@ -65,25 +56,110 @@ methods, and `Signer.key` reads one from outside — call one of its methods
 instead (sign)
 ```
 
-One word, opt-in, breaking nothing. It follows `@supervised`, which has the same shape: a structural property a locus opts into.
+Reads and writes matter equally. A locus whose state can be replaced from outside doesn't merely leak the key — it lets a caller *choose* it.
 
-The interesting question was whether anyone could actually adopt it, and that turned out to be measurable rather than arguable. `hale check --sealable` reports, per locus, the sites outside it that touch its params. Across this repository's own corpus — 151 loci in 94 programs — **148 seal with no changes at all**. The three that do not are the same shape: a parent reading a child's *result* field instead of calling a method, which the language's Law-of-Demeter rule already discourages.
+The annotation is opt-in, and `hale check --sealable` reports what taking it would cost:
 
-## Where the design kept collapsing
+```text
+sealability: 4 of 5 loci can be `@sealed` today
 
-Between the first proposal and the last, three intermediate designs were built far enough to be evaluated and then discarded. Each collapsed for the same reason.
+  free to seal (nothing outside touches their params):
+    Already, App, Holder, Private
 
-**Value labels and a lattice.** Hale's model is declaration-grained: claims match declarations, effects belong to functions, the bus graph belongs to loci and topics. Values are not nodes in it. A label lattice needs them to be, which is why the design needed a semantic-event IR underneath — a second, finer model, invented to support the first.
+  would break callers:
+    Exposed — 1 external access(es): Exposed.k
+```
 
-**Declaration ports.** The next design kept the labels but made them travel between *ports*: a function's parameters, its return, a locus field, a topic payload field. That composes. It is also, as a reviewer pointed out, mostly a hand-built version of something the typechecker already does — propagate a type through every binding. If the secret *is* a type, tracking it is free.
+Most loci already qualify: across Hale's own corpus, 148 of 151. The ones that don't share a shape — a parent reading a child's *result* field instead of calling a method, which the language's Law-of-Demeter rule already discourages.
 
-**Type-ops.** Then: forget values, track which *operations* are applied to which *types*. That one is genuinely elegant, and it exposed something worth keeping. A call site is already a triple — `(function, callee, argument types)` — and the effect system walks exactly those sites, unions the callee's effect set, and **throws the argument types away**. Effects are that relation projected onto functions. Project it the other way and you get operations-per-type. Flow is the join.
+## Name the source, not the value
 
-Correct, and still more machinery than the problem needed.
+Sealing protects reads and writes. It deliberately leaves **construction** alone: a parent writing `Signer { key: … }` already holds what it passes, so restricting the initializer would cost ordinary configuration and buy nothing.
 
-## The distinction that ended it
+Which means a key arriving as a constructor argument is a key some line of your application held. So the standard library's holders take the *name of a source*:
 
-Hale is an application kernel: the domain expresses the business, the library and runtime provide mechanism, the compiler assembles and asserts. "The domain should say as little as possible" sounds like a design rule until you notice that `claims { }` is domain text and we want *more* of it, not less.
+```hale
+locus Gateway {
+    params {
+        s: std::secret::Signer =
+            std::secret::Signer { env_var: "SIGNING_KEY" };
+    }
+    fn go(m: Bytes) -> Bytes { return self.s.sign(m); }
+}
+```
+
+The material is read during `birth`. It exists inside a sealed locus from the moment it enters the program, and there is no line anywhere in your code where you hold it. `self.s.key` is a compile error.
+
+Two details make that hold. `birth` is the only writer, including the case where no source is configured — otherwise a caller seeds `key:` directly and the discipline evaporates. And every privileged method consults `ready()`: a signer that computes under an empty key returns a MAC anyone can forge, and a credential that compares against an empty value accepts the empty candidate.
+
+`std::secret::Credential` is the same discipline for a token or password, with a `fingerprint()` — the first eight bytes of SHA-256, hex — for correlation in logs.
+
+## One classified operation
+
+The privileged method carries `secret_use`, a compiler-owned effect class. Every built-in effect name is reserved, so you use it without declaring it.
+
+That single annotation is what makes the key's reachability a graph property. Effect classes propagate transitively through the call graph with no further annotation, so every path that can touch the key is visible to the checker.
+
+## The law is ordinary
+
+Nothing above needed a new claim form. The application states its rule with sentences that already existed:
+
+```hale
+claims {
+    no_plugin_secrets:  forbid reaches(plugins, effects(secret_use));
+    one_op_per_request: bound secret_use <= 1 on paths from handlers;
+}
+```
+
+Wire a signer into a plugin, and the build stops with the crossing call named:
+
+```text
+claim `no_plugin_secrets` violated: `plugins` reaches `effects(secret_use)`
+  — witness: `PluginHost::sneak` -> `std::secret::Signer::sign`
+```
+
+Two verbs do quantify differently from the rest, over the whole closed world rather than over a path:
+
+```hale
+claims {
+    vault_confined: require sealed(all vaults);
+    io_attributed:  require attributed(all syscall);
+}
+```
+
+`require sealed(all G)` demands confinement across a group. Sealing is otherwise per-locus discipline, and one unsealed member of a vault group is the whole hole.
+
+`require attributed(all C)` demands that every function directly performing built-in class `C` names a user-declared purpose — every place the program touches the OS says what for.
+
+That second one is easy to mistake for a weaker version of routing all I/O through a vetted component, which is already expressible:
+
+```hale
+all_io_is_gated: forbid reaches(app, effects(syscall)) avoiding safe_io;
+```
+
+They are independent. Interposition constrains **where** a boundary is crossed and says nothing about **what for**: all I/O can funnel through one `write(path, bytes)` that everyone calls for everything — perfectly gated, and you have no idea why any particular write happened. Attribution constrains what for and says nothing about where. A real system usually wants both.
+
+Because both universals quantify over the program rather than a named group, they also cover code nobody has written yet. A locus added next month is inside the law without anyone editing it.
+
+## In the artifact
+
+`sealed` is a hashed row in the topology model. A locus gaining or losing it moves `shape_hash`, so a `--check-topology` gate in CI sees the change. Confinement is a structural property of the program, not only an input to a claim — a seal changing with no topology diff would be the invisible security change the artifact exists to surface.
+
+`require sealed` replays from the artifact. `require attributed` does not: it turns on *direct* effect sites, and the artifact exports inferred per-function effect sets, so that form is compiler-certified — the artifact carries its verdict, not the facts to recompute it.
+
+## What it guarantees
+
+> The secret lives in a locus that owns it, the domain cannot obtain it, the only operations on it are compiler-classified, and the domain's claims constrain who may reach them and how often.
+
+This is **confinement, not information flow**. A signature derived from the key is not tracked. A constant-time comparison still lets the *verdict* be published. And the sealed locus's own body is trusted, which is why the standard library ships this shape small enough to review rather than leaving everyone to write their own.
+
+Those limits are in the specification, not a footnote. A checker's value is not that it says yes; it is that when it says yes, you know exactly what it said yes *to*.
+
+## Why the design is this small
+
+There is a well-established answer to "keep a value from reaching a sink": information-flow analysis. Labels on values, a lattice, propagation, declassification with named authority, program-counter labels for control dependence. It is a real body of theory and it would have been the largest subsystem in the language.
+
+Hale's design rule points elsewhere. The domain expresses the business; the library and runtime provide mechanism; the compiler assembles and asserts. That sounds like "the domain should say as little as possible" until you notice that `claims { }` is domain text and the language wants *more* of it.
 
 The distinction that resolves it:
 
@@ -91,91 +167,16 @@ The distinction that resolves it:
 >
 > **Law** is what the domain must write *about itself* — "plugins never touch secrets", "one signing operation per request". No library and no compiler can supply it, because it is business knowledge.
 
-Minimize tax. Law is not tax; law is the point.
+Minimize tax. Law is not tax; law is the point. And the same feature is tax or machinery depending on who declares it: an opaque wrapper type written by an application is tax; shipped by `std::crypto`, it is machinery the domain merely uses.
 
-And the corollary does most of the work: **the same feature is tax or machinery depending on who declares it.** An opaque wrapper type written by an application is tax. Shipped by `std::crypto`, it is machinery the domain merely uses. `only ops T { … }` written by an application is tax; shipped by the type's owner, it is machinery.
+Sorted that way, a labelled-value system is tax from top to bottom. What remains is the ownership model, one word to close its gap, one class to mark the privileged operation, and sentences the domain was going to write anyway.
 
-Sorted that way, every proposal on the table was tax. What was left was the ownership model, one word to close its gap, and sentences the domain was going to write anyway.
+## What secrets are
 
-## The shape that shipped
+The first four parts of this series built upward: a function's effects, an application's claims, a shared constitution, a deployed fleet. Four closures, each emitting evidence the next composes.
 
-```hale
-@sealed locus Signer {
-    params { env_var: String = "SIGNING_KEY"; key: Bytes = b""; }
+Confinement adds no fifth closure. It is the same machinery, pointed at a problem that looks like it needs its own.
 
-    birth() { self.key = load(self.env_var); }
+> **The secret is confined by ownership, marked by classification, and governed by law you already know how to write.**
 
-    fn ready() -> Bool { return len(self.key) > 0; }
-
-    @effects(is: { secret_use })
-    fn sign(m: Bytes) -> Bytes {
-        if !self.ready() { return b""; }
-        return crypto::hmac_sha256(self.key, m);
-    }
-}
-```
-
-Four rules, each earned by something going wrong first.
-
-**Take the name of a source, not the bytes.** Sealing protects reads and writes; it deliberately does not restrict *initialization*, because a parent writing `Signer { key: … }` already holds what it passes. Which means if the material arrives as a constructor argument, some line of the application held it. So these take `env_var:` or `key_file:` and load in `birth`. There is no line anywhere in your code where the key exists as a value you could name.
-
-That rule needed a second half. `birth` has to be the *only* writer, including the no-source case — otherwise a caller writes `Signer { key: b"…" }`, `birth` does not overwrite it, and the discipline evaporates. That was found by trying it.
-
-**Refuse when unavailable.** `ready()` is not enough on its own if nothing consults it. An early version returned a perfectly valid HMAC under the empty key when no key had loaded, and `verify` accepted the matching forgery — which anyone can compute. The credential half was sharper: `matches(b"")` against an unloaded credential took a zero-iteration loop and returned `true`. An authentication bypass on any misconfigured deployment.
-
-**Classify the one privileged method.** `secret_use` is a compiler-owned effect class, so the law can find every path that reaches it.
-
-**Then state the law**, in forms that already existed:
-
-```hale
-claims {
-    no_plugin_secrets:  forbid reaches(plugins, effects(secret_use));
-    one_op_per_request: bound secret_use <= 1 on paths from handlers;
-    vault_confined:     require sealed(all vaults);
-}
-```
-
-Wire a signer into a plugin and the build stops with the crossing call named:
-
-```text
-claim `no_plugin_secrets` violated: `plugins` reaches `effects(secret_use)`
-  — witness: `PluginHost::sneak` -> `std::secret::Signer::sign`
-```
-
-Two of those verbs are new, and both quantify over the whole closed world rather than over a path — so code written next month is covered without anyone editing the claim. `require sealed(all G)` demands confinement across a group, which matters because sealing is otherwise per-locus discipline and one unsealed member of a vault group is the whole hole. `require attributed(all syscall)` demands that every place the program touches the OS names a purpose.
-
-That second one is worth a moment, because it is easy to think it is subsumed. Routing all I/O through a vetted component is expressible today — `forbid reaches(app, effects(syscall)) avoiding gate` — and it is a good rule. But it constrains **where** a boundary is crossed and says nothing about **what for**. All I/O can funnel through one `write(path, bytes)` that everyone calls for everything: perfectly gated, and you have no idea why any particular write happened. The two are independent, and a real system usually wants both.
-
-## What it guarantees, stated exactly
-
-> The secret lives in a locus that owns it, the domain cannot obtain it, the only operations on it are compiler-classified, and the domain's claims constrain who may reach them and how often.
-
-This is **confinement, not information flow**. A signature derived from the key is not tracked. A constant-time comparison still lets the *verdict* be published. And the sealed locus's own body is trusted — which is why the standard library ships this shape, small enough to review, rather than leaving everyone to write their own.
-
-Those sentences are in the specification, not in a footnote, because the alternative is letting a green result imply more than it earned. A checker's value is not that it says yes; it is that when it says yes, you know precisely what it said yes *to*.
-
-## Three reviews, and what they were all about
-
-The implementation went through three rounds of external review. Every round found real defects. It is worth being specific about their shape, because it was the same shape every time.
-
-The first round found that `@sealed` stopped **reads** and permitted **writes**. The check was hooked to expression field access; an assignment target resolves through a different path in the compiler, and nobody had hooked it. Confinement that stops a read and permits a write does not merely fall short — it lets outside code *choose* the key, which is worse than reading it.
-
-The second found that the stdlib's `secret_use` had no identity an application's claims could name. User-declared effect classes are interned per compilation unit, so the standard library's class and the application's were different bits. `forbid reaches(plugins, effects(secret_use))` silently missed the standard signer — the law over the recommended path was unenforceable, and it aliased differently depending on declaration order. It became a compiler built-in, which has one identity by construction.
-
-The third found that adding that built-in had missed two lists. `@effects(only: { … })` is computed as the *complement* of a hardcoded class vector, and per-phase contracts iterate another. A class absent from either is one those contracts can never forbid — so `only: {}` certified a function reaching `secret_use`. Contracts whose entire purpose is rejecting unlisted effects were weaker than they read.
-
-Not one of these was a flaw in the design. Every one was an **integration seam**: a rule enforced on one path and not its sibling, a class added to an enum but not to the lists that enumerate it, a syntactic form taught to one walker and not the one that reports. The individual judgements held up. What did not hold was the assumption that a new thing reaches every place enumerating its kind.
-
-That is a more useful lesson than any of the individual bugs, and it points somewhere specific: conformance over the *enumerations* — every effect class appearing in every closed universe, every expression form in every walker — rather than another round of per-feature tests.
-
-## Why this closes the series
-
-The first four articles built upward: a function's effects, an application's claims, a shared constitution, a deployed fleet. Four closures, each emitting evidence the next composes.
-
-This one built nothing. A new problem arrived — one with a large, well-established, entirely reasonable body of theory attached — and the answer was the ownership model that was already there, one word to close a gap in it, and sentences the domain was going to write regardless.
-
-That is the actual test of a model checker over program structure. Not whether it can prove the properties it was designed to prove. Whether the next property needs a new machine.
-
-> **The structure was already the answer. The work was noticing.**
-
-The information-flow design is not wrong, and it is not gone. It is written down, with the ordering it would need and the theorem each stage would earn, waiting on a question that can only be answered by real programs: how often must a secret actually leave the locus that owns it? If the answer is "rarely", the largest subsystem we nearly built stays unbuilt — and that is the outcome worth wanting.
+That is the useful test of a checker built over program structure. Not whether it proves the properties it was designed for — whether the next property needs a new machine.
