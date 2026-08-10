@@ -5,11 +5,17 @@ import Footer from '../components/Footer.astro';
 
 interface Props { title?: string; description?: string; }
 const {
-  title = 'Hale: one structure, from a value to a fleet',
+  title = 'Hale: one recursive model, from a value to a fleet',
   // Read cold, in a search result, by someone who has never heard of Hale —
   // so this stays in the factual register. "Say less. Spell more." is the
   // line to remember, not the line to explain with.
-  description = "Hale compresses whole-system meaning into one scale-invariant construct: the locus. From value to fleet, structure, behavior, topology, effects, and architectural law compose in a single language the compiler can certify.",
+  //
+  // "One construct" was the old wording and it invited a reader to check it
+  // literally: a constitution and a JSON fleet plan are not locus
+  // declarations. "One model, the locus its unit" is both true and the more
+  // interesting claim — that features which look separate are projections of
+  // one account of ownership, flow, closure, and law.
+  description = "Hale gives a whole system one recursive model, with the locus as its unit. From function scope to fleet composition, ownership, communication, placement, effects, and architectural law stay compiler-visible instead of scattering into config, diagrams, and deployment lore.",
 } = Astro.props;
 ---
 <!doctype html>
@@ -29,10 +35,28 @@ const {
     <meta property="og:image" content="https://hale-lang.org/og.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
-    <meta property="og:image:alt" content="Hale — a concurrent systems language with a model-checked, GC-free runtime." />
+    <meta property="og:image:alt" content="Hale — a concurrent systems language with a GC-free runtime." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://hale-lang.org/og.png" />
     <meta name="theme-color" content="#0e7c66" />
+    {/*
+      The same pre-paint resolution Starlight runs on the docs, against the
+      same localStorage key and the same value semantics — so a theme
+      chosen in /docs survives the click back out here, and vice versa.
+      Inline and render-blocking on purpose: a deferred script would let
+      the light palette paint first and flash.
+    */}
+    <script is:inline>
+      (() => {
+        let stored = null;
+        try { stored = localStorage.getItem('starlight-theme'); } catch {}
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body>
     <Nav />

@@ -1,11 +1,19 @@
 # Playground compile service
 
-The browser playground (`/playground`) runs **canned** examples fully client-side
-(wasm vendored under `public/play/`). To let visitors write and run **their own**
-code we need a backend: Hale has no interpreter — `hale run` compiles through LLVM —
-so arbitrary client-side execution isn't possible. This service compiles untrusted
-source to `wasm32` and hands the wasm back; the browser instantiates and runs it in
-its own sandbox. **Untrusted code is only ever compiled server-side, never executed.**
+**Status: LIVE at `play.hale-lang.org`.** `/playground` iframes it, and it serves
+an editable buffer with a Run button — so this service is compiling source
+submitted by anyone on the internet. The sections below were written before that
+happened and are corrected inline; the deployment itself is configured outside
+this repo, so nothing here describes how it is actually run.
+
+Hale has no interpreter — `hale run` compiles through LLVM — so arbitrary
+client-side execution isn't possible. This service compiles untrusted source to
+`wasm32` and hands the wasm back; the browser instantiates and runs it in its own
+sandbox. **Untrusted code is only ever compiled server-side, never executed.**
+
+The older, non-editable tour still exists at `/play/` (wasm vendored under
+`public/play/`, no backend involved) and is linked from `/playground` as the
+"Guided example tour".
 
 Dogfooding: the service is itself a Hale program (`main.hl`), built on the std
 HTTP/TCP/process/fs/crypto substrate — same posture as the Causality servers.
@@ -49,12 +57,25 @@ Config (env, all optional):
 - content-addressed cache (sha256 → url-safe base64): repeat compiles ~2 ms.
 - `--wrap-main` lets a bare `fn main()` target wasm without an `@export locus`.
 
-## NOT done (before exposing publicly)
+## Open: containment
 
-- **Sandboxing.** Compilation runs in the host namespace under a `timeout` wall
-  only. Run it behind a container / nsjail with CPU+memory+fs limits before
-  putting it on the internet — a compiler is a big attack surface.
-- **Hosting / deploy.** No systemd unit, container image, or reverse-proxy config yet.
+This list used to be titled "NOT done (before exposing publicly)". It is public
+now, so the first item is no longer a plan — it is an open question about a
+running service.
+
+- **Sandboxing — UNVERIFIED.** As written, `main.hl` compiles in the host
+  namespace under a coreutils `timeout` wall and nothing else: no CPU cap, no
+  memory cap, no PID limit, no filesystem or mount isolation, no seccomp. A
+  compiler is a large attack surface and this is arbitrary input from the
+  internet. **No deployment config for this service exists in any repo** — note
+  that `hale`'s `release/docker-compose.yml` is the compiler release-tarball
+  builder and has no resource limits and never runs this service — so whether
+  the live instance adds containment cannot be answered from source. If it does,
+  commit that config here so it stops being invisible. If it does not, the
+  minimum is a container with `pids_limit`, `mem_limit`, `cpus`, a read-only
+  rootfs, a `tmpfs` scratch, dropped capabilities, and no network in the compile
+  step.
 - **Body size.** One `recv` per request (256 KB cap); fine for snippets, not uploads.
-- **Wiring the storefront `/playground` page** to point its editor at this endpoint
-  (currently the page embeds the static tour).
+
+Done since this list was written: the storefront `/playground` page points at the
+deployed endpoint, and the service is hosted.

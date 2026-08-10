@@ -41,7 +41,38 @@ jobs:
       - run: npm ci
       - run: node scripts/sync-docs.mjs _hale
       - run: bash scripts/build-agent-assets.sh _hale/spec _pond
+
+      # The RELEASED compiler, deliberately, not a build of _hale@main: the
+      # site's snippets should compile with the toolchain a visitor can
+      # actually install today. Version comes from the same release.json
+      # sync-docs just derived, so the gate and the page agree.
+      - name: Fetch the hale compiler
+        run: |
+          v=$(node -p "require('./src/generated/release.json').version")
+          asset="hale-v${v}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL --retry 3 -o hale.tar.gz \
+            "https://github.com/hale-lang/hale/releases/download/v${v}/${asset}"
+          mkdir -p .hale-bin
+          tar -xzf hale.tar.gz -C .hale-bin
+          echo "$PWD/.hale-bin" >> "$GITHUB_PATH"
+      - run: hale --version
+
       - run: npm run build
+
+      # The gate. Runs after the build because the link crawl reads dist/.
+      # This is what makes the site's claims about the compiler answerable
+      # BY the compiler — see scripts/check-site.mjs for what it checks and
+      # for the defect that prompted it.
+      - run: node scripts/check-site.mjs --pond _pond
+
+      # Non-blocking for now: the tree carries 45 pre-existing type errors
+      # (implicit `any` in the article/collection pages, and Starlight's
+      # virtual modules having no types outside its own render). None come
+      # from the content gate above. Flip this to a hard failure once that
+      # backlog is cleared — tracked rather than silently dropped.
+      - run: npx astro check
+        continue-on-error: true
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

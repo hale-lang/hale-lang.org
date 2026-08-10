@@ -1,6 +1,8 @@
 /* Theme Starlight's docs chrome to match the hale-lang.org brand:
    warm paper, near-black ink, jade accent, our type stacks. */
 
+@import './nav.css';
+
 :root {
   --sl-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
              Helvetica, Arial, sans-serif;
@@ -56,35 +58,23 @@
   opacity: 0.8;
 }
 
-/* ---- custom docs header (shared brand + nav) ---- */
-.sl-header-custom .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-size: 1.05rem;
-  color: var(--sl-color-white);
-  text-decoration: none;
-  white-space: nowrap;
+/* ---- the site header, inside the docs ----
+   The header itself is src/components/SiteHeader.astro, styled by
+   src/styles/nav.css and shared with the marketing pages. All the docs
+   have to do is map the --nav-* tokens that stylesheet is written
+   against onto Starlight's palette; every metric and every breakpoint
+   then comes from the same place as the rest of the site.
+
+   In particular there is no longer a rule hiding the link row below
+   56rem. It scrolls instead, exactly as it does on the homepage. */
+.site-header {
+  --nav-height: 100%;
+  --nav-brand: var(--sl-color-white);
+  --nav-accent: var(--sl-color-text-accent);
+  --nav-link: var(--sl-color-gray-2);
+  --nav-link-hover: var(--sl-color-text-accent);
+  --nav-bg-solid: var(--sl-color-black);
 }
-.sl-header-custom .brand .mark {
-  width: 22px;
-  height: 22px;
-  color: var(--sl-color-text-accent);
-}
-.sl-header-custom .doc-nav-links {
-  display: flex;
-  align-items: center;
-  gap: 1.1rem;
-}
-.sl-header-custom .doc-nav-links a {
-  color: var(--sl-color-gray-2);
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-.sl-header-custom .doc-nav-links a:hover { color: var(--sl-color-text-accent); }
-@media (max-width: 56rem) {
-  .sl-header-custom .doc-nav-links { display: none; }
-}
+/* Starlight's header bar owns the height; the shared component fills it. */
+.site-header { height: 100%; }
+.site-header .nav-search { flex: 0 1 auto; }

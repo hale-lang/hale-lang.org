@@ -281,9 +281,15 @@ const { kind, label } = Astro.props;
   if (band && bandScene) {
     // The medium is a dark fluid. Over dark paper it belongs; over the warm
     // light paper it can only ever be a stain, so it barely shows there.
-    const dark = window.matchMedia('(prefers-color-scheme: dark)');
+    //
+    // Follows the RESOLVED theme, not the OS preference. Those were the
+    // same thing until the theme became selectable; keyed to the media
+    // query, a reader who picks light on a dark machine gets the
+    // full-strength wash over warm paper. The observer catches a toggle
+    // without a reload — re-baking one tile is cheap.
+    const isDark = () => document.documentElement.dataset.theme === 'dark';
     const wash = () => {
-      const url = bakeTile(bandScene, 800, 300, dark.matches ? 0.5 : 0.09);
+      const url = bakeTile(bandScene, 800, 300, isDark() ? 0.5 : 0.09);
       if (!url) return;
       document.body.style.backgroundImage = `url(${url})`;
       document.body.style.backgroundRepeat = 'repeat-y';
@@ -291,6 +297,9 @@ const { kind, label } = Astro.props;
     };
     // after the band has had the frame to itself
     requestAnimationFrame(() => requestAnimationFrame(wash));
-    dark.addEventListener('change', wash);
+    new MutationObserver(wash).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
   }
 </script>

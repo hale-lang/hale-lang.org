@@ -306,6 +306,10 @@
   border-top: 1px solid var(--border);
 }
 .example-row.rev, .proof-detail.rev { grid-template-columns: 1.1fr 0.9fr; }
+/* The substrate block has prose and no code panel: the honest account of
+   what the GenMC models establish is the artifact. One column, held to a
+   readable measure rather than stretched across the full row. */
+.proof-detail.proof-substrate { grid-template-columns: minmax(0, 68ch); }
 .examples-next {
   margin-top: 2rem;
   padding: clamp(1.5rem, 4vw, 2.5rem);

@@ -4,6 +4,10 @@ import Hale from '../components/Hale.astro';
 import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
 import Unfold from '../components/Unfold.astro';
 import '../styles/storefront.css';
+// Written by scripts/sync-docs.mjs from the compiler checkout's Cargo.toml,
+// alongside the sidebar — so the version on the homepage cannot drift from
+// the workspace the docs were synced out of. Run the sync if this is missing.
+import release from '../generated/release.json';
 
 const room = `type Msg { room: String; user: String; text: String; }
 
@@ -23,12 +27,32 @@ locus Room {
     }
 }`;
 
+/*
+  Offstage context (scripts/check-site.mjs prepends `<name>_prelude` before
+  `hale check`; nothing renders it). The panel shows the declaration whose
+  dependency set is the point; the topics it names have to exist somewhere
+  for that to mean anything.
+*/
+const dependency_prelude = `type Summary { id: Int; }
+type Config  { limit: Int; }
+
+topic PublicSummary { payload: Summary; }
+topic ConfigChanged { payload: Config; }
+
+locus Relay {
+    bus { publish PublicSummary; publish ConfigChanged; }
+    fn emit(s: Summary) { PublicSummary <- s; }
+}
+`;
 const dependency = `@effects(depends: {PublicSummary, ConfigChanged})
 locus Report {
     bus {
         subscribe PublicSummary as on_summary;
         subscribe ConfigChanged as configure;
     }
+
+    fn on_summary(s: Summary) { }
+    fn configure(c: Config) { }
 }`;
 
 const dependencyDiagnostic = `declared dependency set violated:
@@ -57,10 +81,11 @@ const failure = `locus WorkerPool {
             measure — at 13ch the natural wrap falls after "Spell". */}
         <h1><span>Say less.</span><span>Spell more.</span></h1>
         <p class="lede">
-          Hale compresses whole-system meaning into a single scale-invariant
-          construct. From value to fleet, loci compose without falling out of
-          the language — and wherever the structure closes, the compiler can
-          certify its shape.
+          Hale gives the whole system one recursive model, and the locus is its
+          unit. From function scope to fleet, ownership, communication,
+          placement, effects, and law stay compiler-visible — and when a
+          boundary closes, Hale checks the model it can derive and emits
+          evidence that larger systems compose.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/playground">Run the tour</a>
@@ -70,6 +95,15 @@ const failure = `locus WorkerPool {
           <span class="sigil">$</span>
           <span class="cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
         </div>
+        {/* "Shipped" and "stable" are different promises, and a visitor who
+            cannot tell them apart will discover the difference the expensive
+            way. Saying pre-1.0 out loud costs nothing and buys the rest of
+            the page some credit. */}
+        <p class="release-status">
+          <b>v{release.minor}{release.prerelease ? ' · prerelease' : ''}</b> —
+          Linux, macOS, and WebAssembly. Language and artifact schemas remain
+          subject to change.
+        </p>
       </div>
       <div>
         <Hale code={room} title="room.hl" />
@@ -180,11 +214,15 @@ const failure = `locus WorkerPool {
             page it links to gives a reader nothing to click for, so this
             states the consequence instead and leaves the inventory there. */}
           <h2>The checker is fast enough to be a keystroke.</h2>
+          {/* "about ten milliseconds" with no corpus, machine, or statistic
+              behind it reads as a latency guarantee we never measured in the
+              shape a reader will test it. The claim that matters is the
+              consequence, and it survives a slower machine. */}
           <p>
-            <code>hale check</code> answers in about ten milliseconds, so the
-            same structured diagnostic reaches an editor, a CI job, and a
-            coding assistant — and the one that fails your build is the one
-            you already read while typing.
+            <code>hale check</code> runs a whole-project check fast enough for
+            interactive editor feedback, so the same structured diagnostic
+            reaches an editor, a CI job, and a coding assistant — and the one
+            that fails your build is the one you already read while typing.
           </p>
           <div class="hero-actions" style="margin-bottom:0;">
             <a class="btn btn-primary" href="/tooling">Tooling</a>

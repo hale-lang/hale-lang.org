@@ -1,6 +1,15 @@
 ---
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
+/*
+  The tiers are pond's own taxonomy (see its README), not a sequence — 4, 6
+  and 7 are unbuilt backlog, so the numbering has gaps on purpose and the
+  note below says so rather than leaving a reader to wonder what Tier 4 was.
+
+  This list is the whole built tree. scripts/check-site.mjs diffs it against
+  the pond checkout's top-level directories, because the previous version of
+  this page silently omitted three packages.
+*/
 const tiers = [
   ['Tier 0: internals', [
     ['_util/*', 'intfloat, decimal_float, duration_int, kvpack, rowbuf: shared primitives'],
@@ -8,6 +17,7 @@ const tiers = [
   ['Tier 0: infrastructure', [
     ['crypto', 'HMAC-SHA256, SHA-256, ECDSA P-256, CSPRNG, hex'],
     ['subprocess', 'fork/exec with pipes, timeout, try_wait + signal'],
+    ['term', 'terminal control: color profiles with auto-downgrade, ANSI escapes, raw mode'],
     ['math/matrix · math/stats', 'dense matrix, matmul, online moments'],
   ]],
   ['Tier 1: data + web', [
@@ -28,6 +38,12 @@ const tiers = [
     ['agent/tools · conversation · sandbox · embeddings', 'tool registry, chat history, code sandbox, vector store'],
     ['ml/neural', 'tiny NN trainer'],
   ]],
+  ['Tier 8: devx', [
+    ['tui', 'Elm-shaped full-screen TUI runtime: typed input events, cell-grid diff renderer, widgets'],
+  ]],
+  ['Superseded by the stdlib', [
+    ['http/client · router · metrics', 'tracking copies kept for existing vendored pins; new code should use std::http and std::metrics'],
+  ]],
 ];
 ---
 <Base title="pond: Hale packages">
@@ -42,13 +58,20 @@ const tiers = [
     <div class="install" style="margin-bottom:0.5rem;">
       <span class="sigil">$</span><span class="cmd">hale fetch</span>
     </div>
-    <p class="muted" style="font-size:0.9rem;">Vendoring is the v1 dependency primitive, pin a git ref, vendor the source.</p>
+    <p class="muted" style="font-size:0.9rem;">
+      Vendoring is the v1 dependency primitive, pin a git ref, vendor the
+      source. Tiers are a taxonomy rather than a sequence: 4, 6 and 7 are
+      backlog nobody has needed yet, so the numbering has gaps. Editor
+      tooling is not here, the tree-sitter grammar moved to
+      {' '}<a href="https://github.com/hale-lang/tree-sitter-hale">tree-sitter-hale</a>
+      and the language server ships inside the <code>hale</code> binary.
+    </p>
 
     <div class="callout" style="margin-top:1.25rem;">
       <strong>Graduated to the stdlib:</strong> the HTTP client, the router, and
       metrics were promoted out of pond, they now ship as
-      <code>std::http</code> (client + <code>Router</code>) and
-      <code>std::metrics</code>, no import needed. pond keeps tracking copies;
+      {' '}<code>std::http</code> (client + <code>Router</code>) and
+      {' '}<code>std::metrics</code>, no import needed. pond keeps tracking copies;
       new code should use the stdlib.
     </div>
 

@@ -91,8 +91,8 @@ hale mcp`;
         <h2>Effect reachability</h2>
         <p>
           Assertions such as <code>@no_syscall</code>,
-          <code>@no_block</code>, <code>@deterministic</code>, and
-          <code>@budget</code> are checked across reachable calls, imported
+          {' '}<code>@no_block</code>, <code>@deterministic</code>, and
+          {' '}<code>@budget</code> are checked across reachable calls, imported
           seeds, handles, and interface dispatch.
         </p>
         <a href="/docs/effects">Effects and contracts →</a>
@@ -105,7 +105,7 @@ hale mcp`;
           <code>causes:</code> follows outward influence across publishes.
           <code>depends:</code> walks backward through subscriptions and
           republishers to check the complete set that may reach a locus
-          <em>over the bus graph</em>, including through a republisher in
+          {' '}<em>over the bus graph</em>, including through a republisher in
           another library. Influence that travels outside the bus is not
           part of that closure.
         </p>
@@ -117,8 +117,8 @@ hale mcp`;
         <h2>System claims</h2>
         <p>
           Groups name the domains; the main locus states the law:
-          <code>forbid reaches</code>, <code>only edges</code> grants,
-          <code>require</code>/<code>cover</code>/<code>count</code>,
+          {' '}<code>forbid reaches</code>, <code>only edges</code> grants,
+          {' '}<code>require</code>/<code>cover</code>/<code>count</code>,
           interposition via <code>avoiding</code>, and capability bounds.
           Violations are errors with countermodels, and the checked model
           exports as a diffable artifact under a shape hash.
@@ -210,11 +210,12 @@ hale mcp`;
         <span>CI</span>
         <h2>Concurrent substrate</h2>
         <p>
-          Low-level runtime primitives are model-checked under legal thread
-          interleavings in CI. This narrows the trusted base beneath queues,
-          mailboxes, maps, and arenas.
+          Models of the runtime's synchronization protocols are model-checked
+          under permitted thread interleavings in CI. This narrows the trusted
+          base beneath queues, mailboxes, maps, and arenas, without emptying
+          it.
         </p>
-        <a href="https://github.com/hale-lang/hale">Inspect the repository →</a>
+        <a href="#substrate">What the models do and do not establish →</a>
       </article>
     </div>
 
@@ -262,8 +263,10 @@ hale mcp`;
         <h2>The path is named across binaries.</h2>
         <p>
           The same sentence, one altitude up. Each component checked clean on
-          its own; the arrangement did not. The witness crosses artifacts,           every hop, the route carrying it, and the file each vertex lives in, because a deployment defect is only actionable if it says which
-          config and which source to open.
+          its own; the arrangement did not. The witness crosses artifacts,
+          naming every hop, the route that carries it, and the file each
+          vertex lives in, because a deployment defect is only actionable if
+          it says which config and which source to open.
         </p>
       </div>
       <Hale code={fleetWitness} title="hale fleet check" />
@@ -294,6 +297,35 @@ hale mcp`;
       </div>
       <Hale code={commands} title="toolchain" />
     </div>
+
+    <section class="proof-detail proof-substrate" id="substrate">
+      <div>
+        <p class="eyebrow">what stays in the trusted base</p>
+        <h2>The model is a transcription, and that is a boundary.</h2>
+        <p>
+          Each <code>*_model.c</code> under <code>verification/</code> is a
+          hand-written transcription of one synchronization protocol, stripped
+          to its atomics. GenMC explores those models across permitted
+          interleavings on every substrate CI run, so a violation of the
+          synchronization logic is caught. What it does not do is check the
+          transcription against the C it was transcribed from: correspondence
+          is maintained by hand, and a model that still passes proves a
+          property of the runtime as it stood when the model was written.
+        </p>
+        <p>
+          The repository's own audit is the honest inventory, and it is public:
+          which atomics postdate their model, which primitive verifies only
+          under sequential consistency and reports a use-after-free under the
+          release-acquire model that matches the runtime's orderings, and which
+          code paths are not transcribed at all. Until drift is detected
+          mechanically and that counterexample is resolved, the claim is about
+          the models, not about the runtime by implication.
+        </p>
+        <a href="https://github.com/hale-lang/hale/blob/main/verification/README.md">
+          The verification audit, including its gaps →
+        </a>
+      </div>
+    </section>
 
     <section class="proof-scope" aria-labelledby="proof-scope-heading">
       <p class="eyebrow">the division of labor</p>

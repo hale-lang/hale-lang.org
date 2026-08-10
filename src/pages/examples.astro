@@ -4,6 +4,18 @@ import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
 import '../styles/storefront.css';
 
+/*
+  `<name>_prelude` is offstage context: declarations a panel needs in order
+  to typecheck but does not need to show. scripts/check-site.mjs prepends
+  it before running `hale check`; nothing renders it.
+
+  These are not decoration. `keyed_by queue_id` below is only legal if the
+  payload actually carries that field, and the gate caught that this page
+  had never said so — a reader who wrote the obvious `type Job` would have
+  been rejected by the compiler on their first try.
+*/
+const queue_prelude = `type Job { queue_id: Int; body: String; }
+`;
 const queue = `topic JobReady { payload: Job; keyed_by queue_id; }
 
 locus Worker {
@@ -19,6 +31,15 @@ locus Worker {
     }
 }`;
 
+const transport_prelude = `type Job { queue_id: Int; body: String; }
+topic JobReady { payload: Job; keyed_by queue_id; }
+
+locus Worker {
+    params { queue_id: Int = 0; }
+    bus { subscribe JobReady as perform where key == self.queue_id; }
+    fn perform(job: Job) { }
+}
+`;
 const transport = `main locus Production {
     bindings {
         JobReady: unix("/run/jobs.sock");
@@ -30,12 +51,28 @@ const transport = `main locus Production {
     }
 }`;
 
+const causal_prelude = `type Snapshot { id: Int; }
+type Config   { limit: Int; }
+type Order    { id: Int; }
+
+topic Orders       { payload: Order; }
+topic RiskSnapshot { payload: Snapshot; }
+topic RiskConfig   { payload: Config; }
+
+locus Book {
+    bus { publish Orders; publish RiskSnapshot; publish RiskConfig; }
+    fn emit(o: Order) { Orders <- o; }
+}
+`;
 const causal = `@effects(depends: {Orders, RiskConfig, RiskSnapshot})
 locus RiskView {
     bus {
         subscribe RiskSnapshot as update;
         subscribe RiskConfig as configure;
     }
+
+    fn update(s: Snapshot) { }
+    fn configure(c: Config) { }
 }`;
 
 const hot = `@no_block @no_syscall @deterministic

@@ -1,4 +1,10 @@
 ---
+// "shipped" here answers "does this exist and is it specified", not "is this
+// a compatibility promise" — the language is pre-1.0 and the note below the
+// rail says so. Conflating the two is how a visitor ends up pinned to a
+// schema that was never held stable.
+import release from '../generated/release.json';
+
 const stages = [
   ['shipped', 'Describe', 'loci, topics, ownership'],
   ['shipped', 'Check', 'effects, causality, claims'],
@@ -18,3 +24,19 @@ const stages = [
     </div>
   ))}
 </div>
+<p class="status-rail-note">
+  <b>shipped</b> means implemented and specified, on v{release.minor}
+  {release.prerelease ? ' (a prerelease)' : ''}. It is not yet a stability
+  guarantee: syntax, artifact schemas, and operational guarantees can still
+  change before 1.0.
+</p>
+
+<style>
+  .status-rail-note {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+  }
+  .status-rail-note b { color: var(--ink); font-weight: 640; }
+</style>
