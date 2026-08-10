@@ -125,6 +125,23 @@ async function main() {
   await mkdir('src/generated', { recursive: true });
   await writeFile('src/generated/book-sidebar.json', JSON.stringify(sidebar, null, 2) + '\n');
 
+  // ---- the release facts → src/generated/release.json ----
+  //
+  // The site used to state its own version and platform support in prose,
+  // which is how the install guide came to advertise two platforms while
+  // releases shipped three. Read both from the compiler checkout that is
+  // already here: the workspace version, and the pre-1.0 rule that
+  // release.yml applies when it tags (`startsWith(ref, 'v0.')`).
+  const cargo = await readFile(join(HALE, 'Cargo.toml'), 'utf8');
+  const version = cargo.match(/^\s*version\s*=\s*"([^"]+)"/m)?.[1];
+  if (!version) { console.error('could not read workspace version from hale/Cargo.toml'); process.exit(1); }
+  const release = {
+    version,
+    minor: version.split('.').slice(0, 2).join('.'),
+    prerelease: version.startsWith('0.') || version.includes('-'),
+  };
+  await writeFile('src/generated/release.json', JSON.stringify(release, null, 2) + '\n');
+
   // ---- the Spec → /docs/spec/* ----
   let nSpec = 0;
   const note = '> Reference material, synced from the compiler repo\'s `spec/`. The [guide](/docs) is the gentler path in.';
@@ -135,6 +152,7 @@ async function main() {
   }
 
   console.log(`synced ${nBook} book page(s) → /docs/* and ${nSpec} spec page(s) → /docs/spec/*; sidebar: ${sidebar.length} group(s)`);
+  console.log(`release: v${release.version}${release.prerelease ? ' (prerelease)' : ''}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

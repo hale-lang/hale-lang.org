@@ -7,10 +7,15 @@
     "dev": "BASE_URL=/ astro dev",
     "build": "BASE_URL=/ astro build",
     "preview": "BASE_URL=/ astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "check:site": "node scripts/check-site.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.7",
     "astro": "^7.2.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
   }
 }

@@ -4,28 +4,73 @@
    ink, one jade "lotus" accent, dark code panels. Light-first.
    ============================================================ */
 
-:root {
-  /* palette */
-  --paper:      #faf9f6;
-  --paper-2:    #f3f1ea;   /* alt section bg */
-  --ink:        #15171c;
-  --ink-soft:   #33373f;
-  --muted:      #5b616b;
-  --faint:      #8b9099;
-  --border:     #e6e2d8;
-  --border-2:   #d9d4c7;
+@import './nav.css';
 
-  --jade:       #0e7c66;   /* primary accent */
-  --jade-deep:  #0a5e4d;
-  --jade-tint:  #e7f2ee;
-  --jade-ring:  rgba(14, 124, 102, 0.25);
+/*
+  Theming, and why it looks like this.
+
+  Starlight owns the docs and resolves a theme to an explicit
+  `data-theme="light|dark"` on <html>, remembering the choice under the
+  localStorage key `starlight-theme`. This file used to answer only to
+  `prefers-color-scheme`, so a reader who picked dark in the docs and
+  clicked back to the homepage watched it snap to their system setting.
+
+  So: the values are declared once below, as a --light- set and a --dark-
+  set, then mapped in three passes — light by default (also the no-JS
+  answer), dark when the system asks and the reader has not overridden it,
+  and dark when the reader has explicitly chosen it. Base.astro runs the
+  same pre-paint script Starlight does, against the same key.
+*/
+:root {
+  /* ---- palette values, declared once ---- */
+  --light-paper:     #faf9f6;
+  --light-paper-2:   #f3f1ea;   /* alt section bg */
+  --light-ink:       #15171c;
+  --light-ink-soft:  #33373f;
+  --light-muted:     #5b616b;
+  --light-faint:     #8b9099;
+  --light-border:    #e6e2d8;
+  --light-border-2:  #d9d4c7;
+  --light-jade:      #0e7c66;   /* primary accent */
+  --light-jade-deep: #0a5e4d;
+  --light-jade-tint: #e7f2ee;
+  --light-jade-ring: rgba(14, 124, 102, 0.25);
+  --light-code-bg:   #0d1117;
+  --light-code-bd:   #20242c;
+
+  --dark-paper:      #0e1014;
+  --dark-paper-2:    #14171d;
+  --dark-ink:        #eef0f3;
+  --dark-ink-soft:   #cdd2da;
+  --dark-muted:      #9aa1ac;
+  --dark-faint:      #6b727d;
+  --dark-border:     #242832;
+  --dark-border-2:   #2d323d;
+  --dark-jade:       #2ec4a3;
+  --dark-jade-deep:  #5fe0c2;
+  --dark-jade-tint:  #10241f;
+  --dark-jade-ring:  rgba(46, 196, 163, 0.28);
+  --dark-code-bg:    #0a0c10;
+  --dark-code-bd:    #1c1f27;
+
+  /* ---- pass 1: light is the default, and the no-JS answer ---- */
+  --paper:      var(--light-paper);
+  --paper-2:    var(--light-paper-2);
+  --ink:        var(--light-ink);
+  --ink-soft:   var(--light-ink-soft);
+  --muted:      var(--light-muted);
+  --faint:      var(--light-faint);
+  --border:     var(--light-border);
+  --border-2:   var(--light-border-2);
+  --jade:       var(--light-jade);
+  --jade-deep:  var(--light-jade-deep);
+  --jade-tint:  var(--light-jade-tint);
+  --jade-ring:  var(--light-jade-ring);
+  --code-bg:    var(--light-code-bg);
+  --code-bd:    var(--light-code-bd);
 
   --amber:      #b3791f;   /* secondary, sparing */
   --rose:       #b3324a;   /* errors / "rejected" callouts */
-
-  /* code panel */
-  --code-bg:    #0d1117;
-  --code-bd:    #20242c;
 
   /* type */
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
@@ -45,24 +90,44 @@
   color-scheme: light;
 }
 
+/* ---- pass 2: the system asks for dark, and the reader has not said otherwise ---- */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper:    #0e1014;
-    --paper-2:  #14171d;
-    --ink:      #eef0f3;
-    --ink-soft: #cdd2da;
-    --muted:    #9aa1ac;
-    --faint:    #6b727d;
-    --border:   #242832;
-    --border-2: #2d323d;
-    --jade:     #2ec4a3;
-    --jade-deep:#5fe0c2;
-    --jade-tint:#10241f;
-    --jade-ring:rgba(46, 196, 163, 0.28);
-    --code-bg:  #0a0c10;
-    --code-bd:  #1c1f27;
+  :root:not([data-theme='light']) {
+    --paper:      var(--dark-paper);
+    --paper-2:    var(--dark-paper-2);
+    --ink:        var(--dark-ink);
+    --ink-soft:   var(--dark-ink-soft);
+    --muted:      var(--dark-muted);
+    --faint:      var(--dark-faint);
+    --border:     var(--dark-border);
+    --border-2:   var(--dark-border-2);
+    --jade:       var(--dark-jade);
+    --jade-deep:  var(--dark-jade-deep);
+    --jade-tint:  var(--dark-jade-tint);
+    --jade-ring:  var(--dark-jade-ring);
+    --code-bg:    var(--dark-code-bg);
+    --code-bd:    var(--dark-code-bd);
     color-scheme: dark;
   }
+}
+
+/* ---- pass 3: the reader chose dark, in either direction ---- */
+:root[data-theme='dark'] {
+  --paper:      var(--dark-paper);
+  --paper-2:    var(--dark-paper-2);
+  --ink:        var(--dark-ink);
+  --ink-soft:   var(--dark-ink-soft);
+  --muted:      var(--dark-muted);
+  --faint:      var(--dark-faint);
+  --border:     var(--dark-border);
+  --border-2:   var(--dark-border-2);
+  --jade:       var(--dark-jade);
+  --jade-deep:  var(--dark-jade-deep);
+  --jade-tint:  var(--dark-jade-tint);
+  --jade-ring:  var(--dark-jade-ring);
+  --code-bg:    var(--dark-code-bg);
+  --code-bd:    var(--dark-code-bd);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -156,6 +221,17 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
    the viewport on a phone. */
 .install .cmd { white-space: nowrap; overflow-x: auto; min-width: 0; }
 
+/* Quiet by design: it should read as a fact about the release, not a
+   warning banner. Sits directly under the install line so nobody copies
+   the curl without meeting it. */
+.release-status {
+  margin-top: 0.85rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  max-width: 46ch;
+}
+.release-status b { color: var(--ink); font-weight: 640; }
+
 /* ---- code panels (Shiki) ---- */
 .code {
   border: 1px solid var(--code-bd);
@@ -208,33 +284,22 @@ section { padding-block: clamp(3.5rem, 8vw, 6rem); }
 .feature h4 { font-size: 1rem; margin-bottom: 0.25rem; }
 .feature p { font-size: 0.9rem; color: var(--muted); margin: 0; }
 
-/* ---- nav ---- */
+/* ---- nav ----
+   The header's own rules live in nav.css, shared with the docs. This is
+   just the sticky bar around it, plus the marketing side's mapping of the
+   --nav-* tokens that stylesheet is written against. */
 .nav {
   position: sticky; top: 0; z-index: 50;
   background: color-mix(in srgb, var(--paper) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(10px);
   border-bottom: 1px solid var(--border);
-}
-.nav-inner { display: flex; align-items: center; gap: 1.5rem; height: 60px; }
-.nav .links { display: flex; align-items: center; gap: 1.35rem; margin-left: auto; }
-.nav .links a {
-  color: var(--ink-soft); font-size: 0.92rem; font-weight: 500;
-}
-.nav .links a:hover { color: var(--jade-deep); text-decoration: none; }
-.nav .links a.cta { color: var(--jade-deep); }
-@media (max-width: 820px) {
-  /* The row scrolls inside itself rather than widening the page, so it
-     no longer has to drop links to fit. It used to hide Features,
-     Examples and Articles below this width — three whole sections of
-     the site, unreachable on a phone with no way to know they existed. */
-  .nav .links {
-    min-width: 0;
-    gap: 1rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .nav .links::-webkit-scrollbar { display: none; }
-  .nav .links a { white-space: nowrap; }
+
+  --nav-height: 60px;
+  --nav-brand: var(--ink);
+  --nav-accent: var(--jade-deep);
+  --nav-link: var(--ink-soft);
+  --nav-link-hover: var(--jade-deep);
+  --nav-bg-solid: var(--paper);
 }
 
 /* ---- brand mark ---- */
@@ -317,14 +382,17 @@ body:has(.unfold) main > section:not(.hero, .why-now) {
   Light mode is untouched — the medium is dark, the paper is warm, and a
   wash of one under the other is only ever mud.
 */
-@media (prefers-color-scheme: dark) and (prefers-reduced-motion: no-preference) {
-  body:has(.unfold) .section-alt { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
-  body:has(.unfold) .why-now,
-  body:has(.unfold) .band { background: color-mix(in srgb, var(--code-bg) 82%, transparent); }
-  body:has(.unfold) .card,
-  body:has(.unfold) .feature,
-  body:has(.unfold) .callout { background: color-mix(in srgb, var(--paper) 74%, transparent); }
-  body:has(.unfold) .footer { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
+/* Keyed to the RESOLVED theme, not the OS preference: the two used to be
+   the same thing here, but a reader can now choose light on a dark
+   machine, and this treatment painted the hero dark underneath them. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme='dark'] body:has(.unfold) .section-alt { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
+  :root[data-theme='dark'] body:has(.unfold) .why-now,
+  :root[data-theme='dark'] body:has(.unfold) .band { background: color-mix(in srgb, var(--code-bg) 82%, transparent); }
+  :root[data-theme='dark'] body:has(.unfold) .card,
+  :root[data-theme='dark'] body:has(.unfold) .feature,
+  :root[data-theme='dark'] body:has(.unfold) .callout { background: color-mix(in srgb, var(--paper) 74%, transparent); }
+  :root[data-theme='dark'] body:has(.unfold) .footer { background: color-mix(in srgb, var(--paper-2) 84%, transparent); }
 }
 
 /* ---- misc page content ---- */

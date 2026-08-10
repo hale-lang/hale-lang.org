@@ -3,6 +3,16 @@ import Hale from './Hale.astro';
 import SystemMap from './SystemMap.astro';
 import StatusRail from './StatusRail.astro';
 
+/*
+  Offstage context for the panels below (scripts/check-site.mjs prepends
+  `_prelude` before `hale check`; nothing renders it). The `main` panel
+  binds topic Reading, which only the `bus` panel above it declares — so
+  on its own it would not check, and the page would be asserting something
+  the compiler had never seen.
+*/
+const _prelude = `type Sample { id: Int; value: Int; }
+`;
+
 const bus = `topic Reading { payload: Sample; }
 
 locus Ingest {
@@ -21,6 +31,18 @@ locus Rollup {
     }
 }`;
 
+const main_prelude = `topic Reading { payload: Sample; }
+
+locus Ingest {
+    bus { publish Reading; }
+    fn received(s: Sample) { Reading <- s; }
+}
+
+locus Rollup {
+    bus { subscribe Reading as add; }
+    fn add(s: Sample) { }
+}
+`;
 const main = `main locus App {
     params {
         ingest: Ingest = Ingest { };
@@ -33,7 +55,7 @@ const main = `main locus App {
     }
 
     bindings {
-        Reading: unix("/run/readings.sock");
+        Reading: unix("/run/readings.sock", role: listen);
     }
 }`;
 
@@ -153,9 +175,33 @@ const main = `main locus App {
   </p>
   <p>
     Note the shape of that last rung. A plan carries instances, routes, groups
-    and claims, which is a <code>main locus</code> with its children, its bus
-    edges, and its law, one scale out. The recursion did not stop at the
-    process boundary; it just changed what a component is.
+    and claims, so it plays the role of a <code>main locus</code> one scale
+    out: children, bus edges, and law, over separately compiled binaries. It
+    is a composition of certified artifacts rather than a locus declaration —
+    the plan is JSON, and there is no fleet syntax in Hale source. What
+    recurs is the model, not the spelling. The recursion did not stop at the
+    process boundary; it changed what a component is.
+  </p>
+  <p>
+    That is the whole thesis in one line, so it is worth being exact about
+    what is claimed. Hale is not one construct wearing six costumes; it is one
+    account of ownership, flow, closure, and law, which a value, a locus, an
+    application, and a fleet are each a projection of. The claim is about the
+    model, not the grammar.
+  </p>
+
+  <h2>Two axes, not one ladder</h2>
+  <p>
+    This page climbs one axis, and the <a href="/docs">guide</a> climbs
+    another, which is worth saying out loud before they read as rival
+    accounts. Hale scales along <strong>system scale</strong>, from function
+    scope to fleet, and along <strong>control altitude</strong>, from everyday
+    code to explicit systems machinery. Scale asks how large the composed
+    system is; altitude asks how much of the machinery you are choosing to
+    control. They are independent: a single locus participates at every scale
+    while being written at whichever altitude the job needs, which is why the
+    guide can teach a script before it teaches placement without ever leaving
+    the model this page describes.
   </p>
 
   <h2>The commitments</h2>
@@ -165,7 +211,7 @@ const main = `main locus App {
     <li><strong>Operational behavior can be surfaced.</strong> Blocking, allocation, publication, and dependence can become contracts.</li>
     <li><strong>Failure goes somewhere structural.</strong> Recovery belongs to an owner with context.</li>
     <li><strong>Deployment is part of the program.</strong> Placement and transport are not unrelated afterthoughts.</li>
-    <li><strong>Unknown is not proven.</strong> A hard guarantee must fail closed.</li>
+    <li><strong>At a certification boundary, unknown is not proven.</strong> A hard guarantee must fail closed. Ordinary <code>hale check</code> still reports some topology findings as advisories; it is <code>hale verify</code>, a contract, or a claim that turns not-knowing into a failure.</li>
     <li><strong>Runtime change crosses declared seams.</strong> Dynamism should move between valid arrangements, not mutate the graph arbitrarily.</li>
   </ol>
 
@@ -179,7 +225,7 @@ const main = `main locus App {
   <hr />
   <p class="muted">
     Continue with the <a href="/docs">guide</a>, inspect the
-    <a href="/proof">verification surface</a>, or
-    <a href="/playground">run the tour</a>.
+    {' '}<a href="/proof">verification surface</a>, or
+    {' '}<a href="/playground">run the tour</a>.
   </p>
 </section>

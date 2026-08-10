@@ -1,0 +1,71 @@
+# Verify a pull request without deploying it.
+#
+# Deliberately a separate workflow rather than a `pull_request` trigger on
+# deploy.yml. That workflow holds the `pages` concurrency group with
+# cancel-in-progress, so a PR sharing it would cancel an in-flight
+# production deploy — and it carries `pages: write` / `id-token: write`,
+# which a check on unmerged code has no business holding.
+#
+# The steps up to `npm run build` mirror deploy.yml because the gate has to
+# run against the same tree the deploy would produce: docs synced from the
+# compiler repo, agent assets regenerated, real build output for the link
+# crawl. It then stops, where deploy.yml goes on to publish.
+name: check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: hale-lang/hale
+          path: _hale
+      - uses: actions/checkout@v4
+        with:
+          repository: hale-lang/pond
+          path: _pond
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/sync-docs.mjs _hale
+      - run: bash scripts/build-agent-assets.sh _hale/spec _pond
+
+      # The RELEASED compiler, not a build of _hale@main: the site's
+      # snippets should compile with the toolchain a visitor can install
+      # today. Version comes from the release.json sync-docs just derived.
+      - name: Fetch the hale compiler
+        run: |
+          v=$(node -p "require('./src/generated/release.json').version")
+          asset="hale-v${v}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL --retry 3 -o hale.tar.gz \
+            "https://github.com/hale-lang/hale/releases/download/v${v}/${asset}"
+          mkdir -p .hale-bin
+          tar -xzf hale.tar.gz -C .hale-bin
+          echo "$PWD/.hale-bin" >> "$GITHUB_PATH"
+      - run: hale --version
+
+      - run: npm run build
+
+      # The gate: compiles every Hale snippet, checks every fleet plan,
+      # crawls internal links and anchors, diffs the package catalogue
+      # against pond, and lints the prose. See scripts/check-site.mjs.
+      - run: node scripts/check-site.mjs --pond _pond
+
+      # Non-blocking: 45 pre-existing type errors in the tree. Reported so
+      # the count is visible on every PR and cannot quietly grow.
+      - run: npx astro check
+        continue-on-error: true

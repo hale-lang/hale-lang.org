@@ -1,6 +1,32 @@
 ---
 import Hale from './Hale.astro';
 
+/*
+  Offstage context, shared by every panel below. The whole point of this
+  component is that these five `main` blocks differ and the system they
+  deploy does not — so the system is declared once, here.
+  scripts/check-site.mjs prepends `_prelude` to each snippet before running
+  `hale check`. Nothing renders it.
+*/
+const _prelude = `type Sample { id: Int; value: Int; }
+
+topic Samples { payload: Sample; }
+
+locus Ingest {
+    bus { publish Samples; }
+    fn received(s: Sample) { Samples <- s; }
+}
+
+locus Rollup {
+    bus { subscribe Samples as add; }
+    fn add(s: Sample) { }
+}
+
+locus NatsAdapter {
+    params { url: String = "nats://localhost:4222"; }
+}
+`;
+
 const local = `main locus App {
     params {
         ingest: Ingest = Ingest { };
@@ -27,7 +53,7 @@ const unix = `main locus App {
     }
 
     bindings {
-        Samples: unix("/run/samples.sock");
+        Samples: unix("/run/samples.sock", role: listen);
     }
 }`;
 

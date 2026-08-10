@@ -1,15 +1,11 @@
 ---
-import Logo from './Logo.astro';
-import { navLinks } from '../nav-links';
+// The marketing-side wrapper. All the header's substance is in
+// SiteHeader.astro, shared with the docs — this only supplies the sticky
+// bar and the page container that Starlight provides for itself.
+import SiteHeader from './SiteHeader.astro';
 ---
 <nav class="nav">
-  <div class="container wide nav-inner">
-    <a class="brand" href="/"><Logo /> hale</a>
-    <div class="links">
-      {navLinks.map((l) => (
-        <a href={l.href}>{l.label}</a>
-      ))}
-      <a class="cta" href="https://github.com/hale-lang">GitHub ↗</a>
-    </div>
+  <div class="container wide">
+    <SiteHeader />
   </div>
 </nav>

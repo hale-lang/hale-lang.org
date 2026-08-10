@@ -28,8 +28,14 @@ import Hale from './Hale.astro';
   against the compiler in the sibling checkout — the budget on the first
   one was rejected twice before it was actually zero-alloc, and the claims
   on the seventh were rejected as vacuous until the groups had behaviour to
-  quantify over. The fleet plan is JSON, not Hale, so it follows
-  spec/verification.md's schema instead.
+  quantify over.
+
+  The fleet plan is JSON, not Hale, and that exemption is exactly how it
+  shipped routing a topic to a `gw-0` the plan never declared — the one
+  defect on this page that the page's own argument says a compiler should
+  catch. `hale fleet check` does catch it (fleet.rs: "names instance `{}`,
+  which the plan does not declare"), so the plan is no longer exempt:
+  scripts/check-site.mjs extracts every panel here and runs both checkers.
 */
 const panels = [
   { title: 'frontier.hl', code: `effect io = { syscall, block };
@@ -115,7 +121,29 @@ locus Supervisor {
         quarantine (w);
     }
 }` },
-  { title: 'claims.hl', code: `group planners = { Planner };
+  /*
+    `prelude` is declarations the panel deliberately does not show — the
+    loci and topics these claims quantify over. scripts/check-site.mjs
+    prepends it before running `hale check`, so the snippet is genuinely
+    checked (the groups resolve, so the claims are not vacuous) while the
+    panel stays the four interesting lines. Nothing renders it.
+  */
+  { title: 'claims.hl',
+    prelude: `topic Tasks { payload: Int; }
+
+locus Planner {
+    bus { publish Tasks; }
+    fn plan(n: Int) { Tasks <- n; }
+}
+locus Worker {
+    bus { subscribe Tasks as take; }
+    fn take(n: Int) { }
+}
+locus Auditor {
+    fn record(n: Int) { }
+}
+`,
+    code: `group planners = { Planner };
 group workers  = { Worker };
 group audit    = { Auditor };
 
@@ -126,7 +154,22 @@ main locus Fleet {
         one_writer: count publishers(topic Tasks) <= 1;
     }
 }` },
-  { title: 'constitution.hl', code: `group billing  = { Billing };
+  { title: 'constitution.hl',
+    prelude: `topic Settled { payload: Int; }
+
+locus Billing {
+    bus { publish Settled; }
+    fn settle(n: Int) { Settled <- n; }
+}
+locus Research {
+    fn study(n: Int) { }
+}
+locus Ledger {
+    bus { subscribe Settled as post; }
+    fn post(n: Int) { }
+}
+`,
+    code: `group billing  = { Billing };
 group research = { Research };
 
 // Authored once. Every world that adopts it proves it again,
@@ -148,7 +191,8 @@ main locus App {
   { title: 'prod.plan.json', code: `{
   "schema": "1.1", "name": "prod",
   "instances": [
-    {"id": "oms-0", "artifact": "artifacts/oms.json"}
+    {"id": "oms-0", "artifact": "artifacts/oms.json"},
+    {"id": "gw-0",  "artifact": "artifacts/gateway.json"}
   ],
   "routes": [
     {"id": "request", "transport": "unix",
@@ -216,10 +260,11 @@ main locus App {
       <div class="beat-copy">      <p class="eyebrow">communication</p>
       <h3>Topics name the edge.</h3>
       <p>
-        Loci hold no references to one another. A message rises to the
-        topic, which sits structurally above them both, and comes back
-        down into every subscriber. A call graph stops at a publish; the
-        compiler keeps going.
+        These loci do not reference one another; they communicate through
+        a declared topic. A message rises to the topic, which sits
+        structurally above them both, and comes back down into every
+        subscriber. A call graph stops at a publish; the compiler keeps
+        going.
       </p>
       </div>
       <div class="beat-viz">
@@ -245,9 +290,11 @@ main locus App {
       <div class="beat-copy">      <p class="eyebrow">failure</p>
       <h3>Recovery belongs to the owner.</h3>
       <p>
-        Nothing fails sideways. A broken invariant travels up to the
-        parent that owns it, with enough context to restart, quarantine,
-        or let it keep rising.
+        Nothing fails sideways. Failure has exactly two channels, and both
+        are declared: a value-level failure returns through
+        {' '}<code>fallible(E)</code> and is addressed at the call site, and a
+        structural failure travels up to the parent that owns it, with
+        enough context to restart, quarantine, or let it keep rising.
       </p>
       </div>
       <div class="beat-viz">
@@ -416,9 +463,13 @@ main locus App {
     warm; it stays inside its own section, the one place the page is already
     dark enough to carry it.
   */
-  @media (prefers-color-scheme: dark) and (prefers-reduced-motion: no-preference) {
-    .unfold { background: transparent; }
-    .unfold-viz {
+  /* On the resolved theme rather than the OS preference — the reader can
+     now pick light on a dark machine, and this used to go page-wide
+     underneath them regardless. Kept in lockstep with the `pageWide`
+     check in the script below. */
+  @media (prefers-reduced-motion: no-preference) {
+    :root[data-theme='dark'] .unfold { background: transparent; }
+    :root[data-theme='dark'] .unfold-viz {
       position: fixed;
       inset: 0;
       height: 100vh;
@@ -426,10 +477,10 @@ main locus App {
       pointer-events: none;
     }
     /* the sticky spacer is out of the flow now, so nothing needs pulling up */
-    .unfold-beats { margin-top: 0; }
+    :root[data-theme='dark'] .unfold-beats { margin-top: 0; }
     /* Page-wide, the left-weighted vignette would shade one side of every
        section. Even it out: hold the middle clear, settle at the edges. */
-    .unfold-vignette {
+    :root[data-theme='dark'] .unfold-vignette {
       background:
         radial-gradient(125% 85% at 50% 45%, rgba(5,7,10,0.34) 0%, rgba(5,7,10,0.6) 72%, rgba(5,7,10,0.8) 100%),
         linear-gradient(to bottom, rgba(5,7,10,0.72) 0%, rgba(5,7,10,0.38) 16%, rgba(5,7,10,0.38) 84%, rgba(5,7,10,0.72) 100%);
@@ -456,7 +507,7 @@ main locus App {
     Matches the CSS above: only where the field is actually page-wide.
   */
   const pageWide =
-    matchMedia('(prefers-color-scheme: dark)').matches &&
+    document.documentElement.dataset.theme === 'dark' &&
     matchMedia('(prefers-reduced-motion: no-preference)').matches;
   const host = pageWide ? document.documentElement : section;
 

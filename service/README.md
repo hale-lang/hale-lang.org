@@ -1,11 +1,19 @@
 # Playground compile service
 
-The browser playground (`/playground`) runs **canned** examples fully client-side
-(wasm vendored under `public/play/`). To let visitors write and run **their own**
-code we need a backend: Hale has no interpreter — `hale run` compiles through LLVM —
-so arbitrary client-side execution isn't possible. This service compiles untrusted
-source to `wasm32` and hands the wasm back; the browser instantiates and runs it in
-its own sandbox. **Untrusted code is only ever compiled server-side, never executed.**
+**Status: LIVE at `play.hale-lang.org`.** `/playground` iframes it, and it serves
+an editable buffer with a Run button — so this service is compiling source
+submitted by anyone on the internet. It runs containerized, with the limits in
+[Containment](#containment) below. The sections after that were written before
+any of this was deployed and are corrected inline.
+
+Hale has no interpreter — `hale run` compiles through LLVM — so arbitrary
+client-side execution isn't possible. This service compiles untrusted source to
+`wasm32` and hands the wasm back; the browser instantiates and runs it in its own
+sandbox. **Untrusted code is only ever compiled server-side, never executed.**
+
+The older, non-editable tour still exists at `/play/` (wasm vendored under
+`public/play/`, no backend involved) and is linked from `/playground` as the
+"Guided example tour".
 
 Dogfooding: the service is itself a Hale program (`main.hl`), built on the std
 HTTP/TCP/process/fs/crypto substrate — same posture as the Causality servers.
@@ -49,12 +57,39 @@ Config (env, all optional):
 - content-addressed cache (sha256 → url-safe base64): repeat compiles ~2 ms.
 - `--wrap-main` lets a bare `fn main()` target wasm without an `@export locus`.
 
-## NOT done (before exposing publicly)
+## Containment
 
-- **Sandboxing.** Compilation runs in the host namespace under a `timeout` wall
-  only. Run it behind a container / nsjail with CPU+memory+fs limits before
-  putting it on the internet — a compiler is a big attack surface.
-- **Hosting / deploy.** No systemd unit, container image, or reverse-proxy config yet.
+`main.hl` itself enforces exactly one limit: a 20s coreutils `timeout` around the
+compile (`compile_to_json`). **That wall is not the sandbox.** The container is,
+and reading `main.hl` alone will badly understate what is actually in force. The
+deployment lives in the ops compose that runs this host, not in this repo, and it
+sets:
+
+| control | value | what it stops |
+|---|---|---|
+| `read_only: true` | — | writes anywhere but the tmpfs mounts below |
+| `tmpfs /tmp`, `/cache` | 256m each | unbounded disk growth from the wasm cache |
+| `cap_drop: ALL` | — | every capability |
+| `security_opt` | `no-new-privileges:true` | setuid escalation |
+| `pids_limit` | 256 | fork bombs, and runaway `clang` fan-out |
+| `cpus` | 0.8 | a compile burst starving the co-tenants on the box |
+| `mem_limit` | 640m | an LLVM blow-up taking the host into swap |
+
+Plus the design property that does the heaviest lifting: **untrusted code is only
+ever compiled, never executed.** The wasm goes back to the browser and runs in
+its sandbox, not this one.
+
+The image is built on a dev machine and shipped with `docker save | ssh docker
+load` rather than built on the 1-vCPU host; `editor.html` is bind-mounted read-only
+from the host so copy tweaks are an `scp` and a restart, not an image re-ship.
+
+Still open:
+
 - **Body size.** One `recv` per request (256 KB cap); fine for snippets, not uploads.
-- **Wiring the storefront `/playground` page** to point its editor at this endpoint
-  (currently the page embeds the static tour).
+- **Egress.** The container needs inbound HTTP, so it has a network; the compile
+  subprocess inherits it. Nothing today needs to reach out, so this could be
+  tightened.
+
+Done since this list was written (it used to read "NOT done — before exposing
+publicly"): the service is hosted and sandboxed, and the storefront `/playground`
+points at it.

@@ -1,60 +1,25 @@
 ---
-// Override of Starlight's Header so the docs share the marketing site's
-// brand + primary nav, while keeping Starlight's search, theme toggle,
-// and social icons. Sub-components come from the same virtual modules
-// Starlight's own Header uses, so overrides + config are respected.
+/*
+  Override of Starlight's Header so the docs and the marketing pages render
+  the identical header component. Everything visible comes from
+  SiteHeader.astro; this file exists only because Starlight's <Search />
+  resolves from a virtual module that is available inside a Starlight
+  override and nowhere else, so the search box has to be passed in from
+  here as a slot.
+
+  Note what is deliberately NOT here any more: Starlight's own SocialIcons
+  and ThemeSelect. The shared header carries a source link and a theme
+  toggle of its own, so the docs and the rest of the site offer the same
+  controls in the same order rather than two different right-hand rails.
+*/
 import config from 'virtual:starlight/user-config';
 import Search from 'virtual:starlight/components/Search';
-import SocialIcons from 'virtual:starlight/components/SocialIcons';
-import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
-import Logo from './Logo.astro';
-import { navLinks } from '../nav-links';
+import SiteHeader from './SiteHeader.astro';
 
 const shouldRenderSearch =
   config.pagefind ||
   config.components.Search !== '@astrojs/starlight/components/Search.astro';
 ---
-<div class="header sl-header-custom">
-  <div class="title-wrapper">
-    <a class="brand" href="/"><Logo /> hale</a>
-    <nav class="doc-nav-links" aria-label="Primary">
-      {navLinks.map((l) => (
-        <a href={l.href}>{l.label}</a>
-      ))}
-    </nav>
-  </div>
-  <div class="search-wrap print:hidden">
-    {shouldRenderSearch && <Search />}
-  </div>
-  <div class="right-group print:hidden">
-    <div class="social-icons"><SocialIcons /></div>
-    <ThemeSelect />
-  </div>
-</div>
-
-<style>
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    height: 100%;
-  }
-  .title-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 1.4rem;
-    min-width: 0;
-    margin-inline-end: auto;
-  }
-  .search-wrap { display: flex; justify-content: flex-end; }
-  .right-group { display: flex; align-items: center; gap: 1rem; }
-  .social-icons { display: flex; align-items: center; gap: 0.75rem; }
-  .social-icons::after {
-    content: '';
-    height: 1.75rem;
-    border-inline-end: 1px solid var(--sl-color-gray-5);
-  }
-  @media (max-width: 50rem) {
-    .right-group { display: none; }
-  }
-</style>
+<SiteHeader hasSearch={shouldRenderSearch}>
+  <Search slot="search" />
+</SiteHeader>
