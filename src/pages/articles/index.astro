@@ -5,9 +5,14 @@ import Field from '../../components/Field.astro';
 
 const all = await getCollection('articles');
 
-// A series is one argument in several parts, so it is listed in
-// READING order under its own heading; standalone pieces stay
-// newest-first below. Series are ordered by when each one started.
+/*
+  Two views of one collection, per the go.dev/blog model: the index
+  is a dense, flat, newest-first table a reader scans in one screen —
+  not a feed of cards. The series survives as a single-line strip of
+  its parts in READING order (a series is one argument; its order is
+  not its publication order), so it costs one row instead of a
+  section per part.
+*/
 const names = [
   ...new Set(
     all
@@ -22,9 +27,10 @@ const series = names.map((name) => ({
     .filter((p) => p.data.series === name)
     .sort((a, b) => (a.data.part ?? 0) - (b.data.part ?? 0)),
 }));
-const loose = all
-  .filter((p) => !p.data.series)
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const index = [...all].sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-GB', {
@@ -33,89 +39,147 @@ const fmt = (d: Date) =>
     // anywhere west of UTC.
     timeZone: 'UTC',
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
   });
 
-// One line of plain text under the title. The pieces are
-// self-describing (a date is a date, a kind is a kind) so they are
-// joined rather than each given a badge.
-const meta = (p: (typeof all)[number]) =>
-  [
-    p.data.part ? `Part ${p.data.part}` : null,
-    p.data.kind === 'announcement' ? 'Announcement' : 'Technical article',
-    fmt(p.data.date),
-    p.data.version ?? null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+const tag = (p: (typeof all)[number]) =>
+  p.data.series && p.data.part
+    ? `${p.data.series} · ${p.data.part}`
+    : p.data.kind === 'announcement'
+      ? 'announcement'
+      : null;
 ---
 
 <Base title="Articles">
   <Field kind="articles" />
-  <section class="container prose">
+  <section class="container prose articles-index">
     <span class="tag">/articles</span>
     <h1>Articles &amp; announcements</h1>
 
     {series.map((s) => (
-      <section class="block">
-        <h2>{s.name}</h2>
-        <ul class="list">
-          {s.posts.map((p) => (
-            <li>
-              <a href={`/articles/${p.id}`}>{p.data.title}</a>
-              <p class="meta">{meta(p)}</p>
-              <p class="summary">{p.data.summary}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <p class="series-strip">
+        <span class="series-name">{s.name}</span>
+        {s.posts.map((p, i) => (
+          <>
+            {i > 0 && <span class="series-sep" aria-hidden="true">·</span>}
+            <a href={`/articles/${p.id}`}
+              ><span class="series-part">{p.data.part}</span> {p.data.title}</a
+            >
+          </>
+        ))}
+      </p>
     ))}
 
-    {loose.length > 0 && (
-      <section class="block">
-        {series.length > 0 && <h2>Everything else</h2>}
-        <ul class="list">
-          {loose.map((p) => (
-            <li>
+    <ol class="index" reversed>
+      {index.map((p) => (
+        <li>
+          <span class="date">{fmt(p.data.date)}</span>
+          <span class="entry">
+            <span class="head">
               <a href={`/articles/${p.id}`}>{p.data.title}</a>
-              <p class="meta">{meta(p)}</p>
-              <p class="summary">{p.data.summary}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
+              {tag(p) && <span class="entry-tag">{tag(p)}</span>}
+            </span>
+            <span class="summary">{p.data.summary}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   </section>
 </Base>
 
 <style>
-  .block {
-    margin-top: 2.5rem;
+  .series-strip {
+    margin: 1.5rem 0 0;
+    font-size: 0.9rem;
+    line-height: 1.9;
   }
-  .list {
+  .series-name {
+    font-weight: 650;
+    margin-right: 0.6rem;
+  }
+  .series-name::after {
+    content: ':';
+  }
+  .series-sep {
+    opacity: 0.4;
+    margin: 0 0.35rem;
+  }
+  .series-strip a {
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .series-strip a:hover {
+    text-decoration: underline;
+  }
+  .series-part {
+    opacity: 0.55;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .index {
     list-style: none;
     padding: 0;
-    margin: 1.25rem 0 0;
+    margin: 2rem 0 0;
   }
-  .list li + li {
-    margin-top: 1.75rem;
+  .index li {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0 1rem;
+    padding: 0.45rem 0;
+    border-top: 1px solid
+      color-mix(in srgb, currentColor 12%, transparent);
   }
-  .list a {
-    font-size: 1.15rem;
+  .index li:first-child {
+    border-top: none;
+  }
+  .date {
+    font-size: 0.82rem;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.15rem;
+    white-space: nowrap;
+  }
+  .entry {
+    min-width: 0;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+  .head a {
     font-weight: 600;
     text-decoration: none;
   }
-  .list a:hover {
+  .head a:hover {
     text-decoration: underline;
   }
-  .meta {
-    font-size: 0.85rem;
-    opacity: 0.7;
-    margin: 0.2rem 0 0.4rem;
+  .entry-tag {
+    font-size: 0.75rem;
+    opacity: 0.55;
+    white-space: nowrap;
   }
   .summary {
-    margin: 0;
-    opacity: 0.85;
+    display: block;
+    font-size: 0.88rem;
+    opacity: 0.75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 40rem) {
+    .index li {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .summary {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
   }
 </style>
