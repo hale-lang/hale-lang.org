@@ -63,6 +63,11 @@ jobs:
       # This is what makes the site's claims about the compiler answerable
       # BY the compiler — see scripts/check-site.mjs for what it checks and
       # for the defect that prompted it.
+      # Capture the examples page's outputs from the compiler just
+      # fetched — run stdout, break-it diagnostics, the replay
+      # session. The page renders src/generated/examples.json; a
+      # diagnostic shown on the site is one this compiler printed.
+      - run: node scripts/capture-examples.mjs --hale .hale-bin/hale
       - run: node scripts/check-site.mjs --pond _pond
 
       # Non-blocking for now: the tree carries 45 pre-existing type errors

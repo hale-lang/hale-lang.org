@@ -2,162 +2,177 @@
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
+import { examples } from '../examples/manifest.mjs';
+import captures from '../generated/examples.json';
 import '../styles/storefront.css';
 
 /*
-  `<name>_prelude` is offstage context: declarations a panel needs in order
-  to typecheck but does not need to show. scripts/check-site.mjs prepends
-  it before running `hale check`; nothing renders it.
-
-  These are not decoration. `keyed_by queue_id` below is only legal if the
-  payload actually carries that field, and the gate caught that this page
-  had never said so — a reader who wrote the obvious `type Job` would have
-  been rejected by the compiler on their first try.
+  Every panel is a pair: the program, and what the machine says
+  about it. The outputs come from src/generated/examples.json,
+  produced at build time by scripts/capture-examples.mjs invoking
+  the compiler — nothing here is transcribed by hand, so nothing
+  here can quietly rot. The "break it" tab is the page's argument:
+  the diagnostic, not the declaration, is the product.
 */
-const queue_prelude = `type Job { queue_id: Int; body: String; }
-`;
-const queue = `topic JobReady { payload: Job; keyed_by queue_id; }
-
-locus Worker {
-    params { queue_id: Int = 0; }
-
-    bus {
-        subscribe JobReady as perform
-            where key == self.queue_id;
-    }
-
-    fn perform(job: Job) {
-        // this worker receives only its shard
-    }
-}`;
-
-const transport_prelude = `type Job { queue_id: Int; body: String; }
-topic JobReady { payload: Job; keyed_by queue_id; }
-
-locus Worker {
-    params { queue_id: Int = 0; }
-    bus { subscribe JobReady as perform where key == self.queue_id; }
-    fn perform(job: Job) { }
-}
-`;
-const transport = `main locus Production {
-    bindings {
-        JobReady: unix("/run/jobs.sock");
-    }
-
-    on_failure(t: std::bus::UnixTransport,
-               err: ClosureViolation) {
-        restart(t);
-    }
-}`;
-
-const causal_prelude = `type Snapshot { id: Int; }
-type Config   { limit: Int; }
-type Order    { id: Int; }
-
-topic Orders       { payload: Order; }
-topic RiskSnapshot { payload: Snapshot; }
-topic RiskConfig   { payload: Config; }
-
-locus Book {
-    bus { publish Orders; publish RiskSnapshot; publish RiskConfig; }
-    fn emit(o: Order) { Orders <- o; }
-}
-`;
-const causal = `@effects(depends: {Orders, RiskConfig, RiskSnapshot})
-locus RiskView {
-    bus {
-        subscribe RiskSnapshot as update;
-        subscribe RiskConfig as configure;
-    }
-
-    fn update(s: Snapshot) { }
-    fn configure(c: Config) { }
-}`;
-
-const hot = `@no_block @no_syscall @deterministic
-@budget(alloc_per_call = 0)
-fn score(sample: Sample) -> Float {
-    return sample.weighted_score();
-}`;
+const cap = (id) => (captures.examples as any)[id] ?? {};
 ---
 <Base
   title="Hale examples"
-  description="Hale system shapes that combine ownership, typed communication, deployment, supervision, causality, and effects."
+  description="Hale programs beside what the compiler says about them: run output, refusals with witnesses, and a recorded run replayed."
 >
   <Field kind="examples" />
   <section class="container wide examples-page">
     <div class="section-intro">
       <p class="eyebrow">examples</p>
-      <h1>Examples that cross more than one feature.</h1>
+      <h1>The program, and what the machine says back.</h1>
       <p class="lede">
-        Ownership, messaging, placement, failure and contracts get
-        interesting where they meet. Each of these is the compact version,         follow the link for the whole program and the walkthrough.
+        Each example has two states: the honest version, which compiles
+        and runs, and a one-line break, which the compiler refuses —
+        with the exact diagnostic captured from
+        <code>{captures.hale}</code> at build time. Nothing below is
+        transcribed by hand.
       </p>
     </div>
 
-    <div class="example-row">
-      <div>
-        <p class="eyebrow">sharded job queue</p>
-        <h2>Let the topic own the routing table.</h2>
-        <p>
-          A keyed topic sends each job only to the worker for that shard. The
-          handler does not receive every job and filter by hand.
-        </p>
-        <a href="/docs/tutorial/job-queue">Read the job-queue tutorial →</a>
-      </div>
-      <Hale code={queue} title="workers.hl" />
-    </div>
-
-    <div class="example-row rev">
-      <Hale code={transport} title="production.hl" />
-      <div>
-        <p class="eyebrow">supervised transport</p>
-        <h2>A broker connection is part of the lifecycle.</h2>
-        <p>
-          Bind the topic in <code>main</code>. If the transport loses its peer,
-          the binding locus fails structurally and the owning application
-          decides whether to restart it.
-        </p>
-        <a href="/docs/services/multi-binary">Read across binaries →</a>
-      </div>
-    </div>
-
-    <div class="example-row">
-      <div>
-        <p class="eyebrow">causal boundary</p>
-        <h2>State what may influence a subsystem.</h2>
-        <p>
-          The dependency set is checked transitively through the bus graph. A
-          republisher cannot quietly launder an undeclared source into this
-          locus.
-        </p>
-        <a href="/docs/effects">Read effects and causality →</a>
-      </div>
-      <Hale code={causal} title="risk-view.hl" />
-    </div>
-
-    <div class="example-row rev">
-      <Hale code={hot} title="score.hl" />
-      <div>
-        <p class="eyebrow">certified hot path</p>
-        <h2>Make the performance assumption reviewable.</h2>
-        <p>
-          This path is not merely intended to avoid the kernel, waiting, and
-          allocation. The compiler follows its callees and rejects the build
-          when the promise stops being true.
-        </p>
-        <a href="/docs/effects">Read effects and contracts →</a>
-      </div>
-    </div>
+    {examples.map((ex, i) => {
+      const c = cap(ex.id);
+      return (
+        <div class={`example-row ${i % 2 ? 'rev' : ''}`}>
+          <div class="example-prose">
+            <p class="eyebrow">{ex.eyebrow}</p>
+            <h2>{ex.title}</h2>
+            <p>{ex.prose}</p>
+            <a href={ex.docs.href}>{ex.docs.label} →</a>
+          </div>
+          <div class="example-panel">
+            <input
+              type="radio"
+              name={`tab-${ex.id}`}
+              id={`tab-${ex.id}-ok`}
+              checked
+            />
+            <input
+              type="radio"
+              name={`tab-${ex.id}`}
+              id={`tab-${ex.id}-brk`}
+            />
+            <div class="panel-tabs">
+              <label for={`tab-${ex.id}-ok`}>program</label>
+              {(ex.brk || ex.session) && (
+                <label for={`tab-${ex.id}-brk`}>
+                  {ex.session ? 'record & replay' : 'break it'}
+                </label>
+              )}
+            </div>
+            <div class="pane pane-ok">
+              <Hale code={ex.program} title={ex.file} />
+              {c.run && (
+                <pre class="machine machine-run"><span class="machine-label">$ hale run {ex.file}</span>{'\n'}{c.run.output}</pre>
+              )}
+            </div>
+            <div class="pane pane-brk">
+              {ex.brk && (
+                <>
+                  <pre class="diff"><span class="diff-note">{ex.brk.note}</span>{'\n'}{ex.brk.find.split('\n').map((l) => `- ${l}`).join('\n')}{'\n'}{ex.brk.replace.split('\n').filter((l) => !ex.brk.find.includes(l)).map((l) => `+ ${l}`).join('\n')}</pre>
+                  {c.brk && (
+                    <pre class="machine machine-err"><span class="machine-label">$ hale check {ex.file}</span>{'\n'}{c.brk.output}</pre>
+                  )}
+                </>
+              )}
+              {ex.session && c.session && (
+                <pre class="machine machine-run"><span class="machine-label">$ {ex.session.steps.join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })}
 
     <div class="examples-next">
       <h2>Try the full progression.</h2>
       <p>
-        The browser tour moves from ordinary functions to loci, typed topics,
-        supervision, and deployment without changing tools.
+        The browser tour moves from ordinary functions to loci, typed
+        topics, supervision, and deployment without changing tools.
       </p>
       <a class="btn btn-primary" href="/playground">Open the playground</a>
     </div>
   </section>
 </Base>
+
+<style>
+  .example-panel {
+    min-width: 0;
+  }
+  .example-panel > input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .panel-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .panel-tabs label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+    opacity: 0.55;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  }
+  .pane {
+    display: none;
+  }
+  .example-panel
+    > input:first-of-type:checked
+    ~ .pane-ok {
+    display: block;
+  }
+  .example-panel
+    > input:nth-of-type(2):checked
+    ~ .pane-brk {
+    display: block;
+  }
+  .example-panel
+    > input:first-of-type:checked
+    ~ .panel-tabs
+    label:first-child,
+  .example-panel
+    > input:nth-of-type(2):checked
+    ~ .panel-tabs
+    label:last-child {
+    opacity: 1;
+    border-color: currentColor;
+  }
+  .machine,
+  .diff {
+    margin: 0.5rem 0 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .machine {
+    background: color-mix(in srgb, currentColor 6%, transparent);
+  }
+  .machine-label {
+    opacity: 0.55;
+  }
+  .machine-err {
+    border-left: 3px solid #d4564e;
+  }
+  .machine-run {
+    border-left: 3px solid #4a9d6b;
+  }
+  .diff {
+    background: color-mix(in srgb, currentColor 5%, transparent);
+  }
+  .diff-note {
+    opacity: 0.6;
+    font-style: italic;
+  }
+</style>
