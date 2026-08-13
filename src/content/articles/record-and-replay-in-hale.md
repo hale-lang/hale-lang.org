@@ -11,7 +11,7 @@ summary: >-
   replayable incident — without asking application code to instrument itself.
 ---
 
-A concurrency bug is not only a bad input. It is a bad input observed in one particular order.
+A concurrency bug is a bad input observed in one particular order.
 
 Two publishers race. One handler reads the clock between two deliveries. A random choice changes the next subject. The system reaches a state nobody can reproduce, and the incident report becomes a story: these messages probably arrived first, this worker may have been running, this timestamp came from somewhere around here.
 
@@ -49,9 +49,7 @@ The same source under a different compiler is not necessarily the same program. 
 
 Hale already has a useful base case. A program running entirely on the main cooperative scheduler is deterministic by construction: one consumer thread, FIFO dispatch, handlers running to completion. Given the same inputs, there is no scheduling freedom left.
 
-Pinned loci and additional cooperative pools introduce real concurrency. Hale does not respond by forcing production into one deterministic global scheduler. It records the order each consumer observed and reconstructs those orders later.
-
-That distinction is the design.
+Pinned loci and additional cooperative pools introduce real concurrency. Hale does not respond by forcing production into one deterministic global scheduler; it records the order each consumer observed and reconstructs those orders later. Most of the design falls out of that one decision.
 
 ## Inputs are invocations, not a bag of values
 
@@ -92,7 +90,7 @@ LOTUS_OBS_RECORD=run.halerec \
 hale run app.hl
 ```
 
-That option should be treated like writing a credential-bearing dump: useful when required, dangerous when handled casually.
+Treat that flag the way you would treat writing a credential dump to disk.
 
 ## There is no global schedule
 
@@ -115,13 +113,13 @@ publisher B emits: B0 B1 B2 B3
 sink consumed: B0 A0 A1 B1 B2 A2 B3 A3
 ```
 
-The sink's order is the fact that matters. Hale stamps the delivery when the handler is about to run, not when some producer enqueues it. Enqueue order can differ from consumption order once queues, mailboxes, and workers are involved.
+The sink's order is the fact that matters, so Hale stamps the delivery when the handler is about to run, not when some producer enqueues it — enqueue order and consumption order stop agreeing the moment queues, mailboxes, and workers are involved.
 
 Every message receives a run-stable identity derived from its producer consumer and that producer's sequence. A delivery is identified by the target locus together with that message identity, so one publish fanning out to two subscribers does not collapse into two indistinguishable copies.
 
 During replay, an early delivery that is not the consumer's recorded next item is held. When the expected delivery arrives, it is released first. The runtime reconstructs the recorded order per consumer without imposing an order between consumers that the original execution never defined.
 
-A divergent replay must not deadlock forever waiting for a delivery that will never exist. The hold is bounded. After the timeout, replay releases work, counts the order miss, and reports the divergence. Replay is an instrument: when it cannot reproduce the execution, it says where the reconstruction stopped holding rather than hanging in a counterfeit exactness.
+A divergent replay must not deadlock forever waiting for a delivery that will never exist, so the hold is bounded: after the timeout, replay releases work, counts the order miss, and reports the divergence. When the tool cannot reproduce the execution, it tells you where the reconstruction stopped holding instead of hanging.
 
 ## Observation and recording obey opposite laws
 
@@ -172,7 +170,7 @@ hale replay run.halerec app.hl --allow-live-effects
 
 That flag means exactly what it says: non-journaled reads and real outputs may touch the live world again. It is not a way to make them replayable.
 
-This is deliberately conservative. Over-refusing a harmless sleep is inconvenient. Quietly sending a second order is unacceptable.
+This is deliberately conservative: over-refusing a harmless `sleep` is an inconvenience, and quietly re-sending an order is not.
 
 `where async_io` pools are also refused in the current system. Their coroutine interleaving needs its own replay model; treating it as an ordinary single-consumer queue would claim coverage the runtime does not have.
 
@@ -217,8 +215,6 @@ The current promise is intentionally narrower than “the universe happened twic
 
 > **Re-run a recorded execution and get the same schedule and the same journaled inputs, with an explicit, checked coverage boundary.**
 
-That sentence says several things and declines to say several others.
-
 It says:
 
 - the same admitted executable receives the recorded input invocations;
@@ -254,9 +250,7 @@ batched replay-grade history
 required durable WAL before delivery
 ```
 
-But those are distinct contracts. The current recorder flushes a replay artifact; it does not claim that application progress is durable through an `fdatasync`, and a critical deployment cannot yet declare that it must refuse startup without a WAL.
-
-Calling the two things by their right names keeps the path open without marketing the destination as shipped.
+But those are distinct contracts. The current recorder flushes a replay artifact; it does not claim that application progress is durable through an `fdatasync`, and a critical deployment cannot yet declare that it must refuse startup without a WAL. The substrate is built for that future; this version does not pretend to be it.
 
 ## Why Hale can do this below the application
 
@@ -276,10 +270,10 @@ consumer schedule        runtime-owned
 recording and replay      substrate policy
 ```
 
-The absence of instrumentation is not only convenience. It is completeness. A critical handler cannot forget to log one delivery because the runtime is the thing delivering it. A helper cannot hide a clock read from the journal because the call reaches a compiler-known primitive. A new pool does not require someone to invent a correlation scheme because consumer identity belongs to placement.
+The absence of instrumentation is what makes the coverage complete. A critical handler cannot forget to log one delivery, because the runtime is the thing delivering it. A helper cannot hide a clock read from the journal because the call reaches a compiler-known primitive. A new pool does not require someone to invent a correlation scheme because consumer identity belongs to placement.
 
 Logs tell you what the program decided to say. A recording preserves the choices the program needs repeated.
 
 > **A Hale recording is the run reduced to its replayable decisions.**
 
-The bug becomes a file. The file becomes a test case. The first divergence becomes the next edit.
+The bug becomes a file you can run again, and the first divergence is the next edit.
