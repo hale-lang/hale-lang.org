@@ -41,7 +41,7 @@ const sec = (id: string) => cap.sections?.[id] ?? {};
       return (
         <div class="lit-section">
           <p set:html={s.prose} />
-          {s.code && <Hale code={s.code} title={full.file} />}
+          {s.code && <Hale code={s.code} title={s.file ?? full.file} />}
           {s.brk && (
             <div class="break-block">
               <pre class="diff"><span class="diff-note">{s.brk.note}</span>{'\n'}{s.brk.find.split('\n').map((l: string) => `- ${l}`).join('\n')}{'\n'}{s.brk.replace.split('\n').filter((l: string) => !s.brk.find.includes(l)).map((l: string) => `+ ${l}`).join('\n')}</pre>
@@ -54,6 +54,20 @@ const sec = (id: string) => cap.sections?.[id] ?? {};
             c.run.outputs.map((o: string, i: number) => (
               <pre class="machine machine-run"><span class="machine-label">$ hale run {full.file}{c.run.outputs.length > 1 ? `   # run ${i + 1}` : ''}</span>{'\n'}{o}</pre>
             ))}
+          {c.fleet && (
+            <pre class="machine machine-run"><span class="machine-label">$ hale check --dump-topology …  &amp;&amp;  hale fleet check plan.json</span>{'\n'}{c.fleet.output}</pre>
+          )}
+          {c.fleetBreak && (
+            <>
+              {(() => {
+                const cap = s.captures?.find((x: any) => x.kind === 'fleet-break');
+                return cap ? (
+                  <pre class="diff"><span class="diff-note">{cap.note} ({cap.file})</span>{'\n'}{`- ${cap.find.trim()}`}{'\n'}{`+ ${cap.replace.trim()}`}</pre>
+                ) : null;
+              })()}
+              <pre class="machine machine-err"><span class="machine-label">$ hale fleet check plan.json</span>{'\n'}{c.fleetBreak.output}</pre>
+            </>
+          )}
           {c.session && (
             <pre class="machine machine-run"><span class="machine-label">$ {(s.captures?.find((x: any) => x.kind === 'session')?.steps ?? []).join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
           )}

@@ -160,16 +160,27 @@ out.fulls = {};
 const fullDir = new URL('../src/examples/full/', import.meta.url);
 for (const f of (await readdir(fullDir)).filter((f) => f.endsWith('.mjs'))) {
   const { full } = await import(new URL(f, fullDir));
-  const program = full.sections
-    .filter((s) => s.code)
-    .map((s) => s.code)
-    .join('\n\n');
-  const file = join(dir, full.file);
-  await writeFile(file, program + '\n');
-  const check = await hale(['check', file]);
-  if (!check.ok) {
-    fail(`${full.slug}: assembled program does not typecheck:\n${check.stderr}`);
+  // Group section code by file (single-file examples leave
+  // section.file unset and inherit full.file).
+  const byFile = new Map();
+  for (const sec of full.sections) {
+    if (!sec.code) continue;
+    const fname = sec.file ?? full.file;
+    byFile.set(fname, [...(byFile.get(fname) ?? []), sec.code]);
   }
+  const programs = new Map(
+    [...byFile].map(([k, v]) => [k, v.join('\n\n')]),
+  );
+  for (const [fname, prog] of programs) {
+    await writeFile(join(dir, fname), prog + '\n');
+    if (!fname.endsWith('.hl')) continue;
+    const check = await hale(['check', join(dir, fname)]);
+    if (!check.ok) {
+      fail(`${full.slug}/${fname}: does not typecheck:\n${check.stderr}`);
+    }
+  }
+  const program = programs.get(full.file);
+  const file = join(dir, full.file);
   const entry = { sections: {} };
   for (const sec of full.sections) {
     const se = {};
@@ -215,6 +226,51 @@ for (const f of (await readdir(fullDir)).filter((f) => f.endsWith('.mjs'))) {
           );
         } else {
           fail(`${full.slug}/${sec.id}: no replay support and no pinned capture`);
+        }
+      } else if (cap.kind === 'fleet' || cap.kind === 'fleet-break') {
+        // Compose the fleet: dump a topology artifact per binary
+        // (breaking one binary first for fleet-break), then run
+        // `hale fleet check` against the plan. The break must FAIL.
+        const broken = cap.kind === 'fleet-break';
+        for (const [fname, prog] of programs) {
+          if (!fname.endsWith('.hl')) continue;
+          let src = prog;
+          if (broken && fname === cap.file) {
+            src = applyBreak(prog, cap);
+          }
+          const p = join(dir, fname);
+          await writeFile(p, src + '\n');
+          const art = p.replace(/\.hl$/, '.topology.json');
+          const c = await hale(['check', p, `--dump-topology=${art}`]);
+          if (!c.ok) fail(`${full.slug}: topology dump failed:\n${c.stderr}`);
+        }
+        const planName = [...programs.keys()].find((k) =>
+          k.endsWith('.json'),
+        );
+        const planPath = join(dir, planName);
+        const planBody = programs
+          .get(planName)
+          .replaceAll(/"artifact":\s*"([^"]+)\.hl"/g, '"artifact": "$1"');
+        await writeFile(planPath, planBody + '\n');
+        const r = await hale(['fleet', 'check', planPath]);
+        if (broken === r.ok) {
+          fail(
+            `${full.slug}/${sec.id}: fleet check ${broken ? 'passed on the broken build' : 'failed'}:\n${r.stderr || r.stdout}`,
+          );
+        }
+        se[broken ? 'fleetBreak' : 'fleet'] = {
+          output: scrub(
+            (r.stdout + r.stderr).trim(),
+            dir,
+            planName,
+            planName,
+          ),
+        };
+        if (broken) {
+          // restore the honest sources for later captures
+          for (const [fname, prog] of programs) {
+            await writeFile(join(dir, fname), prog + '\n');
+          }
         }
       }
     }

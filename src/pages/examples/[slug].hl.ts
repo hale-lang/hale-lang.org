@@ -10,11 +10,18 @@ export async function getStaticPaths() {
   }));
 }
 export async function GET({ props }: { props: { full: any } }) {
-  const program = props.full.sections
-    .filter((s: any) => s.code)
-    .map((s: any) => s.code)
-    .join('\n\n');
-  return new Response(program + '\n', {
+  const byFile = new Map<string, string[]>();
+  for (const s of props.full.sections) {
+    if (!s.code) continue;
+    const f = s.file ?? props.full.file;
+    byFile.set(f, [...(byFile.get(f) ?? []), s.code]);
+  }
+  const parts = [...byFile].map(([f, codes]) =>
+    byFile.size > 1
+      ? `// ==== ${f} ====\n\n${codes.join('\n\n')}`
+      : codes.join('\n\n'),
+  );
+  return new Response(parts.join('\n\n') + '\n', {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
 }
