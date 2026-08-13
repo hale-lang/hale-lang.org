@@ -1,0 +1,114 @@
+---
+import Base from '../../layouts/Base.astro';
+import Field from '../../components/Field.astro';
+import Hale from '../../components/Hale.astro';
+import captures from '../../generated/examples.json';
+import '../../styles/storefront.css';
+
+/*
+  A literate full example: prose and code in program order, where
+  the code sections concatenate to the exact program the build
+  checked, ran, broke, and (where it applies) recorded and
+  replayed. Evidence blocks come from src/generated/examples.json;
+  nothing is transcribed by hand.
+*/
+export async function getStaticPaths() {
+  const mods = import.meta.glob('../../examples/full/*.mjs', {
+    eager: true,
+  });
+  return Object.values(mods).map((m: any) => ({
+    params: { slug: m.full.slug },
+    props: { full: m.full },
+  }));
+}
+const { full } = Astro.props;
+const cap = (captures as any).fulls?.[full.slug] ?? { sections: {} };
+const sec = (id: string) => cap.sections?.[id] ?? {};
+---
+<Base title={full.title} description={full.tagline}>
+  <Field kind="examples" />
+  <section class="container prose full-example">
+    <span class="tag">/examples/{full.slug}</span>
+    <h1>{full.title}</h1>
+    <p class="lede">{full.intro}</p>
+    <p class="meta-line">
+      {cap.lines} lines · verified by <code>{(captures as any).hale}</code> at
+      build time · <a href={`/examples/${full.slug}.hl`}>download {full.file}</a>
+    </p>
+
+    {full.sections.map((s: any) => {
+      const c = sec(s.id);
+      return (
+        <div class="lit-section">
+          <p set:html={s.prose} />
+          {s.code && <Hale code={s.code} title={full.file} />}
+          {s.brk && (
+            <div class="break-block">
+              <pre class="diff"><span class="diff-note">{s.brk.note}</span>{'\n'}{s.brk.find.split('\n').map((l: string) => `- ${l}`).join('\n')}{'\n'}{s.brk.replace.split('\n').filter((l: string) => !s.brk.find.includes(l)).map((l: string) => `+ ${l}`).join('\n')}</pre>
+              {c.brk && (
+                <pre class="machine machine-err"><span class="machine-label">$ hale check {full.file}</span>{'\n'}{c.brk.output}</pre>
+              )}
+            </div>
+          )}
+          {c.run &&
+            c.run.outputs.map((o: string, i: number) => (
+              <pre class="machine machine-run"><span class="machine-label">$ hale run {full.file}{c.run.outputs.length > 1 ? `   # run ${i + 1}` : ''}</span>{'\n'}{o}</pre>
+            ))}
+          {c.session && (
+            <pre class="machine machine-run"><span class="machine-label">$ {(s.captures?.find((x: any) => x.kind === 'session')?.steps ?? []).join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
+          )}
+        </div>
+      );
+    })}
+
+    <p class="back-link"><a href="/examples">← All examples</a></p>
+  </section>
+</Base>
+
+<style>
+  .full-example .lede {
+    font-size: 1.05rem;
+  }
+  .meta-line {
+    font-size: 0.85rem;
+    opacity: 0.7;
+  }
+  .lit-section {
+    margin-top: 2.2rem;
+  }
+  .lit-section > p {
+    max-width: 68ch;
+  }
+  .machine,
+  .diff {
+    margin: 0.6rem 0 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .machine {
+    background: color-mix(in srgb, currentColor 6%, transparent);
+  }
+  .machine-label {
+    opacity: 0.55;
+  }
+  .machine-err {
+    border-left: 3px solid #d4564e;
+  }
+  .machine-run {
+    border-left: 3px solid #4a9d6b;
+  }
+  .diff {
+    background: color-mix(in srgb, currentColor 5%, transparent);
+  }
+  .diff-note {
+    opacity: 0.6;
+    font-style: italic;
+  }
+  .back-link {
+    margin-top: 2.5rem;
+  }
+</style>

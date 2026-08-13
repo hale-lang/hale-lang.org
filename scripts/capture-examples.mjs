@@ -23,6 +23,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { readdir } from 'node:fs/promises';
 import { examples } from '../src/examples/manifest.mjs';
 
 const run = promisify(execFile);
@@ -144,6 +145,83 @@ for (const ex of examples) {
   }
 
   out.examples[ex.id] = entry;
+}
+
+/*
+  Full (literate) examples: each src/examples/full/<slug>.mjs is a
+  sectioned page whose code fields concatenate to one program. The
+  contract here is stricter than the panels': the assembled program
+  must check AND run; every section break must FAIL check; the
+  session (record → replay) runs live when the compiler supports
+  it. A page section that drifts from the working program fails the
+  build — that is the entire reason the page can afford to be big.
+*/
+out.fulls = {};
+const fullDir = new URL('../src/examples/full/', import.meta.url);
+for (const f of (await readdir(fullDir)).filter((f) => f.endsWith('.mjs'))) {
+  const { full } = await import(new URL(f, fullDir));
+  const program = full.sections
+    .filter((s) => s.code)
+    .map((s) => s.code)
+    .join('\n\n');
+  const file = join(dir, full.file);
+  await writeFile(file, program + '\n');
+  const check = await hale(['check', file]);
+  if (!check.ok) {
+    fail(`${full.slug}: assembled program does not typecheck:\n${check.stderr}`);
+  }
+  const entry = { sections: {} };
+  for (const sec of full.sections) {
+    const se = {};
+    if (sec.brk) {
+      const bad = join(dir, 'broken-' + full.file);
+      await writeFile(bad, applyBreak(program, sec.brk) + '\n');
+      const r = await hale(['check', bad]);
+      if (r.ok) fail(`${full.slug}/${sec.id}: broken variant still typechecks`);
+      se.brk = {
+        output: scrub(r.stderr || r.stdout, dir, 'broken-' + full.file, full.file),
+      };
+    }
+    for (const cap of sec.captures ?? []) {
+      if (cap.kind === 'run') {
+        const outs = [];
+        for (let i = 0; i < (cap.runs ?? 1); i++) {
+          const r = await hale(['run', file]);
+          if (!r.ok) fail(`${full.slug}: run failed:\n${r.stderr}`);
+          outs.push(scrub(r.stdout, dir, full.file, full.file));
+        }
+        se.run = { outputs: outs };
+      } else if (cap.kind === 'session') {
+        if (hasReplay) {
+          const rec = join(dir, full.slug + '.halerec');
+          const recRun = await hale(['run', file], {
+            env: { ...process.env, LOTUS_OBS_RECORD: rec },
+          });
+          if (!recRun.ok) fail(`${full.slug}: recorded run failed:\n${recRun.stderr}`);
+          const rp = await hale(['replay', rec, file, '--allow-live-effects', '--diff']);
+          if (!rp.ok) fail(`${full.slug}: replay diverged:\n${rp.stderr}`);
+          se.session = {
+            output: scrub(rp.stderr + rp.stdout, dir, full.file, full.file),
+            source: 'live',
+          };
+        } else if (cap.pinned) {
+          se.session = {
+            output: cap.pinned.output,
+            source: 'pinned',
+            label: cap.pinned.label,
+          };
+          console.error(
+            `capture-examples: ${full.slug}: no \`hale replay\`; pinned (${cap.pinned.label})`,
+          );
+        } else {
+          fail(`${full.slug}/${sec.id}: no replay support and no pinned capture`);
+        }
+      }
+    }
+    if (Object.keys(se).length) entry.sections[sec.id] = se;
+  }
+  entry.lines = program.split('\n').length;
+  out.fulls[full.slug] = entry;
 }
 
 await rm(dir, { recursive: true, force: true });

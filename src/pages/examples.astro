@@ -15,6 +15,15 @@ import '../styles/storefront.css';
   the diagnostic, not the declaration, is the product.
 */
 const cap = (id) => (captures.examples as any)[id] ?? {};
+const fullMods = import.meta.glob('../examples/full/*.mjs', {
+  eager: true,
+});
+const fulls = Object.values(fullMods)
+  .map((m: any) => m.full)
+  .map((f: any) => ({
+    ...f,
+    lines: (captures as any).fulls?.[f.slug]?.lines ?? 0,
+  }));
 ---
 <Base
   title="Hale examples"
@@ -24,13 +33,32 @@ const cap = (id) => (captures.examples as any)[id] ?? {};
   <section class="container wide examples-page">
     <div class="section-intro">
       <p class="eyebrow">examples</p>
-      <h1>The program, and what the machine says back.</h1>
+      <h1>Complete systems, with their evidence.</h1>
       <p class="lede">
-        Each example has two states: the honest version, which compiles
-        and runs, and a one-line break, which the compiler refuses —
-        with the exact diagnostic captured from
-        <code>{captures.hale}</code> at build time. Nothing below is
-        transcribed by hand.
+        Full programs read top to bottom, beside what the machine says
+        about them — run transcripts, refusals with witnesses, recorded
+        runs replayed. Everything is captured from
+        <code>{captures.hale}</code> at build time; the code on every
+        page concatenates to the exact program the build verified.
+      </p>
+    </div>
+
+    <div class="full-cards">
+      {fulls.map((f) => (
+        <a class="full-card" href={`/examples/${f.slug}`}>
+          <p class="eyebrow">{f.lines} lines · {f.file}</p>
+          <h2>{f.title}</h2>
+          <p>{f.tagline}</p>
+          <span class="card-cta">Read the whole system →</span>
+        </a>
+      ))}
+    </div>
+
+    <div class="section-intro strip-intro">
+      <h2 class="strip-title">One guarantee at a time.</h2>
+      <p class="lede">
+        The same discipline at snippet scale: the honest version and a
+        one-line break, with the compiler's actual refusal beside it.
       </p>
     </div>
 
@@ -100,6 +128,46 @@ const cap = (id) => (captures.examples as any)[id] ?? {};
 </Base>
 
 <style>
+  .full-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 1rem;
+    margin: 2rem 0 3.5rem;
+  }
+  .full-card {
+    display: block;
+    padding: 1.3rem 1.4rem;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 12px;
+    text-decoration: none;
+  }
+  .full-card:hover {
+    border-color: currentColor;
+  }
+  .full-card h2 {
+    margin: 0.35rem 0 0.5rem;
+    font-size: 1.25rem;
+  }
+  .full-card p {
+    margin: 0;
+    font-size: 0.92rem;
+    opacity: 0.8;
+  }
+  .full-card .eyebrow {
+    opacity: 0.6;
+  }
+  .card-cta {
+    display: inline-block;
+    margin-top: 0.9rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .strip-intro {
+    margin-top: 1rem;
+  }
+  .strip-title {
+    font-size: 1.5rem;
+  }
   .example-panel {
     min-width: 0;
   }
