@@ -12,3 +12,5 @@ service/*.mjs
 # synced from hale-lang/hale by scripts/sync-docs.mjs — never authored here
 src/content/docs/docs/
 src/generated/
+.hale-bin/
+hale.tar.gz

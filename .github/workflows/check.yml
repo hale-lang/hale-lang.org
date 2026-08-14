@@ -58,16 +58,18 @@ jobs:
           echo "$PWD/.hale-bin" >> "$GITHUB_PATH"
       - run: hale --version
 
+      # BEFORE the build: the examples pages import the JSON this
+      # writes. Capture the examples page's outputs from the compiler just
+      # fetched — run stdout, break-it diagnostics, the replay
+      # session. The page renders src/generated/examples.json; a
+      # diagnostic shown on the site is one this compiler printed.
+      - run: node scripts/capture-examples.mjs --hale .hale-bin/hale
+
       - run: npm run build
 
       # The gate: compiles every Hale snippet, checks every fleet plan,
       # crawls internal links and anchors, diffs the package catalogue
       # against pond, and lints the prose. See scripts/check-site.mjs.
-      # Capture the examples page's outputs from the compiler just
-      # fetched — run stdout, break-it diagnostics, the replay
-      # session. The page renders src/generated/examples.json; a
-      # diagnostic shown on the site is one this compiler printed.
-      - run: node scripts/capture-examples.mjs --hale .hale-bin/hale
       - run: node scripts/check-site.mjs --pond _pond
 
       # Non-blocking: 45 pre-existing type errors in the tree. Reported so
