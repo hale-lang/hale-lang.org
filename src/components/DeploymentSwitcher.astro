@@ -22,8 +22,12 @@ locus Rollup {
     fn add(s: Sample) { }
 }
 
+// Satisfies std::bus::Adapter — since hale 0.17 a bindings entry
+// checks its locus against the interface (send, at minimum).
 locus NatsAdapter {
     params { url: String = "nats://localhost:4222"; }
+
+    fn send(subject: String, bytes: Bytes) { }
 }
 `;
 
