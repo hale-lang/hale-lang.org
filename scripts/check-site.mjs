@@ -353,9 +353,11 @@ async function checkProse() {
     const lines = text.split('\n');
     lines.forEach((line, i) => {
       const at = `${f}:${i + 1}`;
-      // 5. lotus-as-language
+      // 5. lotus-as-language. The digital-lotus visual identity (the mark,
+      // the homepage field, the reskin) is the other legitimate referent,
+      // so design contexts join the substrate contexts in the carve-out.
       if (/\blotus\b/i.test(line) &&
-          !/runtime|substrate|lotus_|C-runtime|accent|mark|pond|--lotus/i.test(line)) {
+          !/runtime|substrate|lotus_|C-runtime|accent|mark|pond|--lotus|digital|reskin|field|petal|puls/i.test(line)) {
         fail(at, `"lotus" names the runtime substrate; the language construct is "locus"`);
       }
       // 6. an evidence word with nothing scoping it.

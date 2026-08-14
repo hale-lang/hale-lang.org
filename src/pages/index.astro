@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hale from '../components/Hale.astro';
+import Logo from '../components/Logo.astro';
 import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
 import Unfold from '../components/Unfold.astro';
 import '../styles/storefront.css';
@@ -75,11 +76,17 @@ const failure = `locus WorkerPool {
 <Base>
   <section class="container wide hero storefront-hero">
     <div class="split">
-      <div>
+      <div class="text-pool">
+        <div class="hero-lockup" aria-hidden="true">
+          <Logo class="lockup-mark" />
+          <span class="lockup-divider"></span>
+          <span class="lockup-wordmark">hale</span>
+        </div>
         <p class="eyebrow">a new semantic compression for software</p>
         {/* Two beats, so the break is authored rather than left to the
-            measure — at 13ch the natural wrap falls after "Spell". */}
-        <h1><span>Say less.</span><span>Spell more.</span></h1>
+            measure. ("Say less. Spell more." was retired from here to be
+            the title of a future article.) */}
+        <h1><span>Write the system,</span><span>not the lore.</span></h1>
         <p class="lede">
           Hale gives the whole system one recursive model, and the locus is its
           unit. From function scope to fleet, ownership, communication,
@@ -250,6 +257,7 @@ const failure = `locus WorkerPool {
   </section>
 
   <section class="container center final-cta">
+    <div class="text-pool">
     <p class="eyebrow">the shortest useful introduction</p>
     <h2>Run a system, then change its deployment.</h2>
     <p class="lede" style="margin-inline:auto;">
@@ -259,6 +267,7 @@ const failure = `locus WorkerPool {
     <div class="hero-actions" style="justify-content:center;">
       <a class="btn btn-primary" href="/playground">Open the playground</a>
       <a class="btn btn-ghost" href="/model">Read the model</a>
+    </div>
     </div>
   </section>
 </Base>

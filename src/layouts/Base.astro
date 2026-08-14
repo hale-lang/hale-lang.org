@@ -7,8 +7,8 @@ interface Props { title?: string; description?: string; }
 const {
   title = 'Hale: one recursive model, from a value to a fleet',
   // Read cold, in a search result, by someone who has never heard of Hale —
-  // so this stays in the factual register. "Say less. Spell more." is the
-  // line to remember, not the line to explain with.
+  // so this stays in the factual register. "Write the system, not the
+  // lore." is the line to remember, not the line to explain with.
   //
   // "One construct" was the old wording and it invited a reader to check it
   // literally: a constitution and a JSON fleet plan are not locus
@@ -19,7 +19,7 @@ const {
 } = Astro.props;
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
@@ -38,25 +38,14 @@ const {
     <meta property="og:image:alt" content="Hale — a concurrent systems language with a GC-free runtime." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://hale-lang.org/og.png" />
-    <meta name="theme-color" content="#0e7c66" />
+    <meta name="theme-color" content="#02040a" />
+    <meta name="color-scheme" content="dark" />
     {/*
-      The same pre-paint resolution Starlight runs on the docs, against the
-      same localStorage key and the same value semantics — so a theme
-      chosen in /docs survives the click back out here, and vice versa.
-      Inline and render-blocking on purpose: a deferred script would let
-      the light palette paint first and flash.
+      The digital-lotus reskin is dark only: data-theme is pinned in the
+      markup above, so there is no pre-paint theme script to run and
+      nothing to flash. Starlight resolves its own data-theme on the docs;
+      starlight.css maps both of its values onto the same palette.
     */}
-    <script is:inline>
-      (() => {
-        let stored = null;
-        try { stored = localStorage.getItem('starlight-theme'); } catch {}
-        const theme =
-          stored === 'light' || stored === 'dark'
-            ? stored
-            : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
   </head>
   <body>
     <Nav />
