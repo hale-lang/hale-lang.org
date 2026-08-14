@@ -1,24 +1,18 @@
 ---
 /*
-  Unfold: the recursion, revealed by scrolling.
+  Unfold: the recursion, over the lotus field.
 
-  There is exactly one world here, built once, nested four levels deep.
-  Scrolling does not play an animation; it moves a camera. You begin deep
-  inside one leaf and pull back continuously until an entire fleet is on
-  screen, and the reason the picture keeps making sense on the way out is
-  the whole argument: a locus is a system made of systems, and nothing
-  about its shape changes when you change scale.
+  The digital-lotus field runs fixed behind the whole document: every lotus
+  is a locus, every lit route is a declared communication edge, and packets
+  travel those routes before the receiving lotus pulses. Scrolling pulls
+  the camera back through the field, so the pull-back from one leaf toward
+  the whole system is still the page's gesture — but the semantics now ride
+  in the beats' code panels rather than in a bespoke scene.
 
   The beats carry what used to be four separate sections of the homepage
   (ownership, communication, execution, failure), because each of those is
   a property of the structure you are looking at rather than a topic of
   its own.
-
-  Semantics are load bearing, not decorative:
-    a child cavity opens INSIDE its parent   spec/memory.md:22-38
-    light routes up to the topic and back    docs/src/services/bus.md:129-140
-    a failure travels up to its parent       spec/semantics.md:2786-2798
-    a plan is a main locus one scale out     spec/verification.md fleet tier
 */
 import Hale from './Hale.astro';
 
@@ -349,22 +343,37 @@ main locus App {
 </section>
 
 <style>
-  .unfold { position: relative; background: #05070a; }
-  .unfold-viz { position: sticky; top: 0; height: 100vh; width: 100%; overflow: hidden; }
+  /*
+    The lotus field is the page's floor, not a panel inside it: the viz sits
+    fixed behind every section at z-index -1 — above the body's background,
+    below all content — so the whole document scrolls over one continuous
+    field. The veil settles the edges so copy stays readable anywhere on it.
+  */
+  .unfold { position: relative; background: transparent; }
+  .unfold-viz {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
   #unfold-canvas { display: block; width: 100%; height: 100%; }
 
   .unfold-vignette {
     position: absolute;
     inset: 0;
     pointer-events: none;
+    /* Heavier than the prototype's veil: the copy column lives on the left
+       two-fifths of the page, so that side settles hardest. */
     background:
-      linear-gradient(to right, rgba(5,7,10,0.93) 0%, rgba(5,7,10,0.58) 34%, rgba(5,7,10,0) 62%),
-      linear-gradient(to bottom, rgba(5,7,10,0.85) 0%, rgba(5,7,10,0) 22%, rgba(5,7,10,0) 78%, rgba(5,7,10,0.85) 100%);
+      radial-gradient(80% 70% at 64% 38%, transparent 0%, rgba(2,4,10,.14) 58%, rgba(2,4,10,.52) 100%),
+      linear-gradient(90deg, rgba(2,4,10,.74) 0%, rgba(2,4,10,.44) 38%, rgba(2,4,10,.14) 67%, rgba(2,4,10,.38) 100%),
+      linear-gradient(180deg, rgba(2,4,10,.60), rgba(2,4,10,.12) 20%, rgba(2,4,10,.12) 80%, rgba(2,4,10,.76) 100%);
   }
 
   .unfold-beats {
     position: relative;
-    margin-top: -100vh;
     padding-inline: clamp(1.25rem, 6vw, 5rem);
     max-width: var(--maxw-wide);
     margin-inline: auto;
@@ -388,8 +397,8 @@ main locus App {
   /* The panel is the one opaque thing over the field, so it needs an edge
      of its own or it reads as a hole punched in the animation. */
   .beat-viz :global(.code) {
-    border-color: rgba(46, 196, 163, 0.22);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    border-color: rgba(117, 232, 255, 0.18);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 40px rgba(90, 168, 255, 0.07);
   }
   .beat-viz :global(.code pre) { font-size: 0.8rem; }
 
@@ -412,23 +421,22 @@ main locus App {
   .beat:last-child { min-height: 0; padding-bottom: 1.5rem; }
   .unfold { padding-bottom: 0; }
 
-  .beat .eyebrow { color: #2ec4a3; }
   .beat h3 {
     font-size: clamp(1.6rem, 3.1vw, 2.3rem);
     line-height: 1.14;
     letter-spacing: -0.025em;
-    color: #f2f4f7;
+    color: var(--lotus-text);
     margin: 0.35rem 0 0.9rem;
   }
   .beat p:not(.eyebrow) {
     margin: 0;
-    color: rgba(238, 240, 243, 0.72);
+    color: var(--lotus-text-soft);
     font-size: 1.02rem;
     max-width: 34rem;
   }
   .beat code {
-    background: rgba(46,196,163,0.1);
-    color: #7fe3c8;
+    background: rgba(117, 232, 255, 0.08);
+    color: var(--jade-deep);
     padding: 0.1em 0.32em;
     border-radius: 4px;
   }
@@ -439,245 +447,50 @@ main locus App {
     clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
 
-  /* Without a sticky viewport this is an ordinary dark run of prose,
-     which is a fine thing to be. */
+  /* The renderer paints one still frame under reduced motion; the beats
+     become an ordinary run of prose over it, which is a fine thing to be. */
   @media (prefers-reduced-motion: reduce) {
-    .unfold-viz { position: relative; height: 58vh; }
-    .unfold-beats { margin-top: 0; }
     .beat { min-height: 0; padding-block: 2.2rem; }
   }
   @media (max-width: 700px) {
     .beat { max-width: none; }
     .unfold-vignette {
-      background: linear-gradient(to bottom, rgba(5,7,10,0.86) 0%, rgba(5,7,10,0.58) 40%, rgba(5,7,10,0.86) 100%);
-    }
-  }
-
-  /*
-    Dark: the camera is the page's floor rather than a panel inside it. The
-    viz leaves the flow and sits behind every section at z-index -1 — above
-    the page's propagated background, below all content — so the whole
-    document scrolls over one continuous field.
-
-    Light: none of this applies. The medium is a dark fluid and the paper is
-    warm; it stays inside its own section, the one place the page is already
-    dark enough to carry it.
-  */
-  /* On the resolved theme rather than the OS preference — the reader can
-     now pick light on a dark machine, and this used to go page-wide
-     underneath them regardless. Kept in lockstep with the `pageWide`
-     check in the script below. */
-  @media (prefers-reduced-motion: no-preference) {
-    :root[data-theme='dark'] .unfold { background: transparent; }
-    :root[data-theme='dark'] .unfold-viz {
-      position: fixed;
-      inset: 0;
-      height: 100vh;
-      z-index: -1;
-      pointer-events: none;
-    }
-    /* the sticky spacer is out of the flow now, so nothing needs pulling up */
-    :root[data-theme='dark'] .unfold-beats { margin-top: 0; }
-    /* Page-wide, the left-weighted vignette would shade one side of every
-       section. Even it out: hold the middle clear, settle at the edges. */
-    :root[data-theme='dark'] .unfold-vignette {
       background:
-        radial-gradient(125% 85% at 50% 45%, rgba(5,7,10,0.34) 0%, rgba(5,7,10,0.6) 72%, rgba(5,7,10,0.8) 100%),
-        linear-gradient(to bottom, rgba(5,7,10,0.72) 0%, rgba(5,7,10,0.38) 16%, rgba(5,7,10,0.38) 84%, rgba(5,7,10,0.72) 100%);
+        radial-gradient(95% 70% at 50% 38%, transparent 0%, rgba(2,4,10,.16) 46%, rgba(2,4,10,.72) 100%),
+        linear-gradient(180deg, rgba(2,4,10,.55), rgba(2,4,10,.10) 38%, rgba(2,4,10,.72));
     }
   }
 </style>
 
 <script>
-  import {
-    mount, medium, cavity, spark, topicLine, viaTopic,
-    HUES, clamp01, lerp, window_,
-  } from '../lib/field';
+  import { mountLotusField } from '../lib/lotus-field';
+  import { clamp01, lerp } from '../lib/field';
 
   const cv = document.getElementById('unfold-canvas') as HTMLCanvasElement | null;
-  const section = document.querySelector('.unfold') as HTMLElement | null;
 
   /*
-    Page-wide, the camera belongs to the document: mounting against the
-    document element makes progress() read whole-page scroll, so the
-    pull-back runs from the top of the site to the bottom rather than
-    restarting inside one section. It also keeps the surface animating for
-    the whole scroll, which is the point of putting it behind everything.
-
-    Matches the CSS above: only where the field is actually page-wide.
+    The old scene moved a camera from one leaf out to a fleet. The
+    lotus field keeps that gesture without owning the argument: scrolling pulls
+    the camera back through the field, and message traffic picks up as more
+    of the system comes on screen. The beats' code panels carry the
+    semantics now; the field is the medium they float on.
   */
-  const pageWide =
-    document.documentElement.dataset.theme === 'dark' &&
-    matchMedia('(prefers-reduced-motion: no-preference)').matches;
-  const host = pageWide ? document.documentElement : section;
-
-  if (cv && host && section) {
-    const PALETTE = [HUES.cyan, HUES.jade, HUES.gold, HUES.violet];
-
-    type Cav = { x: number; y: number; r: number; hue: string; depth: number; kids: Cav[] };
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-
-    function grow(x: number, y: number, r: number, depth: number, hue: string): Cav {
-      const kids: Cav[] = [];
-      const n = depth === 0 ? 4 : depth === 1 ? 3 : depth === 2 ? 3 : 0;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + rnd() * 0.9 + depth;
-        const d = r * (0.34 + rnd() * 0.24);
-        const kr = r * (depth === 0 ? 0.26 : 0.3) * (0.78 + rnd() * 0.42);
-        kids.push(grow(x + Math.cos(a) * d, y + Math.sin(a) * d, kr, depth + 1,
-          PALETTE[(PALETTE.indexOf(hue) + 1 + (i % 3)) % PALETTE.length]));
-      }
-      return { x, y, r, hue, depth, kids };
-    }
-
-    const FW = 2600, FH = 1300;
-    const world: Cav[] = [
-      grow(FW * 0.2, FH * 0.55, 300, 0, HUES.cyan),
-      grow(FW * 0.52, FH * 0.45, 340, 0, HUES.jade),
-      grow(FW * 0.84, FH * 0.58, 290, 0, HUES.violet),
-    ];
-    const routes: [Cav, Cav][] = [[world[0], world[1]], [world[1], world[2]], [world[0], world[2]]];
-    const leaf = world[1].kids[0].kids[0].kids[0] ?? world[1].kids[0].kids[0];
-    const NEAR = 300 / leaf.r, FAR = 1000 / FW;
-
-    // Eight beats, in the order they are written above.
-    // Beat cues are expressed in spans, never in bare fractions: 0.80 meant
-    // "beat 6.4 of 8" and silently became a different beat the moment a
-    // ninth was added. Anything after the constitution beat is +1 span.
-    const span = 1 / 9;
-
-    /*
-      The camera runs on f.p (the whole document, when page-wide), but the
-      beats are paragraphs in one section and their cues have to stay with
-      the words. Read that section's own progress for anything keyed to a
-      beat, so the two never drift apart as the page above grows.
-    */
-    const beatProgress = () => {
-      if (!pageWide) return -1; // f.p already is the section's progress
-      const r = section.getBoundingClientRect();
-      const span = r.height - window.innerHeight;
-      return span > 8 ? clamp01(-r.top / span) : 0;
+  if (cv) {
+    const pageProgress = () => {
+      const span = document.documentElement.scrollHeight - window.innerHeight;
+      return span > 8 ? clamp01(window.scrollY / span) : 0;
     };
-
-    mount(cv, host, (f) => {
-      const { ctx, W, H, t, p } = f;
-      const bp = pageWide ? beatProgress() : p;
-      medium(f);
-
-      const z = NEAR * Math.pow(FAR / NEAR, p);
-      const cx = lerp(leaf.x, FW / 2, clamp01(p * 1.15));
-      const cy = lerp(leaf.y, FH / 2, clamp01(p * 1.15));
-      const S = (wx: number, wy: number): [number, number] =>
-        [W / 2 + (wx - cx) * z, H / 2 + (wy - cy) * z];
-
-      // Execution: the pools a placement block would name. Only while the
-      // beat that talks about placement is on screen.
-      const lanes = window_(bp, 4 * span, 5 * span, 0.25);
-      if (lanes > 0) {
-        for (let i = 0; i < 3; i++) {
-          const g = ctx.createLinearGradient(0, 0, 0, H);
-          g.addColorStop(0, `rgba(${PALETTE[i]},0)`);
-          g.addColorStop(0.5, `rgba(${PALETTE[i]},${0.05 * lanes})`);
-          g.addColorStop(1, `rgba(${PALETTE[i]},0)`);
-          ctx.fillStyle = g;
-          ctx.fillRect(W * (0.08 + i * 0.3), 0, W * 0.26, H);
-        }
-      }
-
-      // Routes join instances, and only once a fleet is legible.
-      const routeA = clamp01((bp - 7.4 * span) / (1.26 * span));
-      if (routeA > 0) {
-        for (const [a, b] of routes) {
-          const [ax, ay] = S(a.x, a.y);
-          const [bx, by] = S(b.x, b.y);
-          ctx.strokeStyle = `rgba(${HUES.jade},${0.18 * routeA})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(ax, ay);
-          ctx.quadraticCurveTo((ax + bx) / 2, H * 0.12, bx, by);
-          ctx.stroke();
-        }
-      }
-
-      const busA = clamp01((bp - 3 * span) / (0.9 * span)) * (1 - clamp01((bp - 7.88 * span) / (1.26 * span)));
-      const busY = H * 0.17;
-      topicLine(f, busY, busA);
-
-      let drawn = 0;
-      const walk = (c: Cav) => {
-        const sr = c.r * z;
-        if (sr < 0.7 || drawn > 400) return;
-        const [sx, sy] = S(c.x, c.y);
-        const m = sr + 40;
-        if (sx < -m || sx > W + m || sy < -m || sy > H + m) return;
-        const a = Math.min(1, sr / 3) * Math.min(1, (Math.max(W, H) * 2.2) / sr);
-        cavity(f, sx, sy, sr, c.hue, { alpha: a });
-        drawn++;
-        for (const k of c.kids) walk(k);
-      };
-      for (const inst of world) walk(inst);
-
-      // Communication: one message, up to the topic and back down.
-      if (busA > 0.05) {
-        const src = world[1].kids[1], dst = world[1].kids[2];
-        const k = (t * 0.28) % 1;
-        const [x0, y0] = S(src.x, src.y);
-        const [x1, y1] = S(dst.x, dst.y);
-        for (let i = 0; i < 6; i++) {
-          const kk = k - i * 0.022;
-          if (kk <= 0) continue;
-          const [mx, my] = viaTopic(x0, y0, x1, y1, busY, kk);
-          spark(f, mx, my, 13 - i * 1.6, (1 - i / 6) * 0.85 * busA);
-        }
-      }
-
-      // Failure: never sideways. Up to the parent that owns it.
-      const fail = window_(bp, 5 * span, 6 * span, 0.22);
-      if (fail > 0) {
-        const child = world[1].kids[0], parent = world[1];
-        const [kx, ky] = S(child.x, child.y);
-        const [px, py] = S(parent.x, parent.y);
-        const k = (t * 0.5) % 1;
-        ctx.strokeStyle = `rgba(${HUES.rose},${0.5 * fail * (1 - k)})`;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(kx, ky, child.r * z * (1 + k * 0.25), 0, Math.PI * 2);
-        ctx.stroke();
-        for (let i = 0; i < 5; i++) {
-          const kk = k - i * 0.03;
-          if (kk <= 0) continue;
-          spark(f, lerp(kx, px, kk), lerp(ky, py, kk), 11 - i * 1.5,
-            (1 - i / 5) * fail * 0.8, HUES.rose);
-        }
-      }
-
-      // Law: the world closes, and the closure is what can be certified.
-      const seal = window_(bp, 7 * span, 8.4 * span, 0.3);
-      if (seal > 0) {
-        const inst = world[1];
-        const [ix, iy] = S(inst.x, inst.y);
-        const rr = inst.r * z * 1.22;
-        ctx.setLineDash([6, 10]);
-        ctx.strokeStyle = `rgba(${HUES.jade},${0.42 * seal})`;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(ix, iy, rr, t * 0.1, t * 0.1 + Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // The certificate, once the whole arrangement is in view.
-      const cert = clamp01((bp - 8.2 * span) / (0.72 * span));
-      if (cert > 0) {
-        for (const inst of world) {
-          const [ix, iy] = S(inst.x, inst.y);
-          spark(f, ix, iy - inst.r * z * 1.05, 7, cert * (0.55 + 0.35 * Math.sin(t * 2 + ix)), HUES.jade);
-        }
-      }
-    // Half the default. Page-wide this surface animates for the whole scroll
-    // rather than one section, so it pays for itself continuously; soft
-    // gradients upscale, which is what the budget is a budget of.
-    }, 500_000);
+    // Quieter than the prototype's defaults: this field carries a page of
+    // copy on top of it, so it earns its keep as ambience, not spectacle.
+    mountLotusField(cv, {
+      brightness: 0.85,
+      density: 21,
+      messageRate: 1.0,
+      maxNodes: 30,
+      camera: () => {
+        const p = pageProgress();
+        return { zoom: lerp(1.28, 0.8, p), activity: 0.9 + p * 0.5 };
+      },
+    });
   }
 </script>

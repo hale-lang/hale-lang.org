@@ -11,12 +11,15 @@
   A page supplies only its scene.
 */
 
+/* The lotus palette, as r,g,b triplets for rgba() interpolation. Keep in
+   lockstep with the --lotus-* tokens in styles/global.css. */
 export const HUES = {
-  jade: '46,196,163',
-  cyan: '95,211,224',
-  gold: '232,192,122',
-  violet: '167,139,250',
-  rose: '224,110,130',
+  jade: '89,242,207',
+  cyan: '117,232,255',
+  electric: '90,168,255',
+  gold: '255,210,138',
+  violet: '155,124,255',
+  rose: '255,143,165',
 } as const;
 
 export type Hue = string;
@@ -49,7 +52,7 @@ export function window_(p: number, a: number, b: number, edge = 0.12) {
   return Math.min(1, u / edge, (1 - u) / edge);
 }
 
-export const BG = '#05070a';
+export const BG = '#02040a';
 
 /** The fluid body: large, slow, always moving a little. */
 export function medium(f: Frame, hues: Hue[] = [HUES.cyan, HUES.jade, HUES.violet], strength = 1) {
@@ -89,7 +92,7 @@ export function cavity(
   const rr = opts.wobble === false ? r : r * (1 + Math.sin(t * 0.7 + x * 0.01) * 0.014);
 
   const g = ctx.createRadialGradient(x, y, rr * 0.1, x, y, rr);
-  g.addColorStop(0, 'rgba(4,6,9,0.92)');
+  g.addColorStop(0, 'rgba(2,4,10,0.92)');
   g.addColorStop(0.62, `rgba(${hue},0.05)`);
   g.addColorStop(0.9, `rgba(${hue},${0.3 * alpha})`);
   g.addColorStop(1, `rgba(${hue},0)`);

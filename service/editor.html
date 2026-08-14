@@ -8,26 +8,26 @@
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: #0d1117; color: #e6edf3;
+    margin: 0; background: #050914; color: #e2e8f4;
     font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   }
   header {
     display: flex; align-items: center; gap: .75rem;
-    padding: .6rem 1rem; border-bottom: 1px solid #21262d;
+    padding: .6rem 1rem; border-bottom: 1px solid rgba(117,232,255,.13);
   }
   header h1 { font-size: .95rem; margin: 0; font-weight: 600; letter-spacing: .02em; }
-  header .sub { color: #8b949e; font-size: .8rem; }
+  header .sub { color: #8593a9; font-size: .8rem; }
   header .spacer { flex: 1; }
   button {
     font: inherit; font-weight: 600; cursor: pointer;
-    background: #238636; color: #fff; border: 0;
+    background: linear-gradient(100deg, #e5fcff 0%, #75e8ff 54%, #b8abff 130%); color: #031019; border: 0;
     padding: .4rem .9rem; border-radius: 6px;
   }
-  button.ghost { background: transparent; color: #e6edf3; border: 1px solid #30363d; }
+  button.ghost { background: transparent; color: #e2e8f4; border: 1px solid rgba(158,196,255,.28); }
   button:disabled { opacity: .55; cursor: default; }
-  main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; height: calc(100vh - 49px); background: #21262d; }
-  .pane { display: flex; flex-direction: column; min-width: 0; background: #0d1117; }
-  .pane .label { padding: .35rem .8rem; color: #8b949e; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid #161b22; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; height: calc(100vh - 49px); background: rgba(117,232,255,.13); }
+  .pane { display: flex; flex-direction: column; min-width: 0; background: #050914; }
+  .pane .label { padding: .35rem .8rem; color: #8593a9; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid #0b1326; }
 
   /* --- overlay editor: highlighted <pre> behind a transparent textarea --- */
   .editor { position: relative; flex: 1; min-height: 0; }
@@ -36,37 +36,37 @@
     font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     white-space: pre; tab-size: 4; overflow: auto;
   }
-  #hl { pointer-events: none; overflow: hidden; color: #e6edf3; background: #0d1117; }
+  #hl { pointer-events: none; overflow: hidden; color: #e2e8f4; background: #050914; }
   #src {
-    resize: none; outline: 0; background: transparent; color: #e6edf3;
-    caret-color: #e6edf3; z-index: 1;
+    resize: none; outline: 0; background: transparent; color: #e2e8f4;
+    caret-color: #e2e8f4; z-index: 1;
   }
   .editor.hl-on #src { color: transparent; }
-  .editor.hl-on #src::selection { background: #264f78; color: transparent; }
+  .editor.hl-on #src::selection { background: rgba(117,232,255,.24); color: transparent; }
 
   /* token theme (GitHub-dark adjacent, matches the page) */
-  .tk-comment  { color: #8b949e; font-style: italic; }
-  .tk-keyword  { color: #ff7b72; }
-  .tk-string   { color: #a5d6ff; }
-  .tk-number   { color: #79c0ff; }
-  .tk-type     { color: #ffa657; }
-  .tk-function { color: #d2a8ff; }
-  .tk-member   { color: #79c0ff; }
-  .tk-constant { color: #79c0ff; }
-  .tk-operator { color: #ff7b72; }
-  .tk-punct    { color: #e6edf3; }
-  .tk-attr     { color: #d2a8ff; }
-  .tk-self     { color: #ffa657; }
-  .tk-param    { color: #ffa657; }
-  .tk-variable { color: #e6edf3; }
+  .tk-comment  { color: #8593a9; font-style: italic; }
+  .tk-keyword  { color: #c5a8ff; }
+  .tk-string   { color: #ffd28a; }
+  .tk-number   { color: #8eeaff; }
+  .tk-type     { color: #8eeaff; }
+  .tk-function { color: #c5a8ff; }
+  .tk-member   { color: #8eeaff; }
+  .tk-constant { color: #8eeaff; }
+  .tk-operator { color: #59f2cf; }
+  .tk-punct    { color: #e2e8f4; }
+  .tk-attr     { color: #c5a8ff; }
+  .tk-self     { color: #8eeaff; }
+  .tk-param    { color: #8eeaff; }
+  .tk-variable { color: #e2e8f4; }
 
   #out {
     flex: 1; margin: 0; padding: 1rem; overflow: auto; white-space: pre-wrap;
     font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
-  #out .err { color: #ff7b72; }
-  #out .ok  { color: #3fb950; }
-  #out .muted { color: #8b949e; }
+  #out .err { color: #ff8fa5; }
+  #out .ok  { color: #59f2cf; }
+  #out .muted { color: #8593a9; }
   @media (max-width: 720px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
 </style>
 </head>

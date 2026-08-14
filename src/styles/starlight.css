@@ -1,5 +1,10 @@
 /* Theme Starlight's docs chrome to match the hale-lang.org brand:
-   warm paper, near-black ink, jade accent, our type stacks. */
+   the digital-lotus dark field, cyan accent, our type stacks.
+
+   The reskin is dark only, but Starlight still resolves a reader's stored
+   choice to data-theme="light|dark" with its own pre-paint script. Rather
+   than fight the script, both values map to the same lotus palette — a
+   reader who once picked "light" gets the one design the site has. */
 
 @import './nav.css';
 
@@ -10,41 +15,32 @@
                   Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-/* Light theme */
-:root[data-theme='light'] {
-  --sl-color-accent-low:  #cfe7df;
-  --sl-color-accent:      #0e7c66;
-  --sl-color-accent-high: #0a5e4d;
-  --sl-color-text-accent: #0a5e4d;
-
-  --sl-color-white:    #15171c;   /* "white" = highest-contrast text in light mode */
-  --sl-color-gray-1:   #24272e;
-  --sl-color-gray-2:   #33373f;
-  --sl-color-gray-3:   #5b616b;
-  --sl-color-gray-4:   #8b9099;
-  --sl-color-gray-5:   #d9d4c7;
-  --sl-color-gray-6:   #e6e2d8;
-  --sl-color-gray-7:   #f3f1ea;
-  --sl-color-black:    #faf9f6;   /* page background in light mode */
-}
-
-/* Dark theme */
+/* One palette, whatever data-theme resolved to. */
 :root,
+:root[data-theme='light'],
 :root[data-theme='dark'] {
-  --sl-color-accent-low:  #10241f;
-  --sl-color-accent:      #1f9a80;
-  --sl-color-accent-high: #5fe0c2;
-  --sl-color-text-accent: #2ec4a3;
+  color-scheme: dark;
 
-  --sl-color-white:    #eef0f3;
-  --sl-color-gray-1:   #dadde3;
-  --sl-color-gray-2:   #b6bcc6;
-  --sl-color-gray-3:   #9aa1ac;
-  --sl-color-gray-4:   #6b727d;
-  --sl-color-gray-5:   #2d323d;
-  --sl-color-gray-6:   #242832;
-  --sl-color-gray-7:   #181b22;
-  --sl-color-black:    #0e1014;
+  --sl-color-accent-low:  rgba(90, 168, 255, 0.12);
+  --sl-color-accent:      #4ec6e8;
+  --sl-color-accent-high: #a9f2ff;
+  --sl-color-text-accent: #75e8ff;
+  /* Anything sitting ON the accent (the sidebar's current page, badges).
+     Starlight's own light-theme layer would resolve this to a light value,
+     which on a cyan accent is invisible — pin it dark in both themes. */
+  --sl-color-text-invert: #031019;
+
+  /* Kept in lockstep with the type tokens in global.css — the docs body
+     text (gray-2/gray-3) has to clear the same near-black ground. */
+  --sl-color-white:    #f5f8ff;
+  --sl-color-gray-1:   #e2e8f4;
+  --sl-color-gray-2:   #d7deec;
+  --sl-color-gray-3:   #a9b6cb;
+  --sl-color-gray-4:   #8593a9;
+  --sl-color-gray-5:   #1c2740;
+  --sl-color-gray-6:   #111a30;
+  --sl-color-gray-7:   #091022;
+  --sl-color-black:    #050914;
 }
 
 /* tighten the docs heading rhythm to feel like the rest of the site */
@@ -71,10 +67,15 @@
   --nav-height: 100%;
   --nav-brand: var(--sl-color-white);
   --nav-accent: var(--sl-color-text-accent);
-  --nav-link: var(--sl-color-gray-2);
-  --nav-link-hover: var(--sl-color-text-accent);
+  --nav-link: var(--sl-color-gray-3);
+  --nav-link-hover: #fff;
   --nav-bg-solid: var(--sl-color-black);
 }
 /* Starlight's header bar owns the height; the shared component fills it. */
 .site-header { height: 100%; }
 .site-header .nav-search { flex: 0 1 auto; }
+
+/* Starlight's own theme select would offer a light theme the site no
+   longer has; the shared header already replaces it, but keep any stray
+   instance from surfacing one. */
+starlight-theme-select { display: none; }

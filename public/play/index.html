@@ -8,46 +8,46 @@
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: #0d1117; color: #c9d1d9;
+    margin: 0; background: #050914; color: #c8d1e0;
     font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     font-size: 14px; line-height: 1.5;
   }
-  header { padding: 22px 28px 14px; border-bottom: 1px solid #21262d; }
-  header h1 { margin: 0; font-size: 19px; color: #e6edf3; }
-  header h1 .dot { color: #d2a8ff; }
-  header .sub { color: #8b949e; font-size: 13px; margin-top: 4px; }
-  header .sub b { color: #7ee787; }
+  header { padding: 22px 28px 14px; border-bottom: 1px solid rgba(117,232,255,.13); }
+  header h1 { margin: 0; font-size: 19px; color: #e2e8f4; }
+  header h1 .dot { color: #c5a8ff; }
+  header .sub { color: #8593a9; font-size: 13px; margin-top: 4px; }
+  header .sub b { color: #59f2cf; }
   .wrap { display: grid; grid-template-columns: 230px 1fr; min-height: calc(100vh - 78px); }
-  nav { border-right: 1px solid #21262d; padding: 14px 10px; }
+  nav { border-right: 1px solid rgba(117,232,255,.13); padding: 14px 10px; }
   nav .ex {
     display: block; width: 100%; text-align: left; background: none; border: 0;
-    color: #c9d1d9; font: inherit; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    color: #c8d1e0; font: inherit; padding: 8px 12px; border-radius: 6px; cursor: pointer;
   }
-  nav .ex:hover { background: #161b22; }
-  nav .ex.active { background: #1f6feb22; color: #e6edf3; }
+  nav .ex:hover { background: #0b1326; }
+  nav .ex.active { background: rgba(117,232,255,.10); color: #e2e8f4; }
   main { padding: 22px 28px; max-width: 900px; }
-  main h2 { margin: 0 0 6px; font-size: 16px; color: #e6edf3; }
-  main .blurb { color: #8b949e; font-size: 13px; margin: 0 0 16px; max-width: 70ch; }
+  main h2 { margin: 0 0 6px; font-size: 16px; color: #e2e8f4; }
+  main .blurb { color: #8593a9; font-size: 13px; margin: 0 0 16px; max-width: 70ch; }
   pre.src {
-    background: #010409; border: 1px solid #21262d; border-radius: 8px;
+    background: #02040a; border: 1px solid rgba(117,232,255,.13); border-radius: 8px;
     padding: 16px; overflow: auto; margin: 0; white-space: pre; max-height: 46vh;
   }
   .bar { display: flex; align-items: center; gap: 14px; margin: 16px 0 10px; }
   button.run {
-    background: #238636; color: #fff; border: 0; border-radius: 6px;
+    background: linear-gradient(100deg, #e5fcff 0%, #75e8ff 54%, #b8abff 130%); color: #031019; border: 0; border-radius: 6px;
     padding: 8px 18px; font: inherit; font-weight: 600; cursor: pointer;
   }
   button.run:disabled { opacity: .6; cursor: default; }
-  .note { color: #6e7681; font-size: 12px; }
-  .note a { color: #58a6ff; }
+  .note { color: #8593a9; font-size: 12px; }
+  .note a { color: #75e8ff; }
   pre.out {
-    background: #010409; border: 1px solid #21262d; border-radius: 8px;
+    background: #02040a; border: 1px solid rgba(117,232,255,.13); border-radius: 8px;
     padding: 16px; margin: 0; min-height: 96px; max-height: 34vh; overflow: auto;
-    white-space: pre-wrap; color: #c9d1d9;
+    white-space: pre-wrap; color: #c8d1e0;
   }
-  .ok { color: #7ee787; }
-  .err { color: #ff7b72; }
-  .made { color: #6e7681; font-size: 12px; padding: 8px 28px 20px; }
+  .ok { color: #59f2cf; }
+  .err { color: #ff8fa5; }
+  .made { color: #8593a9; font-size: 12px; padding: 8px 28px 20px; }
 </style>
 </head>
 <body>
@@ -87,13 +87,13 @@ function highlight(code) {
   const re = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|([0-9][0-9_]*(?:\.[0-9]+)?[a-zA-Z]*)|([A-Za-z_][A-Za-z0-9_]*)|([\s\S])/g;
   let out = "", m;
   while ((m = re.exec(code))) {
-    if (m[1]) out += `<span style="color:#8b949e">${esc(m[1])}</span>`;
-    else if (m[2]) out += `<span style="color:#a5d6ff">${esc(m[2])}</span>`;
-    else if (m[3]) out += `<span style="color:#79c0ff">${esc(m[3])}</span>`;
+    if (m[1]) out += `<span style="color:#8593a9">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span style="color:#ffd28a">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span style="color:#8eeaff">${esc(m[3])}</span>`;
     else if (m[4]) {
       const w = m[4];
-      if (KW.has(w)) out += `<span style="color:#ff7b72">${w}</span>`;
-      else if (/^[A-Z]/.test(w)) out += `<span style="color:#ffa657">${esc(w)}</span>`;
+      if (KW.has(w)) out += `<span style="color:#c5a8ff">${w}</span>`;
+      else if (/^[A-Z]/.test(w)) out += `<span style="color:#8eeaff">${esc(w)}</span>`;
       else out += esc(w);
     } else out += esc(m[5]);
   }

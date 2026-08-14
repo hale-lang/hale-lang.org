@@ -20,8 +20,8 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1280px; height: 640px; }
   body {
-    background: #0e1014;
-    color: #eef0f3;
+    background: radial-gradient(90% 120% at 60% 20%, #0a1226 0%, #02040a 70%);
+    color: #f5f8ff;
     font-family: ui-sans-serif, system-ui, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
     display: flex;
     flex-direction: column;
@@ -31,14 +31,14 @@
     padding: 0 110px;
     -webkit-font-smoothing: antialiased;
   }
-  .mark { display: flex; align-items: center; gap: 22px; }
-  .mark svg { width: 76px; height: 76px; flex: none; }
-  .name { font-size: 84px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+  .mark { display: flex; align-items: center; gap: 26px; }
+  .mark img { width: 110px; height: 110px; flex: none; filter: drop-shadow(0 0 26px rgba(117, 232, 255, 0.35)); }
+  .name { font-size: 92px; font-weight: 300; letter-spacing: 0.01em; line-height: 1; }
   .tag {
     margin-top: 36px;
     font-size: 35px;
     line-height: 1.34;
-    color: #9aa1ac;
+    color: #8996aa;
     max-width: 34ch;
     letter-spacing: -0.012em;
   }
@@ -49,20 +49,16 @@
     bottom: 66px;
     font-family: ui-monospace, "DejaVu Sans Mono", "Liberation Mono", monospace;
     font-size: 25px;
-    color: #2ec4a3;
+    color: #75e8ff;
     letter-spacing: 0.01em;
+    text-shadow: 0 0 20px rgba(117, 232, 255, 0.4);
   }
 </style>
 </head>
 <body>
   <div class="mark">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#2ec4a3" stroke-width="1.6"
-         stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 3.5 C 13.7 7, 13.7 10, 12 12.6 C 10.3 10, 10.3 7, 12 3.5 Z" />
-      <path d="M12 12.6 C 8.9 10.6, 6.2 11.1, 4.7 13.2 C 7.3 14.9, 10 14.6, 12 12.6 Z" />
-      <path d="M12 12.6 C 15.1 10.6, 17.8 11.1, 19.3 13.2 C 16.7 14.9, 14 14.6, 12 12.6 Z" />
-      <path d="M4 13.8 C 6.2 19.2, 17.8 19.2, 20 13.8" />
-    </svg>
+    <!-- Resolved relative to this file: scripts/ -> ../public/ -->
+    <img src="../public/favicon.svg" alt="" />
     <div class="name">hale</div>
   </div>
   <!-- Non-breaking hyphen: the shorter tagline lets the line break land

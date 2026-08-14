@@ -6,28 +6,11 @@ import Field from '../../components/Field.astro';
 const all = await getCollection('articles');
 
 /*
-  Two views of one collection, per the go.dev/blog model: the index
-  is a dense, flat, newest-first table a reader scans in one screen —
-  not a feed of cards. The series survives as a single-line strip of
-  its parts in READING order (a series is one argument; its order is
-  not its publication order), so it costs one row instead of a
-  section per part.
+  One view, per the go.dev/blog model: a dense, flat, newest-first table a
+  reader scans in one screen — not a feed of cards. Series membership rides
+  on each row as a tag (name · part); a separate series rail above the list
+  was tried and cut as redundant with it.
 */
-const names = [
-  ...new Set(
-    all
-      .filter((p) => p.data.series)
-      .sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf())
-      .map((p) => p.data.series as string),
-  ),
-];
-const series = names.map((name) => ({
-  name,
-  posts: all
-    .filter((p) => p.data.series === name)
-    .sort((a, b) => (a.data.part ?? 0) - (b.data.part ?? 0)),
-}));
-
 const index = [...all].sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
 );
@@ -57,20 +40,6 @@ const tag = (p: (typeof all)[number]) =>
     <span class="tag">/articles</span>
     <h1>Articles &amp; announcements</h1>
 
-    {series.map((s) => (
-      <p class="series-strip">
-        <span class="series-name">{s.name}</span>
-        {s.posts.map((p, i) => (
-          <>
-            {i > 0 && <span class="series-sep" aria-hidden="true">·</span>}
-            <a href={`/articles/${p.id}`}
-              ><span class="series-part">{p.data.part}</span> {p.data.title}</a
-            >
-          </>
-        ))}
-      </p>
-    ))}
-
     <ol class="index" reversed>
       {index.map((p) => (
         <li>
@@ -89,34 +58,6 @@ const tag = (p: (typeof all)[number]) =>
 </Base>
 
 <style>
-  .series-strip {
-    margin: 1.5rem 0 0;
-    font-size: 0.9rem;
-    line-height: 1.9;
-  }
-  .series-name {
-    font-weight: 650;
-    margin-right: 0.6rem;
-  }
-  .series-name::after {
-    content: ':';
-  }
-  .series-sep {
-    opacity: 0.4;
-    margin: 0 0.35rem;
-  }
-  .series-strip a {
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .series-strip a:hover {
-    text-decoration: underline;
-  }
-  .series-part {
-    opacity: 0.55;
-    font-variant-numeric: tabular-nums;
-  }
-
   .index {
     list-style: none;
     padding: 0;
@@ -156,9 +97,16 @@ const tag = (p: (typeof all)[number]) =>
   .head a:hover {
     text-decoration: underline;
   }
+  /* The series marker is the only signal that a row belongs to a larger
+     argument, so it earns a pill rather than fading at half opacity. */
   .entry-tag {
-    font-size: 0.75rem;
-    opacity: 0.55;
+    padding: 0.08rem 0.55rem;
+    border: 1px solid var(--jade-ring);
+    border-radius: 999px;
+    background: rgba(117, 232, 255, 0.06);
+    color: var(--lotus-cyan);
+    font-family: var(--mono);
+    font-size: 0.68rem;
     white-space: nowrap;
   }
   .summary {

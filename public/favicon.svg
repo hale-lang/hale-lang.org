@@ -1,8 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="#0e7c66" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-  <rect width="24" height="24" rx="5" fill="#faf9f6" stroke="none"/>
-  <path d="M12 3.5 C 13.7 7, 13.7 10, 12 12.6 C 10.3 10, 10.3 7, 12 3.5 Z" />
-  <path d="M12 12.6 C 8.9 10.6, 6.2 11.1, 4.7 13.2 C 7.3 14.9, 10 14.6, 12 12.6 Z" />
-  <path d="M12 12.6 C 15.1 10.6, 17.8 11.1, 19.3 13.2 C 16.7 14.9, 14 14.6, 12 12.6 Z" />
-  <path d="M4 13.8 C 6.2 19.2, 17.8 19.2, 20 13.8" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+<title id="title">Hale digital lotus</title>
+<desc id="desc">A geometric luminous lotus held inside an orbital system.</desc>
+<defs>
+  <linearGradient id="hale-line" x1="18" y1="22" x2="142" y2="140" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#72e7ff"/>
+    <stop offset="0.48" stop-color="#f7fbff"/>
+    <stop offset="1" stop-color="#9b7cff"/>
+  </linearGradient>
+  <radialGradient id="hale-core">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset="0.22" stop-color="#7ae8ff"/>
+    <stop offset="0.58" stop-color="#756dff" stop-opacity=".92"/>
+    <stop offset="1" stop-color="#756dff" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="hale-glow" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="3.1" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="hale-soft" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="8"/>
+  </filter>
+</defs>
+<circle cx="80" cy="82" r="47" fill="#4b75ff" opacity=".08" filter="url(#hale-soft)"/>
+<g fill="none" stroke="url(#hale-line)" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="80" cy="80" r="54" stroke-width="1.15" opacity=".58"/>
+  <path d="M38 46A54 54 0 0 1 122 46M31 91A54 54 0 0 0 129 91" stroke-width=".75" opacity=".34" stroke-dasharray="2 5"/>
+  <path d="M80 18v14M80 128v14M18 80h14M128 80h14" stroke-width="1.2" opacity=".84"/>
+  <path d="M42 80h76M80 42v76" stroke-width=".52" opacity=".2"/>
+  <g stroke-width="1.75" filter="url(#hale-glow)">
+    <path d="M80 89C64 71 66 48 80 31c14 17 16 40 0 58Z"/>
+    <path d="M79.8 91C58 82 45 64 44 47c20 2 34 16 35.8 44Z"/>
+    <path d="M80.2 91C102 82 115 64 116 47c-20 2-34 16-35.8 44Z"/>
+    <path d="M80 103C53 102 34 88 29 69c23-6 43 5 51 34Z"/>
+    <path d="M80 103c27-1 46-15 51-34-23-6-43 5-51 34Z"/>
+    <path d="M80 103c-18 17-38 19-52 7 13-11 31-13 52-7Z"/>
+    <path d="M80 103c18 17 38 19 52 7-13-11-31-13-52-7Z"/>
+    <path d="M35 111c18 27 72 27 90 0"/>
+  </g>
+  <g stroke-width="1.12" opacity=".9">
+    <path d="M80 96C71 86 72 73 80 64c8 9 9 22 0 32Z"/>
+    <path d="M80 98c-12-5-19-14-20-24 12 1 19 9 20 24Z"/>
+    <path d="M80 98c12-5 19-14 20-24-12 1-19 9-20 24Z"/>
+  </g>
+</g>
+<g fill="#f8fbff" filter="url(#hale-glow)">
+  <circle cx="80" cy="18" r="2.7"/>
+  <circle cx="80" cy="142" r="2.7"/>
+  <circle cx="18" cy="80" r="2.7"/>
+  <circle cx="142" cy="80" r="2.7"/>
+</g>
+<circle cx="80" cy="94" r="14" fill="url(#hale-core)" opacity=".78"/>
+<circle cx="80" cy="94" r="2.7" fill="#ffffff" filter="url(#hale-glow)"/>
 </svg>

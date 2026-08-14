@@ -1,10 +1,33 @@
 /* Storefront-specific layout. The shared palette, type, code panels, buttons,
    navigation, and footer remain in global.css. */
 
-.storefront-hero h1 { max-width: 13ch; }
+.storefront-hero h1 { max-width: 18ch; }
 /* one beat per line — see the note in index.astro */
 .storefront-hero h1 span { display: block; }
 .storefront-hero .lede { max-width: 52ch; }
+
+/* The lockup: the mark at a size where its geometry reads, a hairline of
+   light, and the wordmark set thin beside it. */
+.hero-lockup { display: inline-flex; align-items: center; gap: 1rem; margin: 0 0 2rem; }
+.hero-lockup .lockup-mark { width: 72px; height: 72px; filter: drop-shadow(0 0 22px rgba(117, 232, 255, 0.28)); }
+.hero-lockup .lockup-divider {
+  width: 1px;
+  height: 54px;
+  background: linear-gradient(transparent, rgba(245, 248, 255, 0.68), transparent);
+}
+.hero-lockup .lockup-wordmark {
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 260;
+  letter-spacing: 0.01em;
+  color: var(--lotus-text);
+}
+@media (max-width: 700px) {
+  .hero-lockup { margin-bottom: 1.5rem; }
+  .hero-lockup .lockup-mark { width: 56px; height: 56px; }
+  .hero-lockup .lockup-divider { height: 42px; }
+  .hero-lockup .lockup-wordmark { font-size: 2.4rem; }
+}
 
 .section-intro { max-width: 780px; margin-bottom: 2.5rem; }
 .section-intro.center { margin-inline: auto; text-align: center; }
@@ -16,24 +39,25 @@
   gap: 1px;
   margin-top: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(117, 232, 255, 0.16);
   border-radius: var(--radius);
-  background: var(--border);
+  background: rgba(117, 232, 255, 0.09);
 }
 .sentence-map span {
   display: flex;
   flex-direction: column;
   gap: 0.18rem;
   padding: 0.7rem 0.8rem;
-  background: var(--paper);
+  background: rgba(6, 12, 25, 0.94);
 }
-.sentence-map b { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
-.sentence-map code { color: var(--jade-deep); background: none; padding: 0; }
+.sentence-map b { font-size: 0.8rem; font-weight: 590; color: var(--lotus-text-soft); }
+.sentence-map code { color: var(--lotus-cyan); background: none; padding: 0; }
 
 .why-now {
   padding-block: 0;
-  background: var(--code-bg);
-  border-block: 1px solid var(--code-bd);
+  background: rgba(5, 9, 20, 0.72);
+  border-block: 1px solid rgba(117, 232, 255, 0.10);
+  backdrop-filter: blur(11px);
 }
 .why-now-inner {
   display: grid;
@@ -44,7 +68,7 @@
 }
 .why-now .eyebrow { margin: 0; }
 .why-now h2 { color: #fff; font-size: clamp(1.4rem, 2.5vw, 2rem); }
-.why-now p { margin: 0; color: #aeb7c6; }
+.why-now p { margin: 0; color: var(--lotus-muted); }
 
 .deployment-switcher { position: relative; }
 .deployment-switcher > input {
@@ -340,11 +364,13 @@
   margin: 3rem 0;
   padding: clamp(1.5rem, 4vw, 2.2rem);
   border-radius: var(--radius-lg);
-  background: var(--code-bg);
+  border: 1px solid var(--lotus-line);
+  background: linear-gradient(145deg, rgba(12, 22, 43, 0.79), rgba(3, 7, 16, 0.90));
+  box-shadow: var(--lotus-shadow-panel);
 }
 .contract-bar h2 { color: #fff; }
 .contract-states { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
-.contract-states span { padding: 0.75rem; border: 1px solid #2c3340; border-radius: var(--radius); color: #aeb7c6; font-size: 0.86rem; }
+.contract-states span { padding: 0.75rem; border: 1px solid var(--lotus-line); border-radius: var(--radius); color: var(--lotus-muted); font-size: 0.86rem; }
 .contract-states b { display: block; color: #fff; }
 
 /* Scope, not caveat. Jade rather than amber: amber is reserved for
