@@ -1,18 +1,66 @@
 <figure class="system-map" aria-labelledby="system-map-caption">
   <div class="map-stage">
-    <svg class="map-lines" viewBox="0 0 1000 430" preserveAspectRatio="none" aria-hidden="true">
+    {/*
+      The stage is a fixed 1000x450 coordinate space (preserveAspectRatio
+      none, so SVG x/y track the HTML boxes' percentage/px positions).
+      Light is semantic, matching /proof's legend: cyan is structure
+      (ownership), jade and gold are the two subjects' routes, violet is
+      placement. Routes rise from a publisher, run along the broker rail
+      where their subject chip sits, and descend into the subscriber —
+      the same up-along-down a message actually takes. Line ends tuck
+      under the cards so nothing needs pixel-perfect anchoring.
+    */}
+    <svg class="map-lines" viewBox="0 0 1000 450" preserveAspectRatio="none" aria-hidden="true">
       <defs>
-        <marker id="topic-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="arrow-samples" viewBox="0 0 10 10" refX="7.5" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" />
+        </marker>
+        <marker id="arrow-snapshot" viewBox="0 0 10 10" refX="7.5" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" />
         </marker>
       </defs>
 
-      <path class="ownership-line" d="M500 110 V165 H165 V292" />
-      <path class="ownership-line" d="M500 165 V292" />
-      <path class="ownership-line" d="M500 165 H835 V292" />
+      <g class="ownership">
+        <path class="glow" d="M500 100 C 500 135, 165 135, 165 310" />
+        <path class="glow" d="M500 100 V310" />
+        <path class="glow" d="M500 100 C 500 135, 835 135, 835 310" />
+        <path class="line" d="M500 100 C 500 135, 165 135, 165 310" />
+        <path class="line" d="M500 100 V310" />
+        <path class="line" d="M500 100 C 500 135, 835 135, 835 310" />
+        <circle class="joint" cx="165" cy="310" r="3" />
+        <circle class="joint" cx="500" cy="310" r="3" />
+        <circle class="joint" cx="835" cy="310" r="3" />
+      </g>
 
-      <path class="topic-line" marker-end="url(#topic-arrow)" d="M165 292 V228 H500 V292" />
-      <path class="topic-line" marker-end="url(#topic-arrow)" d="M500 292 V246 H835 V292" />
+      <g class="route route-samples">
+        <path class="glow" d="M165 306 C 165 266, 235 250, 335 250 C 445 250, 492 264, 492 299" />
+        <path class="line" marker-end="url(#arrow-samples)"
+              d="M165 306 C 165 266, 235 250, 335 250 C 445 250, 492 264, 492 299" />
+        <circle class="packet-halo" r="6">
+          <animateMotion dur="4.2s" repeatCount="indefinite"
+            path="M165 306 C 165 266, 235 250, 335 250 C 445 250, 492 264, 492 299" />
+        </circle>
+        <circle class="packet" r="2.6">
+          <animateMotion dur="4.2s" repeatCount="indefinite"
+            path="M165 306 C 165 266, 235 250, 335 250 C 445 250, 492 264, 492 299" />
+        </circle>
+      </g>
+
+      <g class="route route-snapshot">
+        <path class="glow" d="M508 306 C 508 266, 575 250, 670 250 C 775 250, 835 264, 835 299" />
+        <path class="line" marker-end="url(#arrow-snapshot)"
+              d="M508 306 C 508 266, 575 250, 670 250 C 775 250, 835 264, 835 299" />
+        <circle class="packet-halo" r="6">
+          <animateMotion dur="5s" repeatCount="indefinite"
+            path="M508 306 C 508 266, 575 250, 670 250 C 775 250, 835 264, 835 299" />
+        </circle>
+        <circle class="packet" r="2.6">
+          <animateMotion dur="5s" repeatCount="indefinite"
+            path="M508 306 C 508 266, 575 250, 670 250 C 775 250, 835 264, 835 299" />
+        </circle>
+      </g>
     </svg>
 
     <div class="map-node map-main">
@@ -25,7 +73,10 @@
     <div class="broker-plane">
       <span class="node-kind">typed broker plane</span>
       <strong>subjects are above publishers and subscribers</strong>
-      <div class="broker-topics"><code>Samples</code><code>Snapshot</code></div>
+      <div class="broker-topics">
+        <code class="topic-samples">Samples</code>
+        <code class="topic-snapshot">Snapshot</code>
+      </div>
     </div>
 
     <div class="map-children">

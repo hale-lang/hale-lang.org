@@ -141,37 +141,63 @@
   font-size: 0.94rem;
 }
 
+/*
+  The system map, in the lotus register: cyan is structure (ownership),
+  jade and gold are the two subjects' routes, violet is placement — the
+  same assignments /proof's cards teach. The stage is a fixed 450px
+  coordinate space so the SVG (preserveAspectRatio: none) and the HTML
+  boxes agree; line ends tuck under the cards, chips sit on their routes.
+*/
 .system-map {
   margin: 2.5rem auto;
   max-width: 980px;
   padding: clamp(1rem, 3vw, 2rem);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--lotus-line);
+  border-radius: 24px;
   background:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px),
-    var(--paper);
-  background-size: 28px 28px;
+    linear-gradient(rgba(158, 196, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(158, 196, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(145deg, rgba(12, 22, 43, 0.72), rgba(3, 7, 16, 0.85));
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+  box-shadow: var(--lotus-shadow-panel);
+  backdrop-filter: blur(12px);
 }
-.map-stage { position: relative; min-height: 430px; }
+.map-stage { position: relative; height: 450px; }
 .map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ownership-line { fill: none; stroke: var(--border-2); stroke-width: 2; }
-.topic-line { fill: none; stroke: var(--jade); stroke-width: 3; }
-.topic-line + .topic-line { stroke: var(--amber); }
-.map-lines marker path { fill: var(--jade); }
+
+.map-lines .line { fill: none; stroke-width: 1.5; }
+.map-lines .glow { fill: none; stroke-width: 6; opacity: 0.14; }
+.ownership .line, .ownership .glow { stroke: rgba(117, 232, 255, 0.55); }
+.ownership .joint { fill: var(--lotus-cyan); opacity: 0.8; }
+.route-samples .line, .route-samples .glow { stroke: var(--lotus-jade); }
+.route-snapshot .line, .route-snapshot .glow { stroke: var(--lotus-gold); }
+.route .line { opacity: 0.9; }
+#arrow-samples path { fill: var(--lotus-jade); }
+#arrow-snapshot path { fill: var(--lotus-gold); }
+.route .packet { fill: #fff; }
+.route-samples .packet-halo { fill: var(--lotus-jade); opacity: 0.35; }
+.route-snapshot .packet-halo { fill: var(--lotus-gold); opacity: 0.35; }
+@media (prefers-reduced-motion: reduce) {
+  .route .packet, .route .packet-halo { display: none; }
+}
+
 .map-node {
   position: absolute;
   display: flex;
   flex-direction: column;
   min-height: 112px;
   padding: 1rem;
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--paper) 95%, transparent);
-  box-shadow: 0 8px 24px rgba(10, 18, 22, 0.05);
+  border: 1px solid var(--lotus-line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(12, 22, 43, 0.88), rgba(5, 10, 22, 0.92));
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
-.map-main { left: 35%; top: 0; width: 30%; border-color: var(--jade); }
-.map-children { position: absolute; inset: 292px 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.map-main {
+  left: 35%; top: 0; width: 30%;
+  border-color: rgba(117, 232, 255, 0.34);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.30), 0 0 30px rgba(117, 232, 255, 0.08);
+}
+.map-children { position: absolute; inset: 300px 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 .map-children .map-node { position: relative; inset: auto; min-width: 0; }
 .map-node strong { font-size: 1.08rem; }
 .map-node > span:nth-of-type(2) { margin-top: 0.25rem; color: var(--muted); font-size: 0.82rem; }
@@ -179,34 +205,57 @@
 .node-kind {
   font-family: var(--mono);
   font-size: 0.68rem;
-  color: var(--jade);
+  color: var(--lotus-cyan);
   text-transform: uppercase;
   letter-spacing: 0.12em;
+  text-shadow: 0 0 12px rgba(117, 232, 255, 0.28);
 }
+/* Placement is projection: violet, per the semantic palette. */
 .placement-badge {
   align-self: flex-start;
   padding: 0.18rem 0.45rem;
-  border: 1px solid var(--border-2);
+  border: 1px solid rgba(155, 124, 255, 0.38);
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--lotus-violet);
+  background: rgba(155, 124, 255, 0.06);
   font-family: var(--mono);
   font-size: 0.68rem;
 }
 .broker-plane {
   position: absolute;
-  left: 16%;
-  top: 172px;
-  width: 68%;
-  min-height: 78px;
-  padding: 0.8rem 1rem;
-  border: 1px solid var(--jade-ring);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--jade-tint) 88%, var(--paper));
+  left: 22%;
+  top: 180px;
+  width: 56%;
+  height: 64px;
+  padding: 0.5rem 1rem 0;
+  border: 1px solid rgba(117, 232, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(9, 16, 32, 0.55);
+  backdrop-filter: blur(8px);
   text-align: center;
 }
-.broker-plane strong { display: block; font-size: 0.92rem; }
-.broker-topics { display: flex; justify-content: center; gap: 0.55rem; margin-top: 0.45rem; }
-.broker-topics code { border: 1px solid var(--jade-ring); background: var(--paper); }
+.broker-plane strong { display: block; font-size: 0.76rem; font-weight: 590; color: var(--lotus-text-soft); }
+/* The chips straddle the plane's lower edge, centered on their routes
+   (route rail y=250 of 450; chip centers at x 33.5% and 67% of the
+   stage, expressed relative to the 22%-wide-56% plane). */
+.broker-topics { position: absolute; left: 0; right: 0; bottom: -19px; height: 26px; }
+.broker-topics code {
+  position: absolute;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 22, 0.95);
+  font-size: 0.74rem;
+  padding: 0.2em 0.6em;
+}
+.broker-topics .topic-samples {
+  left: 20.5%;
+  border: 1px solid rgba(89, 242, 207, 0.4);
+  color: var(--lotus-jade);
+}
+.broker-topics .topic-snapshot {
+  left: 80.4%;
+  border: 1px solid rgba(255, 210, 138, 0.4);
+  color: var(--lotus-gold);
+}
 .system-legend {
   display: flex;
   flex-wrap: wrap;
@@ -217,9 +266,9 @@
 }
 .system-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
 .system-legend i { display: inline-block; width: 16px; height: 10px; }
-.legend-ownership { border-top: 2px solid var(--border-2); }
-.legend-topic { border-top: 3px solid var(--jade); }
-.legend-placement { border: 1px solid var(--border-2); border-radius: 999px; }
+.legend-ownership { border-top: 2px solid rgba(117, 232, 255, 0.55); }
+.legend-topic { border-top: 3px solid transparent; border-image: linear-gradient(90deg, var(--lotus-jade), var(--lotus-gold)) 1; }
+.legend-placement { border: 1px solid rgba(155, 124, 255, 0.5); border-radius: 999px; }
 
 .consequence-grid {
   display: grid;
@@ -425,10 +474,13 @@
   #deploy-adapter:checked ~ .deployment-panels .panel-adapter { grid-template-columns: minmax(0, 1fr); }
   .deployment-panel dl > div { grid-template-columns: 5.5rem 1fr; }
 
-  .map-stage { min-height: auto; display: flex; flex-direction: column; gap: 1rem; }
+  .map-stage { height: auto; display: flex; flex-direction: column; gap: 1rem; }
   .map-lines { display: none; }
-  .map-node, .map-main, .broker-plane, .map-children { position: static; width: auto; }
+  .map-node, .map-main, .broker-plane, .map-children { position: static; width: auto; height: auto; }
   .map-children { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+  .broker-plane { padding-bottom: 0.65rem; }
+  .broker-topics { position: static; height: auto; display: flex; justify-content: center; gap: 0.55rem; margin-top: 0.45rem; }
+  .broker-topics code { position: static; transform: none; }
   .broker-plane { order: 2; }
   .map-main { order: 1; }
   .map-children { order: 3; }
