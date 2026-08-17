@@ -29,6 +29,47 @@
   .hero-lockup .lockup-wordmark { font-size: 2.4rem; }
 }
 
+/* The hero's ordinary sample carries one quiet caption under it. */
+.hero-code-note {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  max-width: 44ch;
+}
+
+/*
+  What can I build? — the adoption question, answered as cards. Five
+  concrete uses, four of them non-distributed; each links into the
+  everyday docs rather than the model.
+*/
+.build-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+.build-cards a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--lotus-line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(12, 22, 43, 0.62), rgba(5, 10, 22, 0.70));
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.build-cards a:hover {
+  transform: translateY(-3px);
+  border-color: rgba(117, 232, 255, 0.28);
+  text-decoration: none;
+}
+.build-cards strong { font-size: 1.02rem; }
+.build-cards span { color: var(--muted); font-size: 0.88rem; }
+
+.why-hale .split { align-items: center; }
+.why-hale h2 { max-width: 16ch; }
+
 .section-intro { max-width: 780px; margin-bottom: 2.5rem; }
 .section-intro.center { margin-inline: auto; text-align: center; }
 .section-link { margin-top: 1.5rem; }

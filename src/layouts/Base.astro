@@ -5,17 +5,14 @@ import Footer from '../components/Footer.astro';
 
 interface Props { title?: string; description?: string; }
 const {
-  title = 'Hale: one recursive model, from a value to a fleet',
+  title = 'Hale: a general-purpose, native, memory-safe language',
   // Read cold, in a search result, by someone who has never heard of Hale —
-  // so this stays in the factual register. "Write the system, not the
-  // lore." is the line to remember, not the line to explain with.
-  //
-  // "One construct" was the old wording and it invited a reader to check it
-  // literally: a constitution and a JSON fleet plan are not locus
-  // declarations. "One model, the locus its unit" is both true and the more
-  // interesting claim — that features which look separate are projections of
-  // one account of ownership, flow, closure, and law.
-  description = "Hale gives a whole system one recursive model, with the locus as its unit. From function scope to fleet composition, ownership, communication, placement, effects, and architectural law stay compiler-visible instead of scattering into config, diagrams, and deployment lore.",
+  // so this stays in the factual register, and it now leads with the
+  // CATEGORY (the repositioning brief's diagnosis: the old line read as a
+  // distributed-systems DSL to a stranger). The recursive-model claim is
+  // still here — as the second sentence, where it lands as a property of
+  // an ordinary language rather than an entry requirement.
+  description = "Hale is a general-purpose language for scripts, services, and systems: ordinary functions, CLIs, files, JSON, HTTP, and WebAssembly. As a program grows, the same language keeps ownership, concurrency, placement, effects, and architectural rules visible to the compiler — one recursive model, from function scope to fleet.",
 } = Astro.props;
 ---
 <!doctype html>
@@ -35,7 +32,7 @@ const {
     <meta property="og:image" content="https://hale-lang.org/og.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
-    <meta property="og:image:alt" content="Hale — a concurrent systems language with a GC-free runtime." />
+    <meta property="og:image:alt" content="Hale — a general-purpose language, from scripts to systems." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://hale-lang.org/og.png" />
     <meta name="theme-color" content="#02040a" />
