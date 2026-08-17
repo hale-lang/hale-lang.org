@@ -4,11 +4,23 @@ import Hale from '../components/Hale.astro';
 import Logo from '../components/Logo.astro';
 import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
 import Unfold from '../components/Unfold.astro';
+import GrowthSwitcher from '../components/GrowthSwitcher.astro';
 import '../styles/storefront.css';
 // Written by scripts/sync-docs.mjs from the compiler checkout's Cargo.toml,
 // alongside the sidebar — so the version on the homepage cannot drift from
 // the workspace the docs were synced out of. Run the sync if this is missing.
 import release from '../generated/release.json';
+
+/*
+  The hero sample. Ordinary on purpose — argument, file, print — and
+  real API: `arg_or` and `read_file … or <default>` are the documented
+  everyday shapes, and check-site compiles this like every other panel.
+*/
+const notes = `fn main() {
+    let path = std::env::arg_or(1, "notes.txt");
+    let body = std::io::fs::read_file(path) or "(no notes yet)";
+    println(body);
+}`;
 
 const room = `type Msg { room: String; user: String; text: String; }
 
@@ -82,25 +94,24 @@ const failure = `locus WorkerPool {
           <span class="lockup-divider"></span>
           <span class="lockup-wordmark">hale</span>
         </div>
-        {/* Descriptive, not aspirational — "a new semantic compression for
-            software" read as a claim the reader hadn't been given a reason
-            to grant yet. The category line from the reskin prototype just
-            says what Hale is; the h1 gets to be the opinionated one. */}
-        <p class="eyebrow">a programming language for running systems</p>
-        {/* Two beats, so the break is authored rather than left to the
-            measure. ("Say less. Spell more." was retired from here to be
-            the title of a future article.) */}
-        <h1><span>Write the system,</span><span>not the lore.</span></h1>
+        {/* The category, stated flatly — the repositioning brief's whole
+            diagnosis was that the site answered "what makes Hale unusual?"
+            before "what is it?", and read as a distributed-systems DSL.
+            The eyebrow names the category; the h1 carries the promise; the
+            systems thesis ("Write the system, not the lore.") now lands
+            mid-page, after ordinary code has earned it. */}
+        <p class="eyebrow">general-purpose · native · memory-safe</p>
+        <h1><span>Start with a program.</span><span>Keep the language when it becomes a system.</span></h1>
         <p class="lede">
-          Hale gives the whole system one recursive model, and the locus is its
-          unit. From function scope to fleet, ownership, communication,
-          placement, effects, and law stay compiler-visible — and when a
-          boundary closes, Hale checks the model it can derive and emits
-          evidence that larger systems compose.
+          Hale is a general-purpose language for scripts, services, and
+          systems. Write ordinary functions, CLIs, files, JSON, HTTP, and
+          WebAssembly. As the program grows, the same language makes
+          ownership, concurrency, placement, effects, and architectural
+          rules visible to the compiler.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/playground">Run the tour</a>
-          <a class="btn btn-ghost" href="/docs/getting-started/install">Install Hale</a>
+          <a class="btn btn-primary" href="/playground">Run Hale</a>
+          <a class="btn btn-ghost" href="/docs">Read the guide</a>
         </div>
         <div class="install">
           <span class="sigil">$</span>
@@ -115,6 +126,133 @@ const failure = `locus WorkerPool {
           Linux, macOS, and WebAssembly. Language and artifact schemas remain
           subject to change.
         </p>
+      </div>
+      <div class="hero-code">
+        {/* Ordinary on purpose: the first code a visitor sees must not
+            require the locus model to recognize Hale as a programming
+            language. The systems showpiece (room.hl) moved to the
+            why-Hale section below. */}
+        <Hale code={notes} title="notes.hl" />
+        <p class="hero-code-note">
+          A complete Hale program. <code>hale build</code> makes it one
+          static binary; nothing here declares a lifecycle, a topic, or a
+          placement.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="container wide build-section">
+    <div class="section-intro">
+      <p class="eyebrow">general-purpose, checked</p>
+      <h2>What can I build with it?</h2>
+    </div>
+    <div class="build-cards">
+      <a href="/docs/everyday/cli-config">
+        <strong>CLI tools</strong>
+        <span>Arguments, environment, files, and layered config from the
+        standard library. <code>hale build</code> gives you one static
+        binary.</span>
+      </a>
+      <a href="/docs/everyday/http">
+        <strong>Web apps &amp; APIs</strong>
+        <span><code>std::http</code> ships the server, router, and JSON
+        codecs; a handler is an ordinary locus. No framework decision
+        before the first route.</span>
+      </a>
+      <a href="/docs/services/lifecycle">
+        <strong>Concurrent services</strong>
+        <span>Typed topics instead of channels and locks; supervision
+        instead of shutdown choreography; the compiler checks who talks
+        to whom.</span>
+      </a>
+      <a href="/docs/systems/memory">
+        <strong>Low-level systems</strong>
+        <span>Memory layout, placement, zero-copy I/O, and C bindings —
+        visible when you ask for them, absent from the code that
+        doesn't.</span>
+      </a>
+      <a href="/docs/systems/webassembly">
+        <strong>WebAssembly</strong>
+        <span>The same program compiles to <code>wasm32</code> with a
+        small JS loader. The typed bus runs in the browser exactly as it
+        does natively.</span>
+      </a>
+    </div>
+    <div class="section-link"><a href="/examples">Everyday programs, with their evidence →</a></div>
+  </section>
+
+  <section class="section-alt">
+    <div class="container wide">
+      <div class="section-intro">
+        <p class="eyebrow">the same program, three altitudes</p>
+        <h2>It grows without switching languages.</h2>
+        <p class="lede">
+          The tutorial's job queue, at three sizes. Watch what each tab
+          adds — and what it leaves alone.
+        </p>
+      </div>
+      <GrowthSwitcher />
+      <div class="section-link"><a href="/docs/tutorial/job-queue">Build this yourself in thirty minutes →</a></div>
+    </div>
+  </section>
+
+  <section class="container wide altitude-section">
+    <div class="section-intro">
+      <p class="eyebrow">one language, four altitudes</p>
+      <h2>Use only as much language as the program needs.</h2>
+    </div>
+    <ol class="ladder">
+      <li>
+        <span class="rung-scale">script</span>
+        <code>fn main()</code>
+        <p>Data, functions, control flow. A complete program with nothing else in it.</p>
+      </li>
+      <li>
+        <span class="rung-scale">everyday</span>
+        <code>locus · std::*</code>
+        <p>Files, JSON, HTTP, tests. The altitude you'd reach for Python or Node.</p>
+      </li>
+      <li>
+        <span class="rung-scale">service</span>
+        <code>topic · bus</code>
+        <p>Long-running loci, typed messages, supervision. Where you'd reach for Go.</p>
+      </li>
+      <li>
+        <span class="rung-scale">systems</span>
+        <code>placement · bindings · claims</code>
+        <p>Layout, placement, transports, architectural law. Where you'd reach for Rust or C++.</p>
+      </li>
+    </ol>
+    <p class="ladder-note">
+      This is control altitude, not system scale — how much machinery you
+      choose to see, not how large the system is (the model page keeps the
+      two axes apart). Each level only reveals more of the same locus: the
+      function you wrote at the top keeps compiling, unchanged, at the
+      bottom.
+    </p>
+  </section>
+
+  <section class="container wide why-hale">
+    <div class="split">
+      <div class="text-pool">
+        <p class="eyebrow">why hale</p>
+        <h2>Write the system, not the lore.</h2>
+        <p>
+          Your codebase eventually becomes more than code: who owns which
+          state, what talks to what, where things run, what a change is
+          allowed to break. In most languages those facts live in review
+          comments, diagrams, and deployment lore — true until someone
+          forgets. Hale gives them a place in the program, where the
+          compiler can hold them.
+        </p>
+        <p>
+          The chat room on the right is the everyday version of that
+          bargain: each phrase you would say out loud — a room, each
+          posted message, relay it to everyone — has a line of code to
+          live in.
+        </p>
+        <div class="section-link"><a href="/model">Read the model →</a></div>
       </div>
       <div>
         <Hale code={room} title="room.hl" />
@@ -144,13 +282,12 @@ const failure = `locus WorkerPool {
   <Unfold />
 
   {/*
-    The "one ladder, six rungs" section stood here: value & behavior /
-    component / service / application / environment / fleet, each with a
-    line of prose. Unfold's beats, directly above, walk the same scales in
-    the same order — three of the eyebrows were verbatim identical — so a
-    reader met the argument twice in a row and the second telling added
-    one scale the first had missed. That scale is now a beat of its own
-    (environment/constitution), and the restatement is gone.
+    A "one ladder, six rungs" section once stood here walking system
+    SCALE (value/component/service/application/environment/fleet) — cut
+    because Unfold's beats walk the same scales. The ladder that returned
+    above the fold is a different axis: control ALTITUDE (script/everyday/
+    service/systems), which Unfold does not cover — the model page's "two
+    axes, not one ladder" section is the authority on the distinction.
   */}
 
   <section class="section-alt">
