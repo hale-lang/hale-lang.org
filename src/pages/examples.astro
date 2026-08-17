@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
-import Hale from '../components/Hale.astro';
+import ExampleRow from '../components/ExampleRow.astro';
 import { examples } from '../examples/manifest.mjs';
 import captures from '../generated/examples.json';
 import '../styles/storefront.css';
@@ -13,6 +13,11 @@ import '../styles/storefront.css';
   the compiler — nothing here is transcribed by hand, so nothing
   here can quietly rot. The "break it" tab is the page's argument:
   the diagnostic, not the declaration, is the product.
+
+  Two tiers, everyday first: the page defines the perceived
+  boundary of the language, and a visitor should see the programs
+  they'd write in Python or Node before the systems the language
+  was named for.
 */
 const cap = (id) => (captures.examples as any)[id] ?? {};
 const fullMods = import.meta.glob('../examples/full/*.mjs', {
@@ -24,27 +29,68 @@ const fulls = Object.values(fullMods)
     ...f,
     lines: (captures as any).fulls?.[f.slug]?.lines ?? 0,
   }));
+
+const everyday = examples.filter((e) => e.tier === 'everyday');
+const systems = examples.filter((e) => e.tier !== 'everyday');
+const everydayFulls = fulls.filter((f: any) => f.tier === 'everyday');
+const systemFulls = fulls.filter((f: any) => f.tier !== 'everyday');
 ---
 <Base
   title="Hale examples"
-  description="Hale programs beside what the compiler says about them: run output, refusals with witnesses, and a recorded run replayed."
+  description="Hale programs beside what the compiler says about them — everyday CLIs, JSON, files, and HTTP, then complete systems with run output, refusals with witnesses, and a recorded run replayed."
 >
   <Field kind="examples" />
   <section class="container wide examples-page">
     <div class="section-intro">
       <p class="eyebrow">examples</p>
-      <h1>Complete systems, with their evidence.</h1>
+      <h1>Programs, with their evidence.</h1>
       <p class="lede">
-        Full programs read top to bottom, beside what the machine says
-        about them — run transcripts, refusals with witnesses, recorded
-        runs replayed. Everything is captured from{' '}
+        Programs read beside what the machine says about them — run
+        transcripts, refusals with witnesses, recorded runs replayed.
+        Everything is captured from{' '}
         <code>{captures.hale}</code> at build time; the code on every
-        page concatenates to the exact program the build verified.
+        page is the exact program the build verified.
+      </p>
+    </div>
+
+    <div class="section-intro strip-intro">
+      <h2 class="strip-title">Everyday Hale.</h2>
+      <p class="lede">
+        The altitude you would reach for Python or Node: arguments,
+        files, JSON, HTTP, config — ordinary programs, each with the
+        compiler's side of the story.
+      </p>
+    </div>
+
+    {everyday.map((ex, i) => (
+      <ExampleRow ex={ex} cap={cap(ex.id)} rev={i % 2 === 1} />
+    ))}
+
+    {everydayFulls.length > 0 && (
+      <div class="full-cards">
+        {everydayFulls.map((f) => (
+          <a class="full-card" href={`/examples/${f.slug}`}>
+            <p class="eyebrow">{f.lines} lines · {f.file}</p>
+            <h2>{f.title}</h2>
+            <p>{f.tagline}</p>
+            <span class="card-cta">Read the whole program →</span>
+          </a>
+        ))}
+      </div>
+    )}
+
+    <div class="section-intro strip-intro">
+      <h2 class="strip-title">Complete systems, with their evidence.</h2>
+      <p class="lede">
+        Full systems read top to bottom: keyed fan-out, causal
+        boundaries, certified hot paths, fleet composition — the code
+        on every page concatenates to the exact program the build
+        verified.
       </p>
     </div>
 
     <div class="full-cards">
-      {fulls.map((f) => (
+      {systemFulls.map((f) => (
         <a class="full-card" href={`/examples/${f.slug}`}>
           <p class="eyebrow">{f.lines} lines · {f.file}</p>
           <h2>{f.title}</h2>
@@ -62,59 +108,9 @@ const fulls = Object.values(fullMods)
       </p>
     </div>
 
-    {examples.map((ex, i) => {
-      const c = cap(ex.id);
-      return (
-        <div class={`example-row ${i % 2 ? 'rev' : ''}`}>
-          <div class="example-prose">
-            <p class="eyebrow">{ex.eyebrow}</p>
-            <h2>{ex.title}</h2>
-            <p>{ex.prose}</p>
-            <a href={ex.docs.href}>{ex.docs.label} →</a>
-          </div>
-          <div class="example-panel">
-            <input
-              type="radio"
-              name={`tab-${ex.id}`}
-              id={`tab-${ex.id}-ok`}
-              checked
-            />
-            <input
-              type="radio"
-              name={`tab-${ex.id}`}
-              id={`tab-${ex.id}-brk`}
-            />
-            <div class="panel-tabs">
-              <label for={`tab-${ex.id}-ok`}>program</label>
-              {(ex.brk || ex.session) && (
-                <label for={`tab-${ex.id}-brk`}>
-                  {ex.session ? 'record & replay' : 'break it'}
-                </label>
-              )}
-            </div>
-            <div class="pane pane-ok">
-              <Hale code={ex.program} title={ex.file} />
-              {c.run && (
-                <pre class="machine machine-run"><span class="machine-label">$ hale run {ex.file}</span>{'\n'}{c.run.output}</pre>
-              )}
-            </div>
-            <div class="pane pane-brk">
-              {ex.brk && (
-                <>
-                  <pre class="diff"><span class="diff-note">{ex.brk.note}</span>{'\n'}{ex.brk.find.split('\n').map((l) => `- ${l}`).join('\n')}{'\n'}{ex.brk.replace.split('\n').filter((l) => !ex.brk.find.includes(l)).map((l) => `+ ${l}`).join('\n')}</pre>
-                  {c.brk && (
-                    <pre class="machine machine-err"><span class="machine-label">$ hale check {ex.file}</span>{'\n'}{c.brk.output}</pre>
-                  )}
-                </>
-              )}
-              {ex.session && c.session && (
-                <pre class="machine machine-run"><span class="machine-label">$ {ex.session.steps.join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    })}
+    {systems.map((ex, i) => (
+      <ExampleRow ex={ex} cap={cap(ex.id)} rev={i % 2 === 1} />
+    ))}
 
     <div class="examples-next">
       <h2>Try the full progression.</h2>
@@ -167,80 +163,5 @@ const fulls = Object.values(fullMods)
   }
   .strip-title {
     font-size: 1.5rem;
-  }
-  .example-panel {
-    min-width: 0;
-  }
-  .example-panel > input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .panel-tabs {
-    display: flex;
-    gap: 0.25rem;
-    margin-bottom: 0.5rem;
-  }
-  .panel-tabs label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    padding: 0.25rem 0.7rem;
-    border-radius: 999px;
-    cursor: pointer;
-    opacity: 0.55;
-    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-  }
-  .pane {
-    display: none;
-  }
-  .example-panel
-    > input:first-of-type:checked
-    ~ .pane-ok {
-    display: block;
-  }
-  .example-panel
-    > input:nth-of-type(2):checked
-    ~ .pane-brk {
-    display: block;
-  }
-  .example-panel
-    > input:first-of-type:checked
-    ~ .panel-tabs
-    label:first-child,
-  .example-panel
-    > input:nth-of-type(2):checked
-    ~ .panel-tabs
-    label:last-child {
-    opacity: 1;
-    border-color: currentColor;
-  }
-  .machine,
-  .diff {
-    margin: 0.5rem 0 0;
-    padding: 0.7rem 0.9rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    line-height: 1.55;
-    overflow-x: auto;
-    white-space: pre;
-  }
-  .machine {
-    background: color-mix(in srgb, currentColor 6%, transparent);
-  }
-  .machine-label {
-    opacity: 0.55;
-  }
-  .machine-err {
-    border-left: 3px solid var(--rose);
-  }
-  .machine-run {
-    border-left: 3px solid var(--lotus-jade);
-  }
-  .diff {
-    background: color-mix(in srgb, currentColor 5%, transparent);
-  }
-  .diff-note {
-    opacity: 0.6;
-    font-style: italic;
   }
 </style>

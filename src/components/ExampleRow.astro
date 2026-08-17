@@ -1,0 +1,146 @@
+---
+/*
+  One example panel: the program, and what the machine says about it.
+  Extracted from examples.astro when the page grew tiers — the row
+  markup and its tab CSS live here once, used by both. `cap` is this
+  example's slice of src/generated/examples.json; nothing rendered
+  under a "machine" label was transcribed by hand.
+*/
+import Hale from './Hale.astro';
+
+interface Props { ex: any; cap: any; rev?: boolean; }
+const { ex, cap: c, rev = false } = Astro.props;
+---
+<div class={`example-row ${rev ? 'rev' : ''}`}>
+  <div class="example-prose">
+    <p class="eyebrow">{ex.eyebrow}</p>
+    <h2>{ex.title}</h2>
+    <p>{ex.prose}</p>
+    <a href={ex.docs.href}>{ex.docs.label} →</a>
+    {ex.play && (
+      <a class="play-link" href={ex.play.href} target="_blank" rel="noopener">{ex.play.label} ↗</a>
+    )}
+  </div>
+  <div class="example-panel">
+    <input
+      type="radio"
+      name={`tab-${ex.id}`}
+      id={`tab-${ex.id}-ok`}
+      checked
+    />
+    <input
+      type="radio"
+      name={`tab-${ex.id}`}
+      id={`tab-${ex.id}-brk`}
+    />
+    <div class="panel-tabs">
+      <label for={`tab-${ex.id}-ok`}>program</label>
+      {(ex.brk || ex.session) && (
+        <label for={`tab-${ex.id}-brk`}>
+          {ex.session ? 'record & replay' : 'break it'}
+        </label>
+      )}
+    </div>
+    <div class="pane pane-ok">
+      <Hale code={ex.program} title={ex.file} />
+      {c.run && (
+        <pre class="machine machine-run"><span class="machine-label">$ hale run {ex.file}</span>{'\n'}{c.run.output}</pre>
+      )}
+    </div>
+    <div class="pane pane-brk">
+      {ex.brk && (
+        <>
+          <pre class="diff"><span class="diff-note">{ex.brk.note}</span>{'\n'}{ex.brk.find.split('\n').map((l) => `- ${l}`).join('\n')}{'\n'}{ex.brk.replace.split('\n').filter((l) => !ex.brk.find.includes(l)).map((l) => `+ ${l}`).join('\n')}</pre>
+          {c.brk && (
+            <pre class="machine machine-err"><span class="machine-label">$ hale check {ex.file}</span>{'\n'}{c.brk.output}</pre>
+          )}
+        </>
+      )}
+      {ex.session && c.session && (
+        <pre class="machine machine-run"><span class="machine-label">$ {ex.session.steps.join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
+      )}
+    </div>
+  </div>
+</div>
+
+<style>
+  .example-panel {
+    min-width: 0;
+  }
+  .example-panel > input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .panel-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .panel-tabs label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+    opacity: 0.55;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  }
+  .pane {
+    display: none;
+  }
+  .example-panel
+    > input:first-of-type:checked
+    ~ .pane-ok {
+    display: block;
+  }
+  .example-panel
+    > input:nth-of-type(2):checked
+    ~ .pane-brk {
+    display: block;
+  }
+  .example-panel
+    > input:first-of-type:checked
+    ~ .panel-tabs
+    label:first-child,
+  .example-panel
+    > input:nth-of-type(2):checked
+    ~ .panel-tabs
+    label:last-child {
+    opacity: 1;
+    border-color: currentColor;
+  }
+  .machine,
+  .diff {
+    margin: 0.5rem 0 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .machine {
+    background: color-mix(in srgb, currentColor 6%, transparent);
+  }
+  .machine-label {
+    opacity: 0.55;
+  }
+  .machine-err {
+    border-left: 3px solid var(--rose);
+  }
+  .machine-run {
+    border-left: 3px solid var(--lotus-jade);
+  }
+  .diff {
+    background: color-mix(in srgb, currentColor 5%, transparent);
+  }
+  .diff-note {
+    opacity: 0.6;
+    font-style: italic;
+  }
+  .play-link {
+    display: block;
+    margin-top: 0.4rem;
+  }
+</style>
