@@ -78,15 +78,10 @@ export const examples = [
     "tier": "everyday",
     "eyebrow": "http client",
     "title": "One call, one response, errors in the type.",
-    "prose": "`std::http::get` returns a response or an error with a kind — connection refused and a bad URL are different values, not different string prefixes. The or-block is the entire error story; drop it and the build stops. Not captured at build time only because CI has no network.",
+    "prose": "`std::http::get` returns a response or an error with a kind — connection refused and a bad URL are different values, not different string prefixes — and the or-block is where the caller decides what a failure means. Run output is not captured at build time because CI has no network.",
     "file": "fetch.hl",
     "program": "fn main() {\n    let url = std::env::arg_or(1, \"https://hale-lang.org/llms.txt\");\n    let resp = std::http::get(url) or {\n        println(\"fetch failed: \", err.kind);\n        return;\n    };\n    let body = std::str::from_bytes(resp.body);\n    println(\"status \", resp.status, \", \", len(body), \" bytes\");\n}",
     "run": false,
-    "brk": {
-      "find": "std::http::get(url) or {\n        println(\"fetch failed: \", err.kind);\n        return;\n    }",
-      "replace": "std::http::get(url)",
-      "note": "Leave the network error unaddressed."
-    },
     "docs": {
       "href": "/docs/everyday/http",
       "label": "Read HTTP clients & servers"
