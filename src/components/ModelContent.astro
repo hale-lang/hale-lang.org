@@ -104,6 +104,42 @@ const main = `main locus App {
     enough to reason about and joined enough for the compiler to check.
   </p>
 
+  <p>
+    You do not have to take that on faith. The compiler will draw them.
+    Here is the communication graph of a four-locus program, rendered
+    by <code>hale topology graph</code> from the build artifact — not
+    a diagram anyone maintained:
+  </p>
+  <figure class="model-figure">
+    <img src="/img/model-bus-graph.svg"
+         alt="Communication graph: Sampler publishes to the Readings topic, which is subscribed by both Store and Monitor; Monitor publishes to Alerts, which Pager subscribes." />
+    <figcaption>
+      <code>Readings</code> is one vertex with one edge in
+      and <strong>two</strong> out — a single publish reaching two
+      subscribers. The topic is a vertex because in Hale it is one: a
+      declared entity with a wire subject and a payload contract, not an
+      edge recovered by analysis. <code>Monitor</code> both subscribes
+      and publishes, so the second hop is visible in the same picture.
+    </figcaption>
+  </figure>
+
+  <p>
+    Change one line so a value passes through a function-typed parameter,
+    and the graph grows a vertex that is not part of the program:
+  </p>
+  <figure class="model-figure">
+    <img src="/img/model-residue-graph.svg"
+         alt="Residue graph: the same program, with an unresolved indirect_call node attached to the apply function by a dashed edge." />
+    <figcaption>
+      That trapezoid is a <strong>hole</strong> — a typed record of what
+      the compiler could not determine, naming the relations it
+      withdraws. Most program graphs show you what was found. This one
+      also shows you where it stopped looking, which is why a law that
+      reaches that edge reports <em>uncertified</em> rather
+      than <em>holds</em>.
+    </figcaption>
+  </figure>
+
   <h2>Topics describe communication without smuggling in a mechanism</h2>
   <p>
     A topic is a typed, named edge. Publishers declare authority to send;

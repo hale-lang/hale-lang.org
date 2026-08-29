@@ -638,3 +638,21 @@
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
 }
+
+/* Compiler-rendered topology figures on /model. The SVGs are emitted
+   by `hale topology graph` at their own intrinsic size; cap the width
+   and let them scale rather than overflow the prose column. */
+.model-page .model-figure { margin: 1.75rem 0; }
+.model-page .model-figure img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+.model-page .model-figure figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  opacity: 0.85;
+}

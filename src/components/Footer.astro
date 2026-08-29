@@ -1,10 +1,14 @@
 ---
 import Logo from './Logo.astro';
 const cols = [
-  { h: 'Learn', links: [['The model', '/model'], ['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Playground', '/playground']] },
-  { h: 'Build', links: [['Examples', '/examples'], ['Packages (pond)', '/packages'], ['Toolchain', '/tooling'], ['Features', '/features']] },
-  { h: 'Reference', links: [['Specification', '/docs/reference'], ['Standard library', '/docs/spec/stdlib'], ['Design', '/docs/the-design'], ['Proof', '/proof']] },
-  { h: 'Project', links: [['Articles', '/articles'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only site', '/text/'], ['llms.txt', '/llms.txt']] },
+  // A footer earns its place by covering the LONG TAIL, not by
+  // repeating the header. `Understand` gives the essays a home about
+  // ideas rather than one about governance, and surfaces the two
+  // model documents that nothing else on the site links to.
+  { h: 'Start', links: [['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Examples', '/examples'], ['Playground', '/playground']] },
+  { h: 'Understand', links: [['The programming model', '/model'], ['Writing', '/articles'], ['The design', '/docs/the-design'], ['Proof', '/proof']] },
+  { h: 'Reference', links: [['Specification', '/docs/reference'], ['The semantic model', '/docs/the-model'], ['Standard library', '/docs/spec/stdlib'], ['Toolchain', '/tooling']] },
+  { h: 'Project', links: [['Packages (pond)', '/packages'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only site', '/text/'], ['llms.txt', '/llms.txt']] },
 ];
 ---
 <footer class="footer">
