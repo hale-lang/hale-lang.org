@@ -1,5 +1,10 @@
 ---
 import Hale from './Hale.astro';
+// Inlined rather than <img>: the renderer emits a light theme with an
+// opaque background, and only inline SVG can be re-themed by CSS. The
+// files stay byte-for-byte `hale topology graph` output.
+import busGraph from '../diagrams/model-bus-graph.svg?raw';
+import residueGraph from '../diagrams/model-residue-graph.svg?raw';
 import SystemMap from './SystemMap.astro';
 import StatusRail from './StatusRail.astro';
 
@@ -111,8 +116,9 @@ const main = `main locus App {
     a diagram anyone maintained:
   </p>
   <figure class="model-figure">
-    <img src="/img/model-bus-graph.svg"
-         alt="Communication graph: Sampler publishes to the Readings topic, which is subscribed by both Store and Monitor; Monitor publishes to Alerts, which Pager subscribes." />
+    <div class="model-diagram" role="img"
+         aria-label="Communication graph: Sampler publishes to the Readings topic, which is subscribed by both Store and Monitor; Monitor publishes to Alerts, which Pager subscribes."
+         set:html={busGraph} />
     <figcaption>
       <code>Readings</code> is one vertex with one edge in
       and <strong>two</strong> out — a single publish reaching two
@@ -128,8 +134,9 @@ const main = `main locus App {
     and the graph grows a vertex that is not part of the program:
   </p>
   <figure class="model-figure">
-    <img src="/img/model-residue-graph.svg"
-         alt="Residue graph: the same program, with an unresolved indirect_call node attached to the apply function by a dashed edge." />
+    <div class="model-diagram" role="img"
+         aria-label="Residue graph: the same program, with an unresolved indirect_call node attached to the apply function by a dashed edge."
+         set:html={residueGraph} />
     <figcaption>
       That trapezoid is a <strong>hole</strong> — a typed record of what
       the compiler could not determine, naming the relations it
