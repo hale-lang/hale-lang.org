@@ -266,9 +266,25 @@ const main = `main locus App {
   <StatusRail />
 
   <hr />
+  {/* The rung that was missing. This page is the programming model —
+      what you write. One level down is the SEMANTIC model: the typed
+      value the compiler derives from it, which claims, artifacts,
+      fleet composition and lowering all read. A reader who wanted
+      that had no path to it from here. The footer listed both, but a
+      footer is where you go when you already know the name of the
+      thing you want. Below that, the spec is the contract, linked in
+      turn from the doc page — three rungs, each naming the next. */}
   <p class="muted">
-    Continue with the <a href="/docs">guide</a>, inspect the
+    That is the model you write. For the one the compiler
+    {' '}<em>derives</em> from it — the typed value behind claims,
+    artifacts, fleet composition and lowering — continue to
+    {' '}<a href="/docs/the-model">the semantic model</a>, which ends
+    at the contract itself in
+    {' '}<a href="https://github.com/hale-lang/hale/blob/main/spec/model.md"><code>spec/model.md</code></a>.
+  </p>
+  <p class="muted">
+    Otherwise: the <a href="/docs">guide</a>, the
     {' '}<a href="/proof">verification surface</a>, or
-    {' '}<a href="/playground">run the tour</a>.
+    {' '}<a href="/playground">the tour</a>.
   </p>
 </section>
