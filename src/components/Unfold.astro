@@ -89,7 +89,9 @@ locus Desk {
         Filled <- o;
     }
 }` },
-  { title: 'main.hl', code: `main locus App {
+  { title: 'main.hl', code: `locus Worker { params { valid: Int = 1; } }
+
+main locus App {
     params {
         workers: Worker = Worker { };
     }
