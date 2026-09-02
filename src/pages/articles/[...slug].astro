@@ -49,7 +49,11 @@ const fmt = (d: Date) =>
       <span class="tag">/articles</span>
       <div class="meta">
         <span class={`kind kind-${post.data.kind}`}>
-          {post.data.kind === 'announcement' ? 'Announcement' : 'Technical article'}
+          {post.data.kind === 'announcement'
+            ? 'Announcement'
+            : post.data.kind === 'post'
+              ? 'Blog post'
+              : 'Technical article'}
         </span>
         <time datetime={post.data.date.toISOString()}>
           {fmt(post.data.date)}

@@ -1,6 +1,6 @@
 ---
 title: "what the hale!?"
-kind: article
+kind: post
 authorship: human
 date: 2026-09-02
 summary: >-

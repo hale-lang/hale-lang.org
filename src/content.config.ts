@@ -13,7 +13,11 @@ const articles = defineCollection({
     title: z.string(),
     // `announcement` — a release, in prose.
     // `article` — a technical piece about one thing.
-    kind: z.enum(['announcement', 'article']),
+    // `post` — an essay. Neither shipping news nor a single
+    //   technical subject; the label matters because a reader
+    //   opening a blog post expects an argument, and one opening a
+    //   technical article expects a reference they can act on.
+    kind: z.enum(['announcement', 'article', 'post']),
     // Who actually wrote the prose. REQUIRED, and deliberately so:
     // a default would silently attribute, and the whole point of the
     // field is that a reader should never have to guess. `ai` means

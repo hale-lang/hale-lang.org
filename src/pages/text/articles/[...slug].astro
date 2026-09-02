@@ -21,7 +21,11 @@ const fmt = (d: Date) =>
   <h1>{post.data.title}</h1>
   <p>
     <em>
-      {post.data.kind === 'announcement' ? 'Announcement' : 'Technical article'}
+      {post.data.kind === 'announcement'
+            ? 'Announcement'
+            : post.data.kind === 'post'
+              ? 'Blog post'
+              : 'Technical article'}
       {post.data.series && <>, {post.data.series} part {post.data.part}</>}
       . {fmt(post.data.date)}
       {post.data.updated && <>, updated {fmt(post.data.updated)}</>}

@@ -5,10 +5,17 @@ const cols = [
   // repeating the header. `Understand` gives the essays a home about
   // ideas rather than one about governance, and surfaces the two
   // model documents that nothing else on the site links to.
-  { h: 'Start', links: [['Get started', '/docs/getting-started/install'], ['The guide', '/docs'], ['Examples', '/examples'], ['Playground', '/playground']] },
-  { h: 'Understand', links: [['The programming model', '/model'], ['Writing', '/articles'], ['The design', '/docs/the-design'], ['Proof', '/proof']] },
-  { h: 'Reference', links: [['Specification', '/docs/reference'], ['The semantic model', '/docs/the-model'], ['Standard library', '/docs/spec/stdlib'], ['Toolchain', '/tooling']] },
-  { h: 'Project', links: [['Packages (pond)', '/packages'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only site', '/text/'], ['llms.txt', '/llms.txt']] },
+  //
+  // Labels are ONE WORD wherever the destination allows it, matching
+  // the header. A footer is scanned, not read: "The programming
+  // model" costs three words to say what "Model" says, and the
+  // article "The" carries no information at all. The exception is
+  // `Semantic model`, which needs the qualifier precisely because
+  // `Model` is a different page one column to its left.
+  { h: 'Start', links: [['Install', '/docs/getting-started/install'], ['Guide', '/docs'], ['Examples', '/examples'], ['Playground', '/playground']] },
+  { h: 'Understand', links: [['Model', '/model'], ['Articles', '/articles'], ['Design', '/docs/the-design'], ['Proof', '/proof']] },
+  { h: 'Reference', links: [['Spec', '/docs/reference'], ['Semantic model', '/docs/the-model'], ['Stdlib', '/docs/spec/stdlib'], ['Toolchain', '/tooling']] },
+  { h: 'Project', links: [['Packages', '/packages'], ['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only', '/text/'], ['llms.txt', '/llms.txt']] },
 ];
 ---
 <footer class="footer">
