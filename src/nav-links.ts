@@ -5,8 +5,8 @@
 // nav row scrolls on a narrow viewport instead of dropping entries.
 //
 // Seven items, chosen to state the category (general-purpose language
-// site) to a first-time visitor; DNA sits second because a governed
-// application is the feature the site leads with. "The model" left the nav on purpose:
+// site) to a first-time visitor. DNA sits late: it is what the language
+// makes possible, not what a first-time visitor needs to place first. "The model" left the nav on purpose:
 // the homepage's why-Hale section, the final CTA, and the footer all
 // hand it to the reader at the moment the narrative earns it, which is
 // the repositioning working as designed. Articles is return-visitor
@@ -15,10 +15,10 @@ export interface NavLink { href: string; label: string; }
 
 export const navLinks: NavLink[] = [
   { href: '/features',   label: 'Language' },
-  { href: '/dna',        label: 'DNA' },
-  { href: '/docs',       label: 'Learn' },
+  { href: '/docs',       label: 'Docs' },
   { href: '/examples',   label: 'Examples' },
   { href: '/packages',   label: 'Packages' },
   { href: '/proof',      label: 'Proof' },
+  { href: '/dna',        label: 'DNA' },
   { href: '/playground', label: 'Playground' },
 ];
