@@ -28,7 +28,7 @@ if (!existsSync(BOOK)) { console.error(`book not found: ${BOOK}`); process.exit(
 function repoPathToSite(repoPath) {
   if (repoPath.startsWith('docs/src/') && repoPath.endsWith('.md')) {
     const rel = repoPath.slice('docs/src/'.length);
-    return rel === 'introduction.md' ? '/docs' : '/docs/' + rel.replace(/\.md$/, '');
+    return rel === 'introduction.md' ? '/docs' : '/docs/' + rel.replace(/\.md$/, '').replace(/\/index$/, '');
   }
   if (repoPath.startsWith('spec/') && repoPath.endsWith('.md')) {
     return '/docs/spec/' + basename(repoPath, '.md');
@@ -95,7 +95,9 @@ async function buildSidebar(bookFiles) {
     if (!m) continue;
     const [, label, rel] = m;
     inNav.add(rel + '.md');
-    const item = { label, slug: rel === 'introduction' ? 'docs' : 'docs/' + rel };
+    // a chapter named index.md is its directory's page (Starlight collapses the slug)
+    const slug = rel === 'introduction' ? 'docs' : 'docs/' + rel.replace(/\/index$/, '');
+    const item = { label, slug };
     (current ? current.items : prefix).push(item);
   }
   if (groups.length) groups[0].items.unshift(...prefix);

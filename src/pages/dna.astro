@@ -1,0 +1,211 @@
+---
+import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
+
+// Transcripts from one real session on the acceptance application the
+// hale repository ships (dna/acceptance/chat-server), with the editor on
+// scripted models. Same commands, same Journal with a hosted model.
+const session = `$ hale dna init .
+wrote   vendor/dna (13 file(s) written; hale.lock pins toolchain 0.19.2)
+cut     .hale/dna/baseline.topology (schema 1.19, shape 3853f0f14bbf1639, verdict clean)
+created dna/purpose.hl
+created dna/assembly.hl
+created dna_constitution.hl
+edited  main.hl (imports, \`genome\` param, \`adopt Project\`, membrane bindings)
+seeded  .hale/dna/journal.jsonl (17 event(s))
+
+$ hale dna run . --observe 5
+hale dna run: organism chat (pid 1694293) under LOTUS_OBS=1
+hale dna run: membrane bound at .hale/dna
+hale dna run: iris at http://127.0.0.1:8787/  (l law · 4 review · 5 organism · m membrane)
+
+$ hale dna ask document the chat server in main.hl
+task t1 born for intent i1a08c0786c5 [pending]`;
+
+const review = `$ hale dna review m1
+review m1 [pending]: apply m1 (application): document the chat server in main.hl?
+  needs maintainer · candidate dbbb49f550f3f021f390710803e48f1b3d1593ff
+  mutation m1 (application) by editor · disposition under the grant: escalate
+  magnitude: novelty 3
+
+source diff (git 4319af28e30e .. dbbb49f550f3):
+  @@ -110,3 +110,4 @@ main locus ChatServer {
+   fn main() { ChatServer { }; }
+  +// documented by the organism: the rooms are the only way to the signer
+
+semantic diff (hale model diff, baseline .. candidate):
+  classification: source-only  (shape_hash 8517c3db7499d3b3 -> 8517c3db7499d3b3)
+  no semantic differences
+
+evidence (fmt=0 check=0 verify=0 test=0 diff=0 rollback=0):
+  step       ok     code  receipt        bytes
+  base       yes    0     e607a8e25cfc   26
+  check      yes    0     e3b0c44298fc   0
+  verify     yes    0     e3b0c44298fc   0
+  test       yes    0     184a3407ce31   67
+  rollback   yes    0     a06effb044d9   96
+  diff       yes    0     0dfce6838a75   70257
+
+decide: hale dna review m1 approve|revise|reject|abstain [--as <you>] [--comment <c>]
+
+$ hale dna review m1 approve --as riley --comment "the rooms stay the only way"
+review m1 settled: approve by riley`;
+
+const after = `hale dna run: m1 requests a restart (apply dbbb49f5… fitness guests_greeted +)
+hale dna run: organism restarted (pid 1694392) as 8517c3db7499d3b3 build b1ac50c8c3ef
+hale dna run: m1 observed healthy for 5s as 8517c3db7499d3b3
+
+$ hale dna status
+mutations:  1 (none applies before a human's verdict on the exact candidate)
+  m1 [retained] application: document the chat server in main.hl · task t1 · candidate dbbb49f550f3`;
+
+const history = `$ hale dna history m1
+   18  task.born              t1      i1a08c0786c5: document the chat server in main.hl
+   23  mutation.worktree      m1      opened .hale/dna/worktrees/m1 at 4319af28…
+   24  mutation.located       m1      main.hl under read edit fmt check @.hale/dna/worktrees/m1
+   27  mutation.candidate     m1      dbbb49f550f3f021f390710803e48f1b3d1593ff
+   30  evidence.check         dbbb49… {"step": "check", "ok": true, "code": 0, "output_digest": "e3b0c442…"}
+   33  evidence.rollback      dbbb49… {"step": "rollback", "ok": true, …}
+   36  mutation.escalate      m1      application candidate dbbb49f5…
+   37  review.requested       review:m1  {"question": "apply m1 (application): …", "subject_digest": "dbbb49f5…", …}
+   41  review.settled         m1      approve by riley
+   44  mutation.applied       m1      dbbb49f550f3f021f390710803e48f1b3d1593ff
+   46  expression.restarted   m1      8517c3db7499d3b3 build b1ac50c8c3ef
+   47  expression.observed    m1      healthy 8517c3db7499d3b3 up for 5s
+   48  pressure.remeasured    m1      task t1 fitness guests_greeted +: healthy up for 5s
+   49  mutation.retained      m1      observed healthy as 8517c3db7499d3b3`;
+
+const law = `group editors = { dna::SourceEditor, dna::WorktreeTools };
+
+constitution Project {
+    apply_gated:             forbid reaches(genome, effects(genome_apply)) avoiding dna_gate;
+    performers_never_apply:  forbid reaches(performers, effects(genome_apply));
+    credentials_sealed:      require sealed(all credentials);
+    editors_never_commit:    forbid reaches(editors, effects(repo_write));
+    editors_never_apply:     forbid reaches(editors, effects(genome_apply));
+    editors_never_learn:     forbid reaches(editors, knowledge);
+}`;
+---
+<Base title="DNA: a governed application">
+  <Field kind="tooling" />
+  <section class="container prose">
+    <span class="tag">/dna</span>
+    <h1>An application that changes itself, with you at the door.</h1>
+    <p class="lede">
+      <strong>DNA</strong> is the part of a Hale application that decides how
+      the application changes: what may be attempted, who reviews it, what
+      evidence counts, what is applied, and what is never applied without a
+      human. It ships inside the <code>hale</code> binary as ordinary Hale
+      source. You attach it to a program you already have, and from then on
+      a change is something you <em>ask for</em> and <em>approve</em>, with
+      the receipts to show for it.
+    </p>
+
+    <h2>The loop</h2>
+    <ol class="loop">
+      <li><strong>Ask.</strong> <code>hale dna ask "…"</code> hands the
+        organism an intent through its membrane. A durable Task is born.</li>
+      <li><strong>Propose.</strong> An editing Attempt works in its own git
+        worktree with a grant of exactly four tools: read, edit, format,
+        check. Anything more is a build failure, not a runtime rule.</li>
+      <li><strong>Verify.</strong> The candidate is formatted, checked,
+        verified, tested, semantically diffed against the genome, and its
+        rollback rehearsed. Every output is kept under its own sha256.</li>
+      <li><strong>Review.</strong> You see the source diff, the semantic diff
+        and the evidence table together, pinned to one candidate commit.
+        The verdict is yours, from the terminal or from iris.</li>
+      <li><strong>Apply, express, observe.</strong> Approval applies exactly
+        that commit. The host rebuilds and restarts the program, watches it
+        for a window, and the change is retained or rolled back.</li>
+    </ol>
+    <p class="muted">
+      Every step is an event in a hash-chained Journal. When the process and
+      the repository disagree about what happened, the Journal is the
+      authority, and <code>hale dna history</code> walks it.
+    </p>
+
+    <h2>A session</h2>
+    <p>
+      Attach it to a program that already passes its checks, start it, ask
+      for something. This is a small chat server; the editor here runs on
+      scripted models, so the transcript is reproducible — the same commands
+      and the same Journal with a hosted model behind
+      <code>OPENAI_API_KEY</code>.
+    </p>
+    <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">terminal</span></div><pre><code>{session}</code></pre></div>
+    <p>
+      Seconds later there is a pending Review. What you decide on:
+    </p>
+    <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">terminal</span></div><pre><code>{review}</code></pre></div>
+    <p>
+      Approval is the apply. The host does the rest and reports back:
+    </p>
+    <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">terminal</span></div><pre><code>{after}</code></pre></div>
+    <p>
+      And the whole lineage of that one change, receipts included, is one
+      listing:
+    </p>
+    <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">terminal</span></div><pre><code>{history}</code></pre></div>
+
+    <h2>What keeps it honest</h2>
+    <p>
+      The rules are not settings. They are Hale source the compiler reads.
+      <code>hale dna init</code> generates a constitution into your
+      application's own seed, and <code>hale check</code> evaluates it over
+      the assembly you actually constructed:
+    </p>
+    <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">dna_constitution.hl</span></div><pre><code>{law}</code></pre></div>
+    <ul>
+      <li><strong>The editor cannot reach git, the network, a deployment, or
+        the organism's memory.</strong> It holds none of them, and a wiring
+        that hands it one fails the build with a witness path.</li>
+      <li><strong>Nothing applies except through the assembly's gate, after
+        a settled Review.</strong> A verdict names a candidate commit; a
+        candidate that moved after you looked is refused by digest.</li>
+      <li><strong>An apply is journaled before it is dispatched.</strong> A
+        crashed and retried apply reads its own record and never commits
+        twice. A rollback is a reset to a base the Journal recorded.</li>
+      <li><strong>Credentials stay sealed.</strong> An API key is read from
+        the environment into a locus nothing can read back from, and every
+        model call leaves evidence — digests and cost, never the prompt.</li>
+    </ul>
+
+    <h2>What it is not</h2>
+    <p>
+      DNA is not an agent editing your program while you sleep. The design
+      was gated on a falsification test: reviewers deciding from a
+      generated semantic diff alone, the git diff alone, and both. The
+      semantic view decided the law and structure cases well and could not
+      see handler behaviour at all — a <code>+1</code> becoming
+      <code>+100</code> is invisible to it. So the Review always shows the
+      source beside the model, every change in this phase blocks on a
+      human, and the autonomy a project grants its organism is a boundary
+      written in the law, with hard edges (touching law, widening effects,
+      crossing ownership) that no amount of confidence cancels.
+    </p>
+
+    <h2>Get started</h2>
+    <div class="install" style="margin-bottom:0.6rem;">
+      <span class="sigil">$</span>
+      <span class="cmd">hale dna init . &amp;&amp; hale dna run</span>
+    </div>
+    <p>
+      Then read the Book's DNA section: <a href="/docs/dna">what it is</a>,
+      {' '}<a href="/docs/dna/attach">attaching it</a>,
+      {' '}<a href="/docs/dna/walkthrough">a change end to end</a>,
+      {' '}<a href="/docs/dna/review">reviewing</a>,
+      {' '}<a href="/docs/dna/autonomy">autonomy and policy</a>, and the
+      {' '}<a href="/docs/dna/reference">reference</a>. The design it
+      implements is the
+      {' '}<a href="https://github.com/hale-lang/hale/issues/521">Hale DNA RFC</a>;
+      the friction it has logged against the language is in the repository
+      beside it.
+    </p>
+  </section>
+
+  <style>
+    .loop li { margin-bottom: 0.5rem; }
+    .code pre { margin: 0; overflow-x: auto; }
+    .code code { font-size: 0.86rem; line-height: 1.45; }
+  </style>
+</Base>
