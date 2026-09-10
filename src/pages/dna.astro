@@ -2,69 +2,76 @@
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 
-// One real session on the acceptance application the hale repository
-// ships, with the editor on scripted models; the same commands and the
-// same record with a hosted model.
-const session = `$ hale dna init .            # attach it: three files you own, rules the compiler enforces
-$ hale dna run               # your program, with the organism inside it
+// One real session on the demo application `hale dna new` makes, with
+// the editor on scripted models; the same commands and the same record
+// with a hosted model.
+const session = `$ hale dna init .            # the organization, generated next to your code; the app untouched
+$ hale dna dev               # the organization and the application on this machine
 $ hale dna ask document the chat server in main.hl
 task t1 born for intent i1a08c0786c5 [pending]
 
 $ hale dna review m1
-review m1 [pending]: apply m1 (application): document the chat server in main.hl?
-  needs maintainer · candidate dbbb49f550f3f021f390710803e48f1b3d1593ff
+review m1 [pending]: apply m1 (docs): document the chat server in main.hl?
+  needs leader · candidate bf94e503c1c002f277248b14b6afd1910bb8ce6f
 
-source diff (git 4319af28e30e .. dbbb49f550f3):
-  +// documented by the organism: the rooms are the only way to the signer
+source diff (git 232dc8f18dde .. bf94e503c1c0):
+  +// documented by the organism: Echo answers every Ping
 
 semantic diff (hale model diff, baseline .. candidate):
   classification: source-only  ·  no semantic differences
 
-evidence (fmt=0 check=0 verify=0 test=0 diff=0 rollback=0):
-  check      yes    0     e3b0c44298fc
-  test       yes    0     184a3407ce31
-  rollback   yes    0     a06effb044d9
+evidence (fmt=0 check=0 verify=0 test=0 diff=0 rollback=0 fleet=0):
+  check      yes    0 e3b0c44298fc
+  test       yes    0 184a3407ce31
+  fleet      yes    0 b33b2e832b21
+  rollback   yes    0 89978376be81
 
-$ hale dna review m1 approve --as riley
+$ hale dna review m1 approve --as riley --comment "fine"
 review m1 settled: approve by riley
-hale dna run: organism restarted (pid 1694392) as 8517c3db7499d3b3 build b1ac50c8c3ef
-hale dna run: m1 observed healthy for 5s as 8517c3db7499d3b3`;
+hale dna dev: expression restarted (pid 1875137) as 3c9b9327e480d349 build 7a489ad3e72c
+hale dna dev: m1 observed healthy for 5s as 3c9b9327e480d349`;
 ---
-<Base title="DNA: your program, changing under review">
+<Base title="DNA: your codebase, changing under review">
   <Field kind="tooling" />
   <section class="container prose">
     <span class="tag">/dna</span>
-    <h1>Your program, changing under review.</h1>
+    <h1>Your codebase, changing under review.</h1>
     <p class="lede">
       Code is now written faster than anyone can read it. <strong>DNA</strong>
-      is what a Hale application carries so that a change proposed by a model
-      is made in a sandbox, verified with receipts, explained in the program's
-      own terms, approved by a person, applied as a commit, restarted, watched,
-      and undone if it fails — and so that what the model may touch is a rule
-      the compiler enforces, not a line in a prompt.
+      gives a Hale codebase an organization that oversees it: a human Board at
+      the top, a model-backed Leader under it with a grant the Board wrote, and
+      a substrate that makes each change in a sandbox, proves it with the
+      toolchain, shows it to whoever has the authority, applies exactly what was
+      approved, expresses it on your machine or across a fleet, and watches. All
+      of it is a branch of your repository.
     </p>
 
     <h2>What it is</h2>
     <p>
-      An application with DNA has a change process built into it. You ask for
-      something in a sentence. The organism makes a copy of the repository,
-      lets a model edit one file under a fixed grant — read, edit, format,
-      check — and commits the result in the copy. The toolchain then checks,
-      verifies and tests that candidate, diffs it against the program's
-      structure, rehearses rolling it back, and keeps every output under its
-      own hash. You get one review: the source diff, the structural diff and
-      the evidence, pinned to one commit. Your <em>approve</em> is the apply.
-      The program rebuilds and restarts itself, is watched for a window, and
-      the change is kept or rolled back. All of it is written to a
-      hash-chained record you can walk afterwards.
+      An org chart, as a program. <code>hale dna init</code> generates it next
+      to your code — the Board, the Leader and its grant, the models, the
+      gateways, and a law the compiler holds against the wiring you actually
+      built. You ask for something in a sentence, from a terminal, another
+      clone, GitHub, or the page it serves. The substrate copies the
+      repository, lets a model edit under a grant that is read, edit, format and
+      check and nothing more, and commits the candidate there. The toolchain
+      then checks, verifies and tests it, composes the fleet it would deploy,
+      diffs it against the program's structure, rehearses rolling it back, and
+      keeps every output under its own hash. One review, three views: the source
+      diff, the structural diff, the evidence, pinned to one commit. Inside the
+      grant, the Leader decides — a model, reading those views, leaving its
+      reasoning on the record. Outside it, or when the law, an effect or the
+      fleet's shape moves, the Board decides: you. Approval is a commit. It is
+      expressed — restarted here, or redeployed by every node the plan assigns —
+      and watched. It stays up: kept. One instance falls over: rolled back
+      everywhere, with the instance named.
     </p>
     <p>
-      Three words carry the design. The <strong>genome</strong> is the source,
-      the rules, and the assembly that says which models and gateways exist.
-      The <strong>expression</strong> is the running process, with a model
-      hash the observer can join to its instances. The
-      {' '}<strong>experience</strong> is the record of what happened. When two of
-      them disagree, the record is the authority.
+      The record is <code>refs/dna/journal</code>: one commit per event, in
+      the repository the code lives in. A teammate with a clone has the whole
+      story, two people answering at once lose nothing, and a pull request can
+      be the review. The organization grows the same way the code does — a
+      proposal, a candidate commit, the Board's verdict, a restart.
     </p>
 
     <h2>Why, in 2026</h2>
@@ -74,92 +81,101 @@ hale dna run: m1 observed healthy for 5s as 8517c3db7499d3b3`;
       skimming and CI becomes the only real check. DNA does not make reading
       unnecessary; it makes each change one thing, already verified, and
       explains it twice: the source diff, and what changed in the program's
-      shape — who talks to whom, which effects are reached, whether a rule
-      went from holding to violated. A rule that flips is one line in that
-      view and a page of archaeology in the source.
+      shape — who talks to whom, which effects are reached, whether a rule went
+      from holding to violated. A rule that flips is one line in that view and a
+      page of archaeology in the source. And it puts a first reader on every
+      change whose reasoning you can audit: the Leader's verdict is a model call
+      with its digests and its cost on the record, inside a grant only the Board
+      can widen.
     </p>
     <p>
       <strong>Autonomy as a checkbox.</strong> Today an agent's permissions are
-      a toggle in a tool: edit files, run commands, auto-approve. DNA writes
-      the boundary into the program's own constitution — the editing step
-      cannot reach git, the network, a deployment or the organism's memory —
-      and <code>hale check</code> holds that against the wiring you actually
-      built. Hand the editor a git handle and the build fails, with the path
-      that shows why. Widening the boundary is a reviewed commit, like any
-      other change.
+      a toggle in a tool: edit files, run commands, auto-approve. Here the
+      boundary is a constitution the compiler enforces — the editing position
+      cannot reach git, the network, a deployment or the organization's memory;
+      the Leader decides and never commits — and <code>hale check</code> holds
+      it against the org chart you wrote. Hand the editor a git handle and the
+      build fails, with the path that shows why. Widening the grant is a
+      reviewed commit, like any other change.
     </p>
     <p>
-      <strong>Agents edit repositories; programs run.</strong> A change is
-      usually judged by tests, in a checkout, with no idea what the program is
-      doing in production. Hale programs are modeled by their compiler, so a
-      candidate is measured on what it does to that model — an added component
-      that reaches an outbound effect crosses a hard boundary before a human
-      sees a line — and the running program carries its model hash, so the
-      observer can say which instances express which version.
+      <strong>Agents edit repositories; systems run.</strong> A change is
+      usually judged by tests, in a checkout, with no idea what is running
+      where. Hale programs are modeled by their compiler, so a candidate is
+      measured on what it does to that model, and composed as the fleet it would
+      deploy — a change to one service that breaks a claim over all of them is
+      denied before a human sees a line. Every instance reports the model hash
+      it expresses into the record, so <code>hale dna fleet</code> can say
+      which replica runs which version.
     </p>
     <p>
       <strong>Provenance is a chat log.</strong> Why a change happened is
       reconstructed from PR descriptions and transcripts. DNA's record has the
       ask, the sandbox, every model call with its cost and digests (never the
-      prompt), each check with its receipt, the verdict with a name on it,
-      the apply, the restart, the outcome. <code>hale dna history m1</code> is
-      one change's whole story.
+      prompt), each check with its receipt, the verdict with a name on it, the
+      apply, the deploy, the outcome — as commits, next to the code, synced like
+      code. <code>hale dna history m1</code> is one change's whole story, from
+      any clone.
     </p>
     <p>
       <strong>Rollback is a hope.</strong> A change that breaks production is
-      reverted by whoever notices. Here a change that crashes inside the
-      observation window is reset to the commit it started from, mechanically,
-      and the old program is started again; a change you reject after the
-      fact goes the same way; a retried apply reads its own record and never
-      commits twice.
+      reverted by whoever notices. Here a change that crashes one instance inside
+      the observation window is reset to the commit it started from, on every
+      node it reached, mechanically; a change you reject after the fact goes the
+      same way; a retried apply reads its own record and never commits twice.
     </p>
     <p class="muted">
       And it runs where your code is: in the <code>hale</code> binary, on your
-      machine, with your model key or a local model. No control plane.
+      workstation, with your model key or a local model, with git as the only
+      shared service. No control plane.
     </p>
 
     <h2>How</h2>
     <p>
-      Attach it to a program that already passes its checks, start it, ask.
-      This is a small chat server, with the editor on scripted models so the
-      transcript is reproducible; a hosted model gives the same commands and
-      the same record.
+      Generate the organization for a program that already passes its checks,
+      start it, ask. This is the demo application, with the editor on scripted
+      models so the transcript is reproducible; a hosted model gives the same
+      commands and the same record.
     </p>
     <div class="code"><div class="code-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="code-title">terminal</span></div><pre><code>{session}</code></pre></div>
     <p>
-      That is the whole surface: <code>init</code>, <code>run</code>,
-      {' '}<code>ask</code>, <code>review</code>, <code>status</code>,
-      {' '}<code>history</code>. The rest is how much autonomy you grant and
-      which models you point it at — two edits in a file you own.
+      That is the daily surface: <code>ask</code>, <code>review</code>,
+      {' '}<code>status</code>, <code>history</code>, <code>board</code>. For a
+      team, <code>git config dna.github</code> turns every pending review into a
+      pull request and every GitHub review into a verdict. For a fleet, a plan
+      names each service's seed and node, <code>hale node</code> runs a node,
+      and an approval redeploys the instances it touched. The rest is how much
+      the Leader may decide and which models it uses — a grant and a router in
+      a file you own.
     </p>
 
     <h2>What it doesn't claim</h2>
     <p>
-      Every change in this phase blocks on a person; post-review autonomy
-      exists for refactors you opt into, and a rejection still rolls back. A
-      restart is a restart, not a live state migration. And the structural
-      view is blind to what a handler computes — a <code>+1</code> becoming
-      {' '}<code>+100</code> is invisible to it — which is why the source diff is
-      never optional. The design was gated on a test of exactly that: reviewers
-      deciding from the structural diff alone, the source alone, and both. The
-      combined view is what shipped, and the structural view is credited with
-      what it earned: it decides shape and rules, and it says when it cannot
-      decide.
+      Every change waits for a verdict: the Leader's, inside a grant a person
+      wrote, or the Board's. A restart is a restart, not a live state migration.
+      And the structural view is blind to what a handler computes — a
+      {' '}<code>+1</code> becoming <code>+100</code> is invisible to it — which is
+      why the source diff is never optional, for people and for the Leader
+      alike. The design was gated on a test of exactly that: reviewers deciding
+      from the structural diff alone, the source alone, and both. The combined
+      view is what shipped, and the structural view is credited with what it
+      earned: it decides shape and rules, and it says when it cannot decide.
     </p>
 
     <h2>Start</h2>
     <div class="install" style="margin-bottom:0.6rem;">
       <span class="sigil">$</span>
-      <span class="cmd">hale dna init . &amp;&amp; hale dna run</span>
+      <span class="cmd">hale dna init . &amp;&amp; hale dna dev</span>
     </div>
     <p>
-      The <a href="/docs/dna">user guide</a> is six short chapters: getting
-      started, working with it, shaping it, what it will and won't do,
-      troubleshooting. The deep dive — the record, the gateways, the review's
-      pin, the autonomy rules — starts at
-      {' '}<a href="/docs/dna/attach">how attaching works</a>. The design it
+      The <a href="/docs/dna">user guide</a> is eight short chapters: getting
+      started, working with it, the organization, operating the fleet, shaping
+      it, what it will and won't do, troubleshooting. The deep dive — the record
+      as a git branch, the gateways, the review's pin, the autonomy rules —
+      starts at <a href="/docs/dna/attach">what init makes</a>. The design it
       implements is the
-      {' '}<a href="https://github.com/hale-lang/hale/issues/521">Hale DNA RFC</a>.
+      {' '}<a href="https://github.com/hale-lang/hale/issues/566">Hale DNA, Phase 3</a>
+      issue, on the <a href="https://github.com/hale-lang/hale/issues/521">RFC</a>.
     </p>
   </section>
 
