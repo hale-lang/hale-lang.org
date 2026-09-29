@@ -32,8 +32,8 @@ export const full = {
     },
     {
       "id": "server",
-      "code": "fn build_router() -> std::http::Router {\n    let r = std::http::Router { };\n    r.add(\"GET\", \"/orders/:id\", OrderRead { });\n    r.add(\"POST\", \"/orders\", OrderIntake { });\n    return r;\n}\n\nfn main() {\n    std::http::Server { port: 8080, handler: build_router(), max_accepts: 2 };\n}",
-      "prose": "The router is first-match-wins; the server is one statement. `max_accepts` bounds the accept loop, which is how a test drives the same server a deployment runs. Nothing on this page imported a framework — the server, router, JSON codec, and handler contract all ship in `std::http` and the language itself."
+      "code": "locus Routes {\n    params {\n        read: OrderRead = OrderRead { };\n        intake: OrderIntake = OrderIntake { };\n        router: std::http::Router = std::http::Router { };\n    }\n    birth() {\n        self.router.add(\"GET\", \"/orders/:id\", self.read);\n        self.router.add(\"POST\", \"/orders\", self.intake);\n    }\n    fn handle(req: std::http::Request) -> std::http::Response {\n        return self.router.dispatch(req);\n    }\n}\n\nfn main() {\n    std::http::Server { port: 8080, handler: Routes { }, max_accepts: 2 };\n}",
+      "prose": "The router keeps what `add` hands it as a borrow, so each handler is a field of the locus that owns the router and lives exactly as long as it does; the router is first-match-wins, and the server is one statement that mounts that owner. `max_accepts` bounds the accept loop, which is how a test drives the same server a deployment runs. Nothing on this page imported a framework — the server, router, JSON codec, and handler contract all ship in `std::http` and the language itself."
     }
   ]
 };
