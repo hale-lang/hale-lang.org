@@ -32,6 +32,7 @@ const tiers = [
   ]],
   ['Tier 3: realtime', [
     ['websocket', 'RFC 6455 client + server-side upgrade'],
+    ['realtime/nats', 'NATS core + JetStream client, and a std::bus adapter that carries a program\'s topics over NATS with at-least-once delivery and an ack audit; in-memory fake for tests'],
   ]],
   ['Tier 5: agents', [
     ['agent/llm', 'Anthropic / OpenAI clients with SSE streaming'],
