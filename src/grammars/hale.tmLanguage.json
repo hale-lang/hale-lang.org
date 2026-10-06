@@ -111,27 +111,32 @@
       "patterns": [
         {
           "name": "constant.numeric.hex.hale",
-          "match": "\\b0x[0-9a-fA-F_]+\\b"
+          "match": "\\b0[xX][0-9a-fA-F_]+\\b"
         },
         {
           "name": "constant.numeric.oct.hale",
-          "match": "\\b0o[0-7_]+\\b"
+          "match": "\\b0[oO][0-7_]+\\b"
         },
         {
           "name": "constant.numeric.bin.hale",
-          "match": "\\b0b[01_]+\\b"
-        },
-        {
-          "name": "constant.numeric.duration.hale",
-          "match": "\\b[0-9_]+(ns|us|ms|s|m|h|d)\\b"
+          "match": "\\b0[bB][01_]+\\b"
         },
         {
           "name": "constant.numeric.decimal.hale",
-          "match": "\\b[0-9_]+\\.[0-9_]+d\\b"
+          "match": "\\b[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+-]?[0-9]+)?d\\b"
         },
         {
           "name": "constant.numeric.float.hale",
-          "match": "\\b[0-9][0-9_]*\\.[0-9_]+([eE][+-]?[0-9]+)?\\b"
+          "match": "\\b[0-9][0-9_]*(?:\\.[0-9][0-9_]*(?:[eE][+-]?[0-9]+)?|[eE][+-]?[0-9]+)\\b"
+        },
+        {
+          "name": "constant.numeric.quantity.hale",
+          "match": "\\b[0-9][0-9_]*([A-Za-z][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "constant.numeric.quantity.unit.hale"
+            }
+          }
         },
         {
           "name": "constant.numeric.integer.hale",
@@ -172,7 +177,41 @@
       "patterns": [
         {
           "name": "storage.type.declaration.hale",
-          "match": "\\b(locus|type|interface|perspective|fn|const|import|export|module|topic|ring_layout|main)\\b"
+          "match": "\\b(locus|type|interface|perspective|fn|const|import|export|module|topic|ring_layout|main|trait|impl|macro|unit|constitution)\\b"
+        },
+        {
+          "name": "keyword.other.unit.hale",
+          "match": "\\b(quantity|point|distinct)\\b"
+        },
+        {
+          "match": "\\b(round)\\s*(:)\\s*(floor|ceil|trunc|half_even|half_up)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.other.unit.hale"
+            },
+            "3": {
+              "name": "keyword.other.policy.hale"
+            }
+          }
+        },
+        {
+          "name": "keyword.other.unit.hale",
+          "match": "\\b(range|round|origin)(?=\\s*:(?!:))"
+        },
+        {
+          "match": "\\b(or)\\s+(floor|ceil|trunc|half_even|half_up|clamp|wrap)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.fallible.hale"
+            },
+            "2": {
+              "name": "keyword.other.policy.hale"
+            }
+          }
+        },
+        {
+          "name": "keyword.other.api.hale",
+          "match": "\\b(api|serve|serves|http|principals|gated|includes|roles|on_unauthorized|on_full|refuse|watch_bound|on_watch_full)\\b"
         },
         {
           "name": "storage.type.declaration.claims.hale",
@@ -180,31 +219,31 @@
         },
         {
           "name": "keyword.other.claims.hale",
-          "match": "\\b(claims|forbid|reaches|via|during|avoiding|edges|bound|require|cover|count|seed|subscribes|publishes|publishers|subscribers|subscribed_by|some|paths|from|may_be_empty|effects)\\b"
+          "match": "\\b(claims|forbid|reaches|via|during|avoiding|edges|bound|require|cover|count|seed|subscribes|publishes|publishers|subscribers|subscribed_by|some|paths|from|may_be_empty|effects|adopt|extends)\\b"
         },
         {
           "name": "keyword.other.member.hale",
-          "match": "\\b(params|contract|bus|capacity|bindings|placement|closure)\\b"
+          "match": "\\b(params|contract|bus|capacity|bindings|placement|closure|as_parent_for|indexed_by|birth_check)\\b"
         },
         {
           "name": "keyword.other.bus.hale",
-          "match": "\\b(subscribe|publish|expose|consume|inferred|keyed_by|on_unmatched)\\b"
+          "match": "\\b(subscribe|publish|expose|consume|inferred|keyed_by|on_unmatched|payload|subject|on_overflow|block|drop|slot_count|shm_ring|unix|role|listen|connect)\\b"
         },
         {
           "name": "keyword.other.placement.hale",
-          "match": "\\b(cooperative|pinned|pool|core|projection|rich|chunked|recognition|tier|capacity)\\b"
+          "match": "\\b(cooperative|pinned|pool|core|cores|heap|projection|rich|chunked|recognition|tier|capacity|topology|node|l3|reserve|replicas|schedule|fixed_cell|shared_slab|spillover|summary_only|cap|inline|intra_process|intra_machine|cross_machine|zero_copy|reperspective)\\b"
         },
         {
           "name": "keyword.other.closure.hale",
-          "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|stable_when|serialize_as|where)\\b"
+          "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|stable_when|serialize_as|where|tick|duration|explicit|with|until|sum|prod)\\b"
         },
         {
           "name": "keyword.control.fallible.hale",
-          "match": "\\b(fallible|fail|or|raise|discard)\\b"
+          "match": "\\b(fallible|fail|or|raise|discard|wait)\\b"
         },
         {
           "name": "keyword.control.flow.hale",
-          "match": "\\b(if|else|match|for|in|while|return|break|continue|yield)\\b"
+          "match": "\\b(if|else|match|for|in|while|return|break|continue|yield|async|await)\\b"
         },
         {
           "name": "keyword.other.binding.hale",
@@ -220,7 +259,7 @@
       "patterns": [
         {
           "name": "support.type.primitive.hale",
-          "match": "\\b(Int|Uint|Float|Decimal|String|Bool|Time|Duration|Bytes|BytesView|StringView)\\b"
+          "match": "\\b(Int|Uint|Float|Decimal|String|Bool|Time|Duration|Bytes|BytesView|BytesMut|StringView)\\b"
         },
         {
           "name": "entity.name.type.hale",
