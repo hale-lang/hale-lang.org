@@ -9,6 +9,9 @@
       "include": "#strings"
     },
     {
+      "include": "#units"
+    },
+    {
       "include": "#numbers"
     },
     {
@@ -134,13 +137,111 @@
           "match": "\\b[0-9][0-9_]*([A-Za-z][A-Za-z0-9_]*)\\b",
           "captures": {
             "1": {
-              "name": "constant.numeric.quantity.unit.hale"
+              "name": "entity.name.type.unit.hale"
             }
           }
         },
         {
           "name": "constant.numeric.integer.hale",
           "match": "\\b[0-9][0-9_]*\\b"
+        }
+      ]
+    },
+    "units": {
+      "patterns": [
+        {
+          "name": "meta.declaration.unit.hale",
+          "begin": "^\\s*(unit)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=[=;])",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.declaration.hale"
+            },
+            "2": {
+              "name": "entity.name.type.unit.hale"
+            }
+          },
+          "end": ";",
+          "patterns": [
+            {
+              "include": "#comments"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "name": "entity.name.type.unit.hale",
+              "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+            },
+            {
+              "include": "#operators"
+            }
+          ]
+        },
+        {
+          "match": "\\b([A-Z][A-Za-z0-9_]*)\\s+(in)\\s+(?:([0-9][0-9_]*)\\s*)?([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "include": "#types"
+                }
+              ]
+            },
+            "2": {
+              "name": "keyword.control.flow.hale"
+            },
+            "3": {
+              "name": "constant.numeric.integer.hale"
+            },
+            "4": {
+              "name": "entity.name.type.unit.hale"
+            }
+          }
+        },
+        {
+          "match": "\\b(origin)\\s*(:)\\s*(-?)\\s*([0-9][0-9_]*)\\s*([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.other.unit.hale"
+            },
+            "3": {
+              "name": "keyword.operator.hale"
+            },
+            "4": {
+              "name": "constant.numeric.integer.hale"
+            },
+            "5": {
+              "name": "entity.name.type.unit.hale"
+            }
+          }
+        },
+        {
+          "match": "(\\.)(in)(\\()\\s*(?:([0-9][0-9_]*)\\s*)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\))",
+          "captures": {
+            "2": {
+              "name": "keyword.control.flow.hale"
+            },
+            "4": {
+              "name": "constant.numeric.integer.hale"
+            },
+            "5": {
+              "name": "entity.name.type.unit.hale"
+            }
+          }
+        },
+        {
+          "match": "(\\.)(split)(\\()\\s*(?:([0-9][0-9_]*)\\s*)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\))",
+          "captures": {
+            "2": {
+              "name": "entity.name.function.call.hale"
+            },
+            "4": {
+              "name": "constant.numeric.integer.hale"
+            },
+            "5": {
+              "name": "entity.name.type.unit.hale"
+            }
+          }
         }
       ]
     },
