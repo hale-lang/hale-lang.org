@@ -57,7 +57,12 @@ async function convert(srcFile, repoPath, destFile, note) {
   const title = (m ? m[1] : basename(srcFile, '.md')).replace(/"/g, '\\"');
   // drop the first H1 (Starlight renders the frontmatter title)
   raw = raw.replace(/^#\s+.+\n/m, '');
-  const body = rewriteLinks(raw, repoPath);
+  // The hale repo tags some fences `hale,fragment` / `hale,refused` /
+  // `hale,ignore` for its own doc tests (a partial program, a program
+  // the compiler refuses on purpose). Expressive Code reads the whole
+  // token as the language name, finds none, and renders the block
+  // plain; here the tag is meaningless, so the fence becomes `hale`.
+  const body = rewriteLinks(raw, repoPath).replace(/^(\s*```)hale(?:,[\w-]+)+[ \t]*$/gm, '$1hale');
   const fm = `---\ntitle: "${title}"\n---\n\n${note ? note + '\n\n' : ''}`;
   await mkdir(dirname(destFile), { recursive: true });
   await writeFile(destFile, fm + body);
