@@ -149,6 +149,45 @@ async function main() {
   };
   await writeFile('src/generated/release.json', JSON.stringify(release, null, 2) + '\n');
 
+  // ---- the release history → src/generated/releases.json ----
+  //
+  // The homepage and the community page show the project's recent releases
+  // and how often they ship, read from the compiler's CHANGELOG headings
+  // ("## vX.Y.Z — title (YYYY-MM-DD)") so the record cannot go stale.
+  const changelog = await readFile(join(HALE, 'CHANGELOG.md'), 'utf8');
+  const releases = [...changelog.matchAll(/^## v(\d+\.\d+\.\d+)\s+—\s+(.+?)\s+\((\d{4}-\d{2}-\d{2})\)\s*$/gm)]
+    .map((m) => ({ version: m[1], title: m[2], date: m[3] }));
+  if (!releases.length) { console.error('no release headings found in hale/CHANGELOG.md'); process.exit(1); }
+  await writeFile('src/generated/releases.json', JSON.stringify(releases, null, 2) + '\n');
+
+  // ---- the performance grid → src/generated/performance.json ----
+  //
+  // The README states where Hale is faster and where it is slower than Go,
+  // with the version, date and machine. The site shows the same table, read
+  // from the README, so the two cannot disagree.
+  const readme = await readFile(join(HALE, 'README.md'), 'utf8');
+  const perfAt = readme.indexOf('**Performance, scoped honestly:**');
+  if (perfAt < 0) { console.error('no performance section in hale/README.md'); process.exit(1); }
+  const perfText = readme.slice(perfAt);
+  const intro = perfText.slice(0, perfText.indexOf('\n\n')).replace(/\s+/g, ' ');
+  const provenance = intro.match(/at\s+(v\d+\.\d+\.\d+)\s+\((\d{4}-\d{2}-\d{2}),\s*([^,]+?),\s*the same/);
+  const tableLines = perfText.slice(perfText.indexOf('\n|')).split('\n').slice(1).filter((l, i, a) => l.startsWith('|') && a.slice(0, i).every((x) => x.startsWith('|')));
+  const rows = tableLines.slice(2).map((l) => l.split('|').slice(1, -1).map((c) => c.trim()))
+    .map(([bench, hale, go, vs]) => ({
+      bench: bench.replace(/^`([^`]+)`\s*/, '$1 ').trim(),
+      hale, go,
+      verdict: vs.replace(/\*\*/g, '').replace(/\\\*$/, '').trim(),
+      footnote: /\\\*$/.test(vs),
+    }));
+  if (!provenance || !rows.length) { console.error('could not read the performance table in hale/README.md'); process.exit(1); }
+  const performance = {
+    version: provenance[1], date: provenance[2], machine: provenance[3].trim(),
+    rows,
+    source: 'https://github.com/hale-lang/hale#readme',
+    grid: 'https://github.com/hale-lang/bench',
+  };
+  await writeFile('src/generated/performance.json', JSON.stringify(performance, null, 2) + '\n');
+
   // ---- the Spec → /docs/spec/* ----
   let nSpec = 0;
   const note = '> Reference material, synced from the compiler repo\'s `spec/`. The [guide](/docs) is the gentler path in.';
@@ -159,7 +198,7 @@ async function main() {
   }
 
   console.log(`synced ${nBook} book page(s) → /docs/* and ${nSpec} spec page(s) → /docs/spec/*; sidebar: ${sidebar.length} group(s)`);
-  console.log(`release: v${release.version}${release.prerelease ? ' (prerelease)' : ''}`);
+  console.log(`release: v${release.version}${release.prerelease ? ' (prerelease)' : ''}; ${releases.length} releases in the changelog; performance grid at ${performance.version}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -6,7 +6,10 @@ import LotusField from '../components/LotusField.astro';
 import GrowthSwitcher from '../components/GrowthSwitcher.astro';
 import Unfold from '../components/Unfold.astro';
 import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
+import ReleaseList from '../components/ReleaseList.astro';
 import { session } from '../data/dna-session.mjs';
+// The README's performance table, read at build time (scripts/sync-docs.mjs).
+import perf from '../generated/performance.json';
 // Written by scripts/sync-docs.mjs from the compiler checkout's Cargo.toml,
 // so the version on the homepage cannot drift from the docs it ships with.
 import release from '../generated/release.json';
@@ -80,6 +83,8 @@ Path:
   -> Report`;
 const diagnosticMarks = { warn: [1, 7] };
 
+const perfDate = new Date(perf.date + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+
 const failure = `locus WorkerPool {
     accept(c: Worker) { }
 
@@ -93,7 +98,7 @@ const failure = `locus WorkerPool {
     <LotusField />
     <div class="text">
       <h1 id="claim">Less language. More compiler.</h1>
-      <p class="lede hero-sub">One language from a five-line script to a self-evolving distributed system.</p>
+      <p class="lede hero-sub">One language from a five-line script to a distributed system.</p>
       <div class="install" role="group" aria-label="Install Hale">
         <span class="sigil" aria-hidden="true">$</span>
         <span class="cmd" id="install-cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
@@ -212,9 +217,8 @@ const failure = `locus WorkerPool {
       system is, its scale, is a separate axis, and the model page keeps the
       two apart. Each level shows more of the same locus, and a function
       written at the top compiles unchanged at the bottom. The guide has two
-      more parts, the organism and the habitat. They go outward: the
-      organization that changes the program, and what several organizations
-      share.
+      more parts that go outward: the organization that changes a program,
+      and what several programs and their people share.
     </p>
   </section>
 
@@ -279,6 +283,34 @@ const failure = `locus WorkerPool {
       </p>
     </div>
     <Unfold />
+    <div class="thesis">
+      <div>
+        <h3>An abstract systems language</h3>
+        <p>
+          A systems language lets you declare memory and layout, and checks
+          them. Hale also lets you declare the parts of a system: who owns
+          which state, what talks to what, where each part runs, what a
+          function may do, what a number counts. The compiler checks those
+          too. Units, effects, claims and targets are all declarations it
+          holds you to.
+        </p>
+      </div>
+      <div>
+        <h3>Is this Erlang's OTP with types?</h3>
+        <p>
+          The resemblance is real: components that own their state, messages
+          between them, and supervisors that decide what happens when one
+          fails. OTP finds its process graph at run time. Hale's compiler
+          knows the whole graph before the program runs, so a message on an
+          undeclared topic, a payload that does not match, or a broken rule
+          about who may reach what fails the build. A Hale program compiles to
+          a native binary with no virtual machine and no garbage collector,
+          and a message between two parts on one thread can compile to a
+          direct call. Where each part runs, on a pool, a pinned core or
+          another process, is one block in <code>main</code>.
+        </p>
+      </div>
+    </div>
   </section>
 
   <section class="wrap sec" aria-labelledby="deploy-h" id="deploy">
@@ -355,6 +387,75 @@ const failure = `locus WorkerPool {
     </div>
   </section>
 
+  <section class="wrap sec" aria-labelledby="limits-h" id="limits">
+    <div class="sec-head">
+      <h2 id="limits-h">What it rejects, what it misses, and where it is slower</h2>
+      <p class="lede">
+        The short version, for a reader who already writes Rust, Zig or Go.
+        The proof page shows each check with the witness it returns.
+      </p>
+    </div>
+    <div class="checks">
+      <div>
+        <h3>The build fails on</h3>
+        <ul class="facts">
+          <li><b>An undeclared topic</b><p>A publish or subscribe that names a topic nothing declares.</p></li>
+          <li><b>A payload mismatch</b><p>A publisher and a subscriber that disagree on a topic's type.</p></li>
+          <li><b>An unhandled failure</b><p>A call that can fail with no <code>or</code> saying what happens.</p></li>
+          <li><b>A broken effect or budget</b><p>A function that reaches an effect it ruled out, or allocates past its budget, with the path that does it.</p></li>
+          <li><b>A broken claim</b><p>A path the rules forbid, such as billing reaching research, returned as a counterexample.</p></li>
+          <li><b>A silent rounding</b><p>A narrowing to a coarser unit with no rounding policy.</p></li>
+        </ul>
+      </div>
+      <div>
+        <h3>It does not check</h3>
+        <ul class="facts">
+          <li><b>What a handler computes</b><p><code>+1</code> and <code>+100</code> have the same structure. Correctness of the arithmetic is your tests' job.</p></li>
+          <li><b>Time</b><p>Budgets count allocations, stack depth, blocking points, publishes and fan-out. None of them bounds latency.</p></li>
+          <li><b>Information flow</b><p>A sealed component keeps its key, and a value derived from that key is not tracked.</p></li>
+          <li><b>Calls it cannot resolve</b><p>A call through a function value is reported as unknown, a third answer beside yes and no, and a hard contract fails closed on it.</p></li>
+          <li><b>The runtime's own code</b><p>Models of its synchronization protocols are checked, and their match to the shipped C is maintained by hand.</p></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sec-link"><a href="/proof">Every check, with the witness it returns →</a></div>
+    <div class="perf">
+      <h3>Against Go</h3>
+      <p class="muted">
+        Hale {perf.version} on {perfDate}, {perf.machine}, the same workload
+        shape in each language. Faster at message dispatch, JSON parsing and
+        collections; slower at plain function calls and at creating
+        components.
+      </p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th scope="col">benchmark</th><th scope="col">Hale</th><th scope="col">Go</th><th scope="col">Hale is</th></tr></thead>
+          <tbody>
+            {perf.rows.map((r) => (
+              <tr>
+                <td><code>{r.bench.split(' ')[0]}</code> <span class="muted">{r.bench.split(' ').slice(1).join(' ')}</span></td>
+                <td class="num">{r.hale}</td>
+                <td class="num">{r.go}</td>
+                <td class:list={['num', /slower/.test(r.verdict) ? 'slower' : 'faster']}>{r.verdict}{r.footnote ? ' *' : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:.9rem;margin-top:var(--s3)">
+        * LLVM vectorizes that reduction and Go's compiler does not, so it
+        measures vectorization of reducible loops, and says little about loop
+        speed in general.
+      </p>
+      <p style="margin-top:var(--s4)">
+        Every component owns a memory region, so calls and spawns pay region
+        setup that message dispatch and collections amortize away. A cheaper
+        call protocol and spawn path are on the roadmap.
+      </p>
+      <div class="sec-link"><a href={perf.grid}>The full grid, with C and Rust, and how to reproduce it →</a></div>
+    </div>
+  </section>
+
   <section class="wrap sec" aria-labelledby="dna-h" id="dna">
     <div class="frame">
       <span class="frame-meta">hale dna init . &amp;&amp; hale dna dev</span>
@@ -362,9 +463,9 @@ const failure = `locus WorkerPool {
         <h2 id="dna-h">One program for building, running, governing and recording an application.</h2>
         <p class="lede">
           <code>hale dna init</code> generates it next to your code and leaves
-          the application untouched: a Board of people, a Leader backed by a
-          model under a grant the Board wrote, the models and the budget it
-          may use, and the parts that make each change in a sandbox, prove it
+          the application untouched: people with final say, called the Board;
+          a model-backed reviewer that decides within limits they set, called
+          the Leader; the models and the budget it may use; and the parts that make each change in a sandbox, prove it
           with the toolchain, show it to whoever holds the authority, apply
           exactly what was approved, restart or redeploy it, and watch it. Its
           working state lives in memory it owns. Its history is a branch of
@@ -381,13 +482,13 @@ const failure = `locus WorkerPool {
       <h3 style="margin:var(--s12) 0 var(--s4)">What it needs, and what it does not claim</h3>
       <ul class="nots">
         <li><b>git</b><p>The record lives in the repository. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
-        <li><b>docker compose</b><p><code>hale dna dev</code> brings up the organism's private services with it: Postgres for its working state, which DNA calls memory; NATS for messaging between its parts, the nerves; Prometheus for monitoring, the senses.</p></li>
-        <li><b>A model</b><p>A key in the vault, ollama on your PATH, or a coding harness on it. The organism still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
+        <li><b>docker compose</b><p><code>hale dna dev</code> brings up its private services with it: Postgres for its working state, NATS for messaging between its parts, Prometheus for monitoring.</p></li>
+        <li><b>A model</b><p>A key in the vault, ollama on your PATH, or a coding harness on it. DNA still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
         <li><b>Every change waits</b><p>Each waits for a verdict, the Leader's inside its grant or the Board's. A restart is a restart. Live state does not carry across.</p></li>
         <li><b>A blind spot</b><p>The structural view cannot see what a handler computes. A <code>+1</code> becoming <code>+100</code> is invisible to it, so the source diff is never optional, for people or for the Leader.</p></li>
-        <li><b>The habitat</b><p>Several organisms sharing records, access and infrastructure. Designed and partly built; <a href="/dna#habitat">the DNA page</a> says which pieces are in the tree.</p></li>
+        <li><b>Shared infrastructure</b><p>Several applications and teams sharing records, access and identity. Designed and partly built; <a href="/dna#habitat">the DNA page</a> says which pieces are in the tree.</p></li>
       </ul>
-      <div class="sec-link"><a href="/docs/dna">The organism, part by part →</a> &nbsp;·&nbsp; <a href="/dna">DNA on one page →</a></div>
+      <div class="sec-link"><a href="/docs/dna">DNA in the guide →</a> &nbsp;·&nbsp; <a href="/dna">DNA on one page →</a></div>
     </div>
   </section>
 
@@ -399,14 +500,29 @@ const failure = `locus WorkerPool {
       <li><b>1.0</b><p>Version {release.minor} is a prerelease. Syntax and artifact formats change between releases.</p></li>
       <li><b>A substitute for design</b><p>One owner and declared channels give software its form. The substance, where the seams go, is still the whole job, and a locus-shaped program can still have every seam in the wrong place.</p></li>
       <li><b>A reason to split everything</b><p>A script is one locus. Add a second when there is a real seam, and not before.</p></li>
-      <li><b>Proven all the way down</b><p>The runtime's synchronization protocols are checked as hand-transcribed models whose match to the shipped code is maintained by hand. The proof page says what that does and does not establish.</p></li>
-      <li><b>A guess</b><p>The compiler says so when it cannot resolve a call, as its own answer, distinct from no. The two need different fixes.</p></li>
     </ul>
-    <div class="grid4" style="margin-top:var(--s12)">
-      <a href="/proof"><strong>Verification</strong><span>Every check the compiler runs, with the witness it returns.</span></a>
-      <a href="/examples"><strong>Examples</strong><span>Programs that cross ownership, messaging and deployment.</span></a>
-      <a href="/articles"><strong>Articles</strong><span>Changes to the language, written in context.</span></a>
-      <a href="https://github.com/hale-lang"><strong>Source</strong><span>Compiler, runtime, libraries and this site.</span></a>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="open-h">
+    <div class="sec-head">
+      <h2 id="open-h">Built in the open</h2>
+      <p class="lede">
+        The compiler, the runtime, the libraries and this site are public,
+        and so is every change to them.
+      </p>
+    </div>
+    <div class="split">
+      <div>
+        <ReleaseList count={5} />
+      </div>
+      <div class="grid4 two">
+        <a href="https://github.com/hale-lang/hale/blob/main/CHANGELOG.md"><strong>Changelog</strong><span>Every change, release by release.</span></a>
+        <a href="https://github.com/hale-lang/hale/pulls?q=is%3Apr"><strong>Pull requests</strong><span>Each change with its review, open and merged.</span></a>
+        <a href="https://github.com/hale-lang/hale/issues"><strong>Issues</strong><span>What is reported, planned and open.</span></a>
+        <a href="https://github.com/hale-lang/bench"><strong>Benchmarks</strong><span>The full grid and how to reproduce it.</span></a>
+        <a href="/proof"><strong>Verification</strong><span>Every check the compiler runs, with the witness it returns.</span></a>
+        <a href="/articles"><strong>Articles</strong><span>Changes to the language, written in context.</span></a>
+      </div>
     </div>
   </section>
 
