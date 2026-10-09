@@ -3,7 +3,6 @@ import Base from '../../layouts/Base.astro';
 import Field from '../../components/Field.astro';
 import Hale from '../../components/Hale.astro';
 import captures from '../../generated/examples.json';
-import '../../styles/storefront.css';
 
 /*
   A literate full example: prose and code in program order, where
@@ -24,105 +23,55 @@ export async function getStaticPaths() {
 const { full } = Astro.props;
 const cap = (captures as any).fulls?.[full.slug] ?? { sections: {} };
 const sec = (id: string) => cap.sections?.[id] ?? {};
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Section prose is plain text with `code` spans.
+const prose = (t: string) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
 ---
+
 <Base title={full.title} description={full.tagline}>
-  <Field kind="examples" />
-  <section class="container prose full-example">
-    <span class="tag">/examples/{full.slug}</span>
-    <h1>{full.title}</h1>
-    <p class="lede">{full.intro}</p>
-    <p class="meta-line">
-      {cap.lines} lines · verified by <code>{(captures as any).hale}</code> at
-      build time · <a href={`/examples/${full.slug}.hl`}>download {full.file}</a>
-    </p>
-
-    {full.sections.map((s: any) => {
-      const c = sec(s.id);
-      return (
-        <div class="lit-section">
-          <p set:html={s.prose} />
-          {s.code && <Hale code={s.code} title={s.file ?? full.file} />}
-          {s.brk && (
-            <div class="break-block">
-              <pre class="diff"><span class="diff-note">{s.brk.note}</span>{'\n'}{s.brk.find.split('\n').map((l: string) => `- ${l}`).join('\n')}{'\n'}{s.brk.replace.split('\n').filter((l: string) => !s.brk.find.includes(l)).map((l: string) => `+ ${l}`).join('\n')}</pre>
-              {c.brk && (
-                <pre class="machine machine-err"><span class="machine-label">$ hale check {full.file}</span>{'\n'}{c.brk.output}</pre>
-              )}
-            </div>
-          )}
-          {c.run &&
-            c.run.outputs.map((o: string, i: number) => (
-              <pre class="machine machine-run"><span class="machine-label">$ hale run {full.file}{c.run.outputs.length > 1 ? `   # run ${i + 1}` : ''}</span>{'\n'}{o}</pre>
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>{full.title}</h1>
+      <p class="lede" set:html={prose(full.intro)} />
+      <p class="meta-line">
+        {cap.lines} lines · verified by <code>{(captures as any).hale.split('\n')[0]}</code> at build time · <a href={`/examples/${full.slug}.hl`}>download {full.file ?? 'the program'}</a>
+      </p>
+    </div>
+    <div class="prose">
+      {full.sections.map((s: any) => {
+        const c = sec(s.id);
+        const brkFind = s.brk?.find ?? '';
+        return (
+          <div class="lit-section">
+            <p set:html={prose(s.prose)} />
+            {s.code && <Hale code={s.code} title={s.file ?? full.file} />}
+            {s.brk && (
+              <>
+                <pre class="diff"><span class="note">{s.brk.note}</span>{'\n'}{brkFind.split('\n').map((l: string) => `- ${l}`).join('\n')}{'\n'}{s.brk.replace.split('\n').filter((l: string) => !brkFind.includes(l)).map((l: string) => `+ ${l}`).join('\n')}</pre>
+                {c.brk && <pre class="machine err"><span class="label">$ hale check {full.file}</span>{'\n'}{c.brk.output}</pre>}
+              </>
+            )}
+            {c.run && c.run.outputs.map((o: string, i: number) => (
+              <pre class="machine run"><span class="label">$ hale run {full.file}{c.run.outputs.length > 1 ? `   # run ${i + 1}` : ''}</span>{'\n'}{o}</pre>
             ))}
-          {c.fleet && (
-            <pre class="machine machine-run"><span class="machine-label">$ hale check --dump-topology …  &amp;&amp;  hale fleet check plan.json</span>{'\n'}{c.fleet.output}</pre>
-          )}
-          {c.fleetBreak && (
-            <>
-              {(() => {
-                const cap = s.captures?.find((x: any) => x.kind === 'fleet-break');
-                return cap ? (
-                  <pre class="diff"><span class="diff-note">{cap.note} ({cap.file})</span>{'\n'}{`- ${cap.find.trim()}`}{'\n'}{`+ ${cap.replace.trim()}`}</pre>
-                ) : null;
-              })()}
-              <pre class="machine machine-err"><span class="machine-label">$ hale fleet check plan.json</span>{'\n'}{c.fleetBreak.output}</pre>
-            </>
-          )}
-          {c.session && (
-            <pre class="machine machine-run"><span class="machine-label">$ {(s.captures?.find((x: any) => x.kind === 'session')?.steps ?? []).join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
-          )}
-        </div>
-      );
-    })}
-
-    <p class="back-link"><a href="/examples">← All examples</a></p>
+            {c.fleet && <pre class="machine run"><span class="label">$ hale check --dump-topology …  &amp;&amp;  hale fleet check plan.json</span>{'\n'}{c.fleet.output}</pre>}
+            {c.fleetBreak && (() => {
+              const k = s.captures?.find((x: any) => x.kind === 'fleet-break');
+              return (
+                <>
+                  {k && <pre class="diff"><span class="note">{k.note} ({k.file})</span>{'\n'}{`- ${k.find.trim()}`}{'\n'}{`+ ${k.replace.trim()}`}</pre>}
+                  <pre class="machine err"><span class="label">$ hale fleet check plan.json</span>{'\n'}{c.fleetBreak.output}</pre>
+                </>
+              );
+            })()}
+            {c.session && (
+              <pre class="machine run"><span class="label">$ {(s.captures?.find((x: any) => x.kind === 'session')?.steps ?? []).join('\n$ ')}</span>{'\n'}{c.session.output}{c.session.source === 'pinned' ? `\n\n# ${c.session.label}` : ''}</pre>
+            )}
+          </div>
+        );
+      })}
+      <p class="sec-link" style="margin-top:var(--s12)"><a href="/examples">← All examples</a></p>
+    </div>
   </section>
 </Base>
-
-<style>
-  .full-example .lede {
-    font-size: 1.05rem;
-  }
-  .meta-line {
-    font-size: 0.85rem;
-    opacity: 0.7;
-  }
-  .lit-section {
-    margin-top: 2.2rem;
-  }
-  .lit-section > p {
-    max-width: 68ch;
-  }
-  .machine,
-  .diff {
-    margin: 0.6rem 0 0;
-    padding: 0.7rem 0.9rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    line-height: 1.55;
-    overflow-x: auto;
-    white-space: pre;
-  }
-  .machine {
-    background: color-mix(in srgb, currentColor 6%, transparent);
-  }
-  .machine-label {
-    opacity: 0.55;
-  }
-  .machine-err {
-    border-left: 3px solid var(--rose);
-  }
-  .machine-run {
-    border-left: 3px solid var(--lotus-jade);
-  }
-  .diff {
-    background: color-mix(in srgb, currentColor 5%, transparent);
-  }
-  .diff-note {
-    opacity: 0.6;
-    font-style: italic;
-  }
-  .back-link {
-    margin-top: 2.5rem;
-  }
-</style>

@@ -1,0 +1,16 @@
+---
+/*
+  A terminal transcript: commands set bold, output plain. Kept apart from
+  <Hale> on purpose, because the site gate compiles whatever <Hale>
+  renders, and a transcript is not a program.
+*/
+interface Props { code: string; title?: string; kind?: string }
+const { code, title = 'terminal', kind } = Astro.props;
+const lines = code.replace(/\n+$/, '').split('\n');
+---
+<figure class="listing term">
+  <figcaption><span class="file">{title}</span>{kind && <span>{kind}</span>}</figcaption>
+  <pre><code>{lines.map((l: string, i: number) => (
+    <>{l.startsWith('$ ') ? <b class="sh">{l}</b> : l}{i < lines.length - 1 ? '\n' : ''}</>
+  ))}</code></pre>
+</figure>

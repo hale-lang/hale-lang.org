@@ -1,0 +1,41 @@
+---
+/*
+  Auto, light, dark. Stored under Starlight's own key with Starlight's own
+  values ('' for auto), so a choice made on the site's pages holds in the
+  docs and the other way round. data-theme is always resolved to light or
+  dark, as Starlight resolves it, so the tokens need only two states.
+*/
+---
+<button class="iconbtn theme" type="button" data-theme-toggle aria-label="Switch colour theme" title="Theme: auto">auto</button>
+
+<script>
+  type Mode = 'auto' | 'light' | 'dark';
+  const KEY = 'starlight-theme';
+  const order: Mode[] = ['auto', 'light', 'dark'];
+  const media = matchMedia('(prefers-color-scheme: light)');
+
+  const load = (): Mode => {
+    try {
+      const v = localStorage.getItem(KEY);
+      return v === 'light' || v === 'dark' ? v : 'auto';
+    } catch {
+      return 'auto';
+    }
+  };
+  const resolve = (m: Mode) => (m === 'auto' ? (media.matches ? 'light' : 'dark') : m);
+
+  function apply(m: Mode) {
+    document.documentElement.dataset.theme = resolve(m);
+    try { localStorage.setItem(KEY, m === 'auto' ? '' : m); } catch { /* private window */ }
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((b) => {
+      b.textContent = m;
+      b.title = `Theme: ${m}`;
+    });
+  }
+
+  apply(load());
+  media.addEventListener('change', () => { if (load() === 'auto') apply('auto'); });
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((b) =>
+    b.addEventListener('click', () => apply(order[(order.indexOf(load()) + 1) % order.length])),
+  );
+</script>

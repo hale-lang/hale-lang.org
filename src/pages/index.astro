@@ -1,19 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hale from '../components/Hale.astro';
-import Logo from '../components/Logo.astro';
-import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
-import Unfold from '../components/Unfold.astro';
+import Terminal from '../components/Terminal.astro';
+import LotusField from '../components/LotusField.astro';
 import GrowthSwitcher from '../components/GrowthSwitcher.astro';
-import '../styles/storefront.css';
+import Unfold from '../components/Unfold.astro';
+import DeploymentSwitcher from '../components/DeploymentSwitcher.astro';
+import { session } from '../data/dna-session.mjs';
 // Written by scripts/sync-docs.mjs from the compiler checkout's Cargo.toml,
-// alongside the sidebar — so the version on the homepage cannot drift from
-// the workspace the docs were synced out of. Run the sync if this is missing.
+// so the version on the homepage cannot drift from the docs it ships with.
 import release from '../generated/release.json';
 
 /*
-  The hero sample. Ordinary on purpose — argument, file, print — and
-  real API: `arg_or` and `read_file … or <default>` are the documented
+  The opening program. Ordinary on purpose (an argument, a file, a print)
+  and real API: `arg_or` and `read_file … or <default>` are the documented
   everyday shapes, and check-site compiles this like every other panel.
 */
 const notes = `fn main() {
@@ -22,6 +22,7 @@ const notes = `fn main() {
     println(body);
 }`;
 
+/* The chat room: each phrase of its description has a line to live on. */
 const room = `type Msg { room: String; user: String; text: String; }
 
 topic Posted    { payload: Msg; keyed_by room; }
@@ -39,6 +40,7 @@ locus Room {
         Broadcast <- m;
     }
 }`;
+const roomMarks = { ids: { 3: 'r-keyed', 6: 'r-locus', 10: 'r-sub', 11: 'r-pub' } };
 
 /*
   Offstage context (scripts/check-site.mjs prepends `<name>_prelude` before
@@ -76,6 +78,7 @@ Path:
   -> Relay
   -> subject PublicSummary
   -> Report`;
+const diagnosticMarks = { warn: [1, 7] };
 
 const failure = `locus WorkerPool {
     accept(c: Worker) { }
@@ -86,329 +89,370 @@ const failure = `locus WorkerPool {
 }`;
 ---
 <Base>
-  <section class="container wide hero storefront-hero">
-    <div class="split">
-      <div class="text-pool">
-        <div class="hero-lockup" aria-hidden="true">
-          <Logo class="lockup-mark" />
-          <span class="lockup-divider"></span>
-          <span class="lockup-wordmark">hale</span>
-        </div>
-        {/* The category, stated flatly — the repositioning brief's whole
-            diagnosis was that the site answered "what makes Hale unusual?"
-            before "what is it?", and read as a distributed-systems DSL.
-            The eyebrow names the category; the h1 carries the promise; the
-            systems thesis ("Write the system, not the lore.") now lands
-            mid-page, after ordinary code has earned it. */}
-        <p class="eyebrow">general-purpose · native · memory-safe</p>
-        <h1><span>Start with a program.</span><span>Keep the language when it becomes a system.</span></h1>
-        <p class="lede">
-          Hale is a general-purpose language for scripts, services, and
-          systems. Write ordinary functions, CLIs, files, JSON, HTTP, and
-          WebAssembly. As the program grows, the same language makes
-          ownership, concurrency, placement, effects, and architectural
-          rules visible to the compiler.
-        </p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="/playground">Run Hale</a>
-          <a class="btn btn-ghost" href="/docs">Read the guide</a>
-        </div>
-        <div class="install">
-          <span class="sigil">$</span>
-          <span class="cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
-        </div>
-        {/* "Shipped" and "stable" are different promises, and a visitor who
-            cannot tell them apart will discover the difference the expensive
-            way. Saying pre-1.0 out loud costs nothing and buys the rest of
-            the page some credit. */}
-        <p class="release-status">
-          <b>v{release.minor}{release.prerelease ? ' · prerelease' : ''}</b> —
-          Linux, macOS, and WebAssembly. Language and artifact schemas remain
-          subject to change.
-        </p>
+  <section class="wrap hero" aria-labelledby="claim">
+    <LotusField />
+    <div class="text">
+      <h1 id="claim">Less language. More compiler.</h1>
+      <p class="lede hero-sub">One language from a five-line script to a self-evolving distributed system.</p>
+      <div class="install" role="group" aria-label="Install Hale">
+        <span class="sigil" aria-hidden="true">$</span>
+        <span class="cmd" id="install-cmd">curl -fsSL https://hale-lang.org/install.sh | sh</span>
+        <button class="copy" type="button" data-copy="curl -fsSL https://hale-lang.org/install.sh | sh" aria-label="Copy the install command">copy</button>
       </div>
-      <div class="hero-code">
-        {/* Ordinary on purpose: the first code a visitor sees must not
-            require the locus model to recognize Hale as a programming
-            language. The systems showpiece (room.hl) moved to the
-            why-Hale section below. */}
-        <Hale code={notes} title="notes.hl" />
-        <p class="hero-code-note">
-          A complete Hale program. <code>hale build</code> makes it one
-          static binary; nothing here declares a lifecycle, a topic, or a
-          placement.
-        </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/playground">Try it in the browser</a>
+        <a class="btn btn-ghost" href="/docs">Read the guide</a>
       </div>
+      {/* "Shipped" and "stable" are different promises; saying pre-1.0 out
+          loud costs nothing and buys the rest of the page some credit. */}
+      <p class="release">
+        <b>v{release.minor}{release.prerelease ? ' · prerelease' : ''}</b>. Prebuilt for Linux x86-64, Linux ARM64 and
+        Apple Silicon. Compiles to native binaries and to wasm32. Syntax and
+        artifact formats still change between releases. Apache-2.0, built on
+        LLVM 18.
+      </p>
+    </div>
+    <div class="hero-code">
+      <Hale code={notes} title="notes.hl" kind="everyday" foot={['hale build · one static binary', 'hale check · ok']} />
+      <p class="listing-note">
+        A complete program. <code>hale build</code> makes it one static
+        binary. It declares no lifecycle, topic or placement, and will not
+        need to until it has a second part.
+      </p>
     </div>
   </section>
 
-  <section class="container wide build-section">
-    <div class="section-intro">
-      <p class="eyebrow">general-purpose, checked</p>
-      <h2>What can I build with it?</h2>
+  <section class="wrap gets-sec" aria-labelledby="gets-h">
+    <h2 id="gets-h" class="sr-only">What Hale does for you</h2>
+    <ul class="gets">
+      <li><b>Architecture checked every build</b><span>Write a rule such as “billing never calls research”. Any code that breaks it fails the build, and the error shows the path.</span></li>
+      <li><b>Concurrency without locks or races</b><span>Parts of a program talk by sending typed messages, so there is no shared memory to lock.</span></li>
+      <li><b>Same code, one box or a fleet</b><span>Run a part on its own thread, process or machine by editing one block. The part itself stays as written.</span></li>
+      <li><b>No garbage collector</b><span>Memory is freed when the part that owns it stops. No pauses, and no lifetimes to annotate.</span></li>
+      <li><b>Money and time with units</b><span>Cents, dollars and milliseconds are types. Mixing them up, or rounding without saying how, is a compile error.</span></li>
+      <li><b>Every failure has an owner</b><span>A crash goes to the part that started it, which can restart it, isolate it or pass it up.</span></li>
+      <li><b>APIs without server code</b><span>List the functions to expose and who may call each. Hale serves them over HTTP, a socket or MCP. Arrives in the next release.</span></li>
+      <li><b>Script to service, one language</b><span>Start with a five-line script. Add messaging, deployment and rules later, in the same file and the same tools.</span></li>
+      <li><b>Delivery, ops and governance built in</b><span>Hale DNA wraps your app in review, deploys, rollbacks and an audit log kept in git. People and AI work under rules you set.</span></li>
+      <li><b>Shared infrastructure across apps</b><span>Several apps and teams share records, access and identity, each kept separate. Designed, and partly built.</span></li>
+    </ul>
+    <div class="sec-link"><a href="/glossary">Hale's own words, in familiar terms →</a></div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="build-h">
+    <div class="sec-head">
+      <h2 id="build-h">What you can write with it today</h2>
     </div>
-    <div class="build-cards">
-      <a href="/docs/everyday/cli-config">
+    <ul class="rows">
+      <li><a href="/docs/everyday/cli-config">
         <strong>CLI tools</strong>
-        <span>Arguments, environment, files, and layered config from the
-        standard library. <code>hale build</code> gives you one static
+        <span>Arguments, environment, files and layered config come from the
+        standard library. <code>hale build</code> produces one static
         binary.</span>
-      </a>
-      <a href="/docs/everyday/http">
-        <strong>Web apps &amp; APIs</strong>
-        <span><code>std::http</code> ships the server, router, and JSON
-        codecs; a handler is an ordinary locus. No framework decision
-        before the first route.</span>
-      </a>
-      <a href="/docs/services/lifecycle">
-        <strong>Concurrent services</strong>
-        <span>Typed topics instead of channels and locks; supervision
-        instead of shutdown choreography; the compiler checks who talks
-        to whom.</span>
-      </a>
-      <a href="/docs/systems/memory">
-        <strong>Low-level systems</strong>
-        <span>Memory layout, placement, zero-copy I/O, and C bindings —
-        visible when you ask for them, absent from the code that
-        doesn't.</span>
-      </a>
-      <a href="/docs/systems/webassembly">
+        <span class="surface">hale build</span>
+      </a></li>
+      <li><a href="/docs/everyday/http">
+        <strong>HTTP servers and clients</strong>
+        <span><code>std::http</code> has the server, the router, the client
+        and JSON codecs. A handler is an ordinary locus, so there is no
+        framework to pick first.</span>
+        <span class="surface">std::http</span>
+      </a></li>
+      <li><a href="/docs/services/lifecycle">
+        <strong>Services with many parts</strong>
+        <span>Parts talk over typed topics. A parent owns its children and
+        decides what happens when one fails. The compiler checks who
+        publishes and who subscribes.</span>
+        <span class="surface">topic · bus</span>
+      </a></li>
+      <li><a href="/docs/systems/memory">
+        <strong>Low-level code</strong>
+        <span>Memory layout, placement on threads and cores, zero-copy I/O
+        and C bindings are available when a program asks for them and
+        absent from one that doesn't.</span>
+        <span class="surface">placement · bindings</span>
+      </a></li>
+      <li><a href="/docs/systems/webassembly">
         <strong>WebAssembly</strong>
-        <span>The same program compiles to <code>wasm32</code> with a
-        small JS loader. The typed bus runs in the browser exactly as it
-        does natively.</span>
-      </a>
-    </div>
-    <div class="section-link"><a href="/examples">Everyday programs, with their evidence →</a></div>
+        <span>The same program compiles to <code>wasm32</code> with a small
+        JS loader. The playground runs the result in the browser.</span>
+        <span class="surface">wasm32</span>
+      </a></li>
+    </ul>
+    <div class="sec-link"><a href="/examples">Example programs, and what the compiler checked about each →</a></div>
   </section>
 
-  <section class="section-alt">
-    <div class="container wide">
-      <div class="section-intro">
-        <p class="eyebrow">the same program, three altitudes</p>
-        <h2>It grows without switching languages.</h2>
+  <section class="wrap sec" aria-labelledby="alt-h">
+    <div class="frame">
+      <span class="frame-meta">docs/tutorial/job-queue</span>
+      <div class="sec-head">
+        <h2 id="alt-h">A script, then a service, then a deployment.</h2>
         <p class="lede">
-          The tutorial's job queue, at three sizes. Watch what each tab
-          adds — and what it leaves alone.
+          The job queue from the tutorial at three sizes. Each step adds a
+          block. The earlier blocks are not edited.
         </p>
       </div>
       <GrowthSwitcher />
-      <div class="section-link"><a href="/docs/tutorial/job-queue">Build this yourself in thirty minutes →</a></div>
+      <div class="sec-link"><a href="/docs/tutorial/job-queue">The tutorial builds this in about thirty minutes →</a></div>
     </div>
   </section>
 
-  <section class="container wide altitude-section">
-    <div class="section-intro">
-      <p class="eyebrow">one language, four altitudes</p>
-      <h2>Use only as much language as the program needs.</h2>
+  <section class="wrap sec" aria-labelledby="ladder-h">
+    <div class="sec-head">
+      <h2 id="ladder-h">How much of the language a program uses</h2>
     </div>
     <ol class="ladder">
-      <li>
-        <span class="rung-scale">script</span>
-        <code>fn main()</code>
-        <p>Data, functions, control flow. A complete program with nothing else in it.</p>
-      </li>
-      <li>
-        <span class="rung-scale">everyday</span>
-        <code>locus · std::*</code>
-        <p>Files, JSON, HTTP, tests. The altitude you'd reach for Python or Node.</p>
-      </li>
-      <li>
-        <span class="rung-scale">service</span>
-        <code>topic · bus</code>
-        <p>Long-running loci, typed messages, supervision. Where you'd reach for Go.</p>
-      </li>
-      <li>
-        <span class="rung-scale">systems</span>
-        <code>placement · bindings · claims</code>
-        <p>Layout, placement, transports, architectural law. Where you'd reach for Rust or C++.</p>
-      </li>
+      <li><span class="rung">script</span><code>fn main()</code><p>Data, functions and control flow. A complete program with nothing else in it.</p></li>
+      <li><span class="rung">everyday</span><code>locus · std::*</code><p>Files, JSON, HTTP and tests. The level you would use Python or Node for.</p></li>
+      <li><span class="rung">service</span><code>topic · bus</code><p>Long-running loci, typed messages and supervision. The level you would use Go for.</p></li>
+      <li><span class="rung">systems</span><code>placement · bindings · claims</code><p>Layout, placement, transports and claims over the whole graph. The level you would use Rust or C++ for.</p></li>
     </ol>
     <p class="ladder-note">
-      This is control altitude, not system scale — how much machinery you
-      choose to see, not how large the system is (the model page keeps the
-      two axes apart). Each level only reveals more of the same locus: the
-      function you wrote at the top keeps compiling, unchanged, at the
-      bottom.
+      This is how much of the machinery you choose to see. How large the
+      system is, its scale, is a separate axis, and the model page keeps the
+      two apart. Each level shows more of the same locus, and a function
+      written at the top compiles unchanged at the bottom. The guide has two
+      more parts, the organism and the habitat. They go outward: the
+      organization that changes the program, and what several organizations
+      share.
     </p>
   </section>
 
-  <section class="container wide why-hale">
+  <section class="wrap sec" aria-labelledby="why-h">
     <div class="split">
-      <div class="text-pool">
-        <p class="eyebrow">why hale</p>
-        <h2>Write the system, not the lore.</h2>
-        <p>
-          Your codebase eventually becomes more than code: who owns which
-          state, what talks to what, where things run, what a change is
-          allowed to break. In most languages those facts live in review
-          comments, diagrams, and deployment lore — true until someone
-          forgets. Hale gives them a place in the program, where the
-          compiler can hold them.
+      <div class="text">
+        <h2 id="why-h">A chat room, in Hale.</h2>
+        <p style="margin-top:var(--s4)">
+          Say the service out loud. A chat room takes each message posted to
+          it and relays it to everyone in the room. The code you then write
+          in most languages looks nothing like that sentence. There is a
+          connection registry, a member list with a lock around it, a
+          broadcast loop and some async plumbing, and by the time it works
+          the idea is buried.
         </p>
         <p>
-          The chat room on the right is the everyday version of that
-          bargain: each phrase you would say out loud — a room, each
-          posted message, relay it to everyone — has a line of code to
-          live in.
+          Each phrase has one place to live in Hale, in the order you said
+          it. The bus is the routing table, so with ten rooms a posted
+          message costs one delivery, and the handler never filters.
         </p>
-        <div class="section-link"><a href="/model">Read the model →</a></div>
+        <div class="sec-link"><a href="/model">How the ownership model works →</a></div>
       </div>
       <div>
-        <Hale code={room} title="room.hl" />
-        <div class="sentence-map" aria-label="How the description maps to Hale">
-          <span><b>a room</b><code>locus Room</code></span>
-          <span><b>each posted message</b><code>subscribe Posted</code></span>
-          <span><b>in that room</b><code>keyed_by room</code></span>
-          <span><b>relay it to everyone</b><code>publish Broadcast</code></span>
-        </div>
+        <Hale code={room} title="room.hl" kind="service" marks={roomMarks} />
+        <ul class="smap" aria-label="Each phrase of the description and the line it lives on">
+          <li data-line="r-locus"><b>a chat room</b><code>locus Room</code></li>
+          <li data-line="r-sub"><b>each message posted to it</b><code>subscribe Posted</code></li>
+          <li data-line="r-keyed"><b>in the room</b><code>keyed_by room</code></li>
+          <li data-line="r-pub"><b>relays it to everyone</b><code>publish Broadcast</code></li>
+        </ul>
       </div>
     </div>
   </section>
 
-  <section class="why-now">
-    <div class="container wide why-now-inner">
-      <p class="eyebrow">why now</p>
-      <h2>Code is getting cheaper. Consequences are not.</h2>
-      <p>
-        More implementations will be produced by more people and more tools.
-        The scarce part is knowing what each part may touch, publish, block on,
-        allocate, depend on, or destroy. Hale makes those facts part of the
-        program instead of leaving them in review comments and deployment lore.
+  <hr class="rule" />
+
+  <section class="wrap quote" aria-labelledby="why-now-h">
+    <h2 id="why-now-h">Why a new language in 2026</h2>
+    <p>
+      Code is written faster than it is read, and more of it is written by
+      models. The two rules that review used to enforce by hand, one owner
+      for every piece of state and no reaching sideways, are the only shape
+      this language accepts, so the enforcement moved out of review and into
+      the build. The checker reads for shape and rules. A person reads for
+      whether it is the right shape for the problem.
+    </p>
+    <div class="sec-link"><a href="/articles/what-the-hale">Why build a new language in 2026 →</a></div>
+  </section>
+
+  <hr class="rule" />
+
+  <section class="wrap sec" aria-labelledby="stairs-h">
+    <div class="sec-head">
+      <h2 id="stairs-h">The same construct, from a function to a fleet</h2>
+      <p class="lede">
+        Hale folds classes, modules, actors and services into one construct,
+        a component that owns its state and talks only through declared
+        messages. It is called a locus, and every box below is one. A value's
+        unit, a function's effects, a component's memory, an application's
+        rules and a deployment's routes are the same idea at different sizes,
+        which is why one checker can follow all of them.
       </p>
     </div>
+    <Unfold />
   </section>
 
-  <Unfold />
-
-  {/*
-    A "one ladder, six rungs" section once stood here walking system
-    SCALE (value/component/service/application/environment/fleet) — cut
-    because Unfold's beats walk the same scales. The ladder that returned
-    above the fold is a different axis: control ALTITUDE (script/everyday/
-    service/systems), which Unfold does not cover — the model page's "two
-    axes, not one ladder" section is the authority on the distinction.
-  */}
-
-  <section class="section-alt">
-    <div class="container wide">
-      <div class="section-intro">
-        <p class="eyebrow">one typed edge, several mechanisms</p>
-        <h2>Build a monolith. Deploy a distributed system.</h2>
-        <p class="lede">
-          The loci and their topic sends stay put. Change <code>main</code> to
-          decide where they run and how each edge travels.
-        </p>
-      </div>
-
-      <DeploymentSwitcher />
-
-      <p class="deployment-contract">
-        A successful send means the broker accepted the message under the
-        selected binding's guarantee. A binding that cannot be opened fails the
-        declaring locus at birth; it does not leave a route that claims success
-        while dropping everything.
+  <section class="wrap sec" aria-labelledby="deploy-h" id="deploy">
+    <div class="sec-head">
+      <h2 id="deploy-h">Placement and bindings</h2>
+      <p class="lede">
+        Five <code>main</code> blocks deploy the same two loci, Ingest and
+        Rollup. Only where they run and how <code>Samples</code> travels
+        changes.
       </p>
-      <div class="section-link"><a href="/docs/services/multi-binary">Across binaries →</a></div>
     </div>
+    <DeploymentSwitcher />
+    <p class="contract">
+      A send succeeds when the broker has accepted the message under the
+      binding's guarantee. A binding that cannot be opened fails the
+      declaring locus at birth, so no route is left that reports success
+      while dropping messages.
+    </p>
+    <div class="sec-link"><a href="/docs/services/multi-binary">Programs split across binaries →</a></div>
   </section>
 
-  <section class="section-alt causal-section" id="causality">
-    <div class="container wide">
-      <div class="section-intro">
-        <p class="eyebrow">causality as a contract</p>
-        <h2>The compiler follows the system past the function call.</h2>
-        <p class="lede">
-          A call graph stops at a publish. Hale continues through the typed bus
-          graph, across republishers and into the loci that receive the result.
+  <section class="wrap sec" aria-labelledby="causal-h" id="causality">
+    <div class="sec-head">
+      <h2 id="causal-h">What the compiler sees past a publish.</h2>
+      <p class="lede">
+        A call graph ends at a publish. Hale continues through the bus,
+        through loci that republish, and into the loci that receive the
+        result.
+      </p>
+    </div>
+    <div class="proof">
+      <div>
+        <Hale code={dependency} title="report.hl" kind="systems" />
+        <p>
+          The declaration lists every subject that may transitively influence <code>Report</code>.
+          The list is complete, so anything not on it is an error.
         </p>
       </div>
-
-      <div class="causal-proof">
-        <div>
-          <Hale code={dependency} title="report.hl" />
-          <p>
-            The declaration says exactly which subjects may transitively
-            influence <code>Report</code>. It is a complete set, not a comment.
-          </p>
-        </div>
-        <div>
-          <Hale code={dependencyDiagnostic} title="hale check" />
-          <p>
-            A violation names the architectural path, including the innocent-
-            looking republished subject that hid the original dependency.
-          </p>
-        </div>
+      <div>
+        <Hale code={dependencyDiagnostic} title="hale check" kind="dependency witness" lang="text" marks={diagnosticMarks} />
+        <p>
+          The violation names the path, including the republished subject
+          that carried the hidden dependency.
+        </p>
       </div>
-
-      <div class="proof-list proof-list-wide">
-        <article><b>Operational effects</b><p>Block, syscall, time, entropy, FFI, publish, spawn, recursion, and allocation.</p></article>
-        <article><b>Causal reach</b><p>What a function may cause through calls and topic publication.</p></article>
-        <article><b>Dependency sets</b><p>What may transitively influence a locus through its subscriptions.</p></article>
-        <article><b>Budgets</b><p>Hard bounds such as zero allocations per call on a hot path.</p></article>
-      </div>
-      <div class="section-link"><a href="/proof">Everything the compiler certifies →</a></div>
     </div>
+    <div class="grid4" role="list" aria-label="What the compiler checks">
+      <article role="listitem"><b>Effects</b><p>syscall, block, time, entropy, env, ffi, publish, spawn, recursion and alloc, proven over the whole call graph.</p></article>
+      <article role="listitem"><b>Causal reach</b><p>What a function may cause through calls and publishes.</p></article>
+      <article role="listitem"><b>Dependency sets</b><p>What may influence a locus through its subscriptions.</p></article>
+      <article role="listitem"><b>Budgets</b><p>Numeric bounds, such as zero allocations per call.</p></article>
+    </div>
+    <div class="sec-link"><a href="/proof">Every check, with the witness it returns →</a></div>
   </section>
 
-  <section class="container wide">
-    <div class="band">
+  <section class="wrap sec" aria-labelledby="tool-h">
+    <div class="band-box">
       <div class="split">
-        <div>
-          <p class="eyebrow" style="color:var(--jade-deep);">the toolchain</p>
-        {/* This was "One binary, the whole loop." over a list of the
-            subcommands — which is /tooling's own headline and opening
-            sentence, near enough word for word. A teaser that previews the
-            page it links to gives a reader nothing to click for, so this
-            states the consequence instead and leaves the inventory there. */}
-          <h2>The checker is fast enough to be a keystroke.</h2>
-          {/* "about ten milliseconds" with no corpus, machine, or statistic
-              behind it reads as a latency guarantee we never measured in the
-              shape a reader will test it. The claim that matters is the
-              consequence, and it survives a slower machine. */}
-          <p>
-            <code>hale check</code> runs a whole-project check fast enough for
-            interactive editor feedback, so the same structured diagnostic
-            reaches an editor, a CI job, and a coding assistant — and the one
-            that fails your build is the one you already read while typing.
+        <div class="text">
+          <h2 id="tool-h">One binary: build, run, check, verify, test, bench, fmt, doc, fetch and fleet.</h2>
+          <p style="margin-top:var(--s4)">
+            <code>hale check</code> runs a whole-project check quickly enough
+            to run as you type. The language server and the MCP server are
+            compiled into the same binary, so an editor, a CI job and a
+            coding assistant read the same diagnostic.
           </p>
-          <div class="hero-actions" style="margin-bottom:0;">
-            <a class="btn btn-primary" href="/tooling">Tooling</a>
+          <div class="actions">
+            <a class="btn btn-primary" href="/tooling">The toolchain</a>
             <a class="btn btn-ghost" href="/docs">Read the guide</a>
           </div>
         </div>
-        <Hale code={failure} title="supervision.hl" />
+        <Hale code={failure} title="supervision.hl" kind="service" />
       </div>
     </div>
   </section>
 
-  <section class="section-alt credibility">
-    <div class="container wide">
-      <div>
-        <p class="eyebrow">built to be inspected</p>
-        <h2>Claims should have somewhere to land.</h2>
+  <section class="wrap sec" aria-labelledby="dna-h" id="dna">
+    <div class="frame">
+      <span class="frame-meta">hale dna init . &amp;&amp; hale dna dev</span>
+      <div class="sec-head">
+        <h2 id="dna-h">One program for building, running, governing and recording an application.</h2>
+        <p class="lede">
+          <code>hale dna init</code> generates it next to your code and leaves
+          the application untouched: a Board of people, a Leader backed by a
+          model under a grant the Board wrote, the models and the budget it
+          may use, and the parts that make each change in a sandbox, prove it
+          with the toolchain, show it to whoever holds the authority, apply
+          exactly what was approved, restart or redeploy it, and watch it. Its
+          working state lives in memory it owns. Its history is a branch of
+          your repository, <code>refs/dna/journal</code>, one commit per event.
+        </p>
       </div>
-      <div class="credibility-links">
-        <a href="/proof"><strong>Verification</strong><span>Every check the compiler runs, with the witness it returns.</span></a>
-        <a href="/examples"><strong>Examples</strong><span>System shapes that cross ownership, messaging, and deployment.</span></a>
-        <a href="/articles"><strong>Articles</strong><span>Technical changes written in context.</span></a>
-        <a href="https://github.com/hale-lang"><strong>Source</strong><span>Compiler, runtime, libraries, and site.</span></a>
+      <Terminal code={session} kind="the demo application, editor on scripted models" />
+      <div class="grid4" role="list" aria-label="What one review shows">
+        <article role="listitem"><b>Source diff</b><p>The candidate commit against the baseline, as git shows it.</p></article>
+        <article role="listitem"><b>Structural diff</b><p><code>hale model diff</code>: what changed in the program's shape. Who talks to whom, which effects are reached, whether a rule went from holding to violated.</p></article>
+        <article role="listitem"><b>Evidence</b><p>check, verify, test, the fleet it would deploy and a rehearsed rollback, each kept under its own hash and pinned to the commit.</p></article>
+        <article role="listitem"><b>Verdict</b><p>The Leader decides inside the grant, with its reasoning and cost on the record. The Board decides outside it, or when the law, an effect or the fleet's shape moves, and the Board is people.</p></article>
       </div>
+      <h3 style="margin:var(--s12) 0 var(--s4)">What it needs, and what it does not claim</h3>
+      <ul class="nots">
+        <li><b>git</b><p>The record lives in the repository. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
+        <li><b>docker compose</b><p><code>hale dna dev</code> brings up the organism's private services with it: Postgres for its working state, which DNA calls memory; NATS for messaging between its parts, the nerves; Prometheus for monitoring, the senses.</p></li>
+        <li><b>A model</b><p>A key in the vault, ollama on your PATH, or a coding harness on it. The organism still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
+        <li><b>Every change waits</b><p>Each waits for a verdict, the Leader's inside its grant or the Board's. A restart is a restart. Live state does not carry across.</p></li>
+        <li><b>A blind spot</b><p>The structural view cannot see what a handler computes. A <code>+1</code> becoming <code>+100</code> is invisible to it, so the source diff is never optional, for people or for the Leader.</p></li>
+        <li><b>The habitat</b><p>Several organisms sharing records, access and infrastructure. Designed and partly built; <a href="/dna#habitat">the DNA page</a> says which pieces are in the tree.</p></li>
+      </ul>
+      <div class="sec-link"><a href="/docs/dna">The organism, part by part →</a> &nbsp;·&nbsp; <a href="/dna">DNA on one page →</a></div>
     </div>
   </section>
 
-  <section class="container center final-cta">
-    <div class="text-pool">
-    <p class="eyebrow">the shortest useful introduction</p>
-    <h2>Run a system, then change its deployment.</h2>
-    <p class="lede" style="margin-inline:auto;">
-      The playground tour starts with ordinary code and ends with typed
-      communication, ownership, supervision, and placement.
-    </p>
-    <div class="hero-actions" style="justify-content:center;">
-      <a class="btn btn-primary" href="/playground">Open the playground</a>
-      <a class="btn btn-ghost" href="/model">Read the model</a>
+  <section class="wrap sec" aria-labelledby="nots-h">
+    <div class="sec-head">
+      <h2 id="nots-h">What it is not.</h2>
     </div>
+    <ul class="nots">
+      <li><b>1.0</b><p>Version {release.minor} is a prerelease. Syntax and artifact formats change between releases.</p></li>
+      <li><b>A substitute for design</b><p>One owner and declared channels give software its form. The substance, where the seams go, is still the whole job, and a locus-shaped program can still have every seam in the wrong place.</p></li>
+      <li><b>A reason to split everything</b><p>A script is one locus. Add a second when there is a real seam, and not before.</p></li>
+      <li><b>Proven all the way down</b><p>The runtime's synchronization protocols are checked as hand-transcribed models whose match to the shipped code is maintained by hand. The proof page says what that does and does not establish.</p></li>
+      <li><b>A guess</b><p>The compiler says so when it cannot resolve a call, as its own answer, distinct from no. The two need different fixes.</p></li>
+    </ul>
+    <div class="grid4" style="margin-top:var(--s12)">
+      <a href="/proof"><strong>Verification</strong><span>Every check the compiler runs, with the witness it returns.</span></a>
+      <a href="/examples"><strong>Examples</strong><span>Programs that cross ownership, messaging and deployment.</span></a>
+      <a href="/articles"><strong>Articles</strong><span>Changes to the language, written in context.</span></a>
+      <a href="https://github.com/hale-lang"><strong>Source</strong><span>Compiler, runtime, libraries and this site.</span></a>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <section class="wrap cta" aria-labelledby="cta-h">
+    <div class="text">
+      <h2 id="cta-h">Try it in the browser.</h2>
+      <p class="lede">
+        The playground runs the same compiler you would install. The tour
+        starts with a script and ends with a program split across processes.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/playground">Open the playground</a>
+        <a class="btn btn-ghost" href="/model">Read the model</a>
+      </div>
     </div>
   </section>
 </Base>
+
+<script>
+  // Copy the install line; fall back to selecting it where the clipboard
+  // is refused.
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const text = b.dataset.copy ?? '';
+      navigator.clipboard?.writeText(text).then(
+        () => { b.textContent = 'copied'; setTimeout(() => (b.textContent = 'copy'), 1600); },
+        () => {
+          const cmd = b.parentElement?.querySelector('.cmd');
+          if (!cmd) return;
+          const r = document.createRange();
+          r.selectNodeContents(cmd);
+          const s = getSelection();
+          s?.removeAllRanges();
+          s?.addRange(r);
+        },
+      );
+    });
+  });
+
+  // The chat room: hovering a phrase lights the line it lives on.
+  document.querySelectorAll<HTMLElement>('.smap li[data-line]').forEach((li) => {
+    const line = document.getElementById(li.dataset.line ?? '');
+    if (!line) return;
+    li.addEventListener('mouseenter', () => line.classList.add('hl'));
+    li.addEventListener('mouseleave', () => line.classList.remove('hl'));
+  });
+</script>

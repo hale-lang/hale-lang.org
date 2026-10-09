@@ -1,11 +1,10 @@
 ---
-// The marketing-side wrapper. All the header's substance is in
-// SiteHeader.astro, shared with the docs — this only supplies the sticky
-// bar and the page container that Starlight provides for itself.
+// The site pages' header bar. Everything inside it is SiteHeader.astro,
+// shared with the docs; this supplies only the sticky bar and the page width.
 import SiteHeader from './SiteHeader.astro';
 ---
-<nav class="nav">
-  <div class="container wide">
+<header class="mast">
+  <div class="wrap mast-in">
     <SiteHeader />
   </div>
-</nav>
+</header>

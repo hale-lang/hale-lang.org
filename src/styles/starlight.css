@@ -1,81 +1,69 @@
-/* Theme Starlight's docs chrome to match the hale-lang.org brand:
-   the digital-lotus dark field, cyan accent, our type stacks.
+/* ============================================================
+   The docs, in the site's design.
 
-   The reskin is dark only, but Starlight still resolves a reader's stored
-   choice to data-theme="light|dark" with its own pre-paint script. Rather
-   than fight the script, both values map to the same lotus palette — a
-   reader who once picked "light" gets the one design the site has. */
+   Starlight's palette is mapped onto the same tokens the rest of the
+   site uses (tokens.css), in both themes, so a reader who moves from a
+   page to the guide sees one design. Starlight resolves data-theme with
+   its own pre-paint script and the shared header's toggle writes the
+   same key, so the tokens and Starlight's layer always agree.
 
+   Starlight's dark scale runs white (text) to black (ground); its light
+   scale runs the other way. Mapping each step to a token by role, ink to
+   paper, keeps the meaning right in both.
+   ============================================================ */
+@import './tokens.css';
 @import './nav.css';
 
-:root {
-  --sl-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-             Helvetica, Arial, sans-serif;
-  --sl-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code",
-                  Menlo, Consolas, "Liberation Mono", monospace;
-}
-
-/* One palette, whatever data-theme resolved to. */
 :root,
 :root[data-theme='light'],
 :root[data-theme='dark'] {
-  color-scheme: dark;
+  --sl-font: var(--serif);
+  --sl-font-mono: var(--mono);
 
-  --sl-color-accent-low:  rgba(90, 168, 255, 0.12);
-  --sl-color-accent:      #4ec6e8;
-  --sl-color-accent-high: #a9f2ff;
-  --sl-color-text-accent: #75e8ff;
-  /* Anything sitting ON the accent (the sidebar's current page, badges).
-     Starlight's own light-theme layer would resolve this to a light value,
-     which on a cyan accent is invisible — pin it dark in both themes. */
-  --sl-color-text-invert: #031019;
+  --sl-color-white: var(--ink);
+  --sl-color-gray-1: var(--ink);
+  --sl-color-gray-2: var(--ink);
+  --sl-color-gray-3: var(--ink-2);
+  --sl-color-gray-4: var(--ink-3);
+  --sl-color-gray-5: var(--hair-2);
+  --sl-color-gray-6: var(--paper-2);
+  --sl-color-gray-7: var(--paper-2);
+  --sl-color-black: var(--paper);
 
-  /* Kept in lockstep with the type tokens in global.css — the docs body
-     text (gray-2/gray-3) has to clear the same near-black ground. */
-  --sl-color-white:    #f5f8ff;
-  --sl-color-gray-1:   #e2e8f4;
-  --sl-color-gray-2:   #d7deec;
-  --sl-color-gray-3:   #a9b6cb;
-  --sl-color-gray-4:   #8593a9;
-  --sl-color-gray-5:   #1c2740;
-  --sl-color-gray-6:   #111a30;
-  --sl-color-gray-7:   #091022;
-  --sl-color-black:    #050914;
+  --sl-color-accent-low: var(--accent-soft);
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-high: var(--accent);
+  --sl-color-text: var(--ink);
+  --sl-color-text-accent: var(--accent);
+  --sl-color-text-invert: var(--paper);
+
+  --sl-color-bg: var(--paper);
+  --sl-color-bg-nav: var(--paper);
+  --sl-color-bg-sidebar: var(--paper);
+  --sl-color-bg-inline-code: var(--paper-2);
+  --sl-color-bg-accent: var(--accent);
+  --sl-color-hairline-light: var(--hair);
+  --sl-color-hairline: var(--hair);
+  --sl-color-hairline-shade: var(--hair-2);
+
+  --sl-nav-height: var(--nav-h);
 }
 
-/* tighten the docs heading rhythm to feel like the rest of the site */
-.sl-markdown-content h1,
-.sl-markdown-content h2,
-.sl-markdown-content h3 { letter-spacing: -0.02em; }
+/* Code exactly as typed: no ligature turns != or -> into one glyph. */
+.expressive-code pre, .expressive-code code, .sl-markdown-content code { font-feature-settings: 'liga' 0, 'calt' 0; }
 
-/* the synced-from-source blockquote note: make it quiet */
-.sl-markdown-content blockquote:first-of-type {
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
+/* Headings in the site's serif, at its weights. */
+.sl-markdown-content :is(h1, h2, h3, h4) { font-weight: 500; letter-spacing: -0.015em; }
+.sl-markdown-content h3 { font-style: italic; font-weight: 400; }
+.sl-markdown-content code:not(pre code) { font-size: 0.86em; }
 
-/* ---- the site header, inside the docs ----
-   The header itself is src/components/SiteHeader.astro, styled by
-   src/styles/nav.css and shared with the marketing pages. All the docs
-   have to do is map the --nav-* tokens that stylesheet is written
-   against onto Starlight's palette; every metric and every breakpoint
-   then comes from the same place as the rest of the site.
+/* The synced-from-source note at the top of a page: quiet. */
+.sl-markdown-content blockquote:first-of-type { font-size: 0.85rem; opacity: 0.8; }
 
-   In particular there is no longer a rule hiding the link row below
-   56rem. It scrolls instead, exactly as it does on the homepage. */
-.site-header {
-  --nav-height: 100%;
-  --nav-brand: var(--sl-color-white);
-  --nav-accent: var(--sl-color-text-accent);
-  --nav-link: var(--sl-color-gray-3);
-  --nav-link-hover: #fff;
-  --nav-bg-solid: var(--sl-color-black);
-}
 /* Starlight's header bar owns the height; the shared component fills it. */
 .site-header { height: 100%; }
 .site-header .nav-search { flex: 0 1 auto; }
 
-/* Starlight's own theme select would offer a light theme the site no
-   longer has; the shared header already replaces it, but keep any stray
-   instance from surfacing one. */
+/* The shared header carries the theme toggle; keep any stray Starlight
+   picker from offering a second one. */
 starlight-theme-select { display: none; }

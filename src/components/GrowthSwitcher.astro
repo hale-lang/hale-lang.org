@@ -1,17 +1,15 @@
 ---
 /*
-  One domain, three altitudes: the job queue from the tutorial, shown
-  as a program, then a service, then a deployed system. The claim the
-  tabs make is continuity — each tab's "what didn't change" row is the
-  point, not the new syntax.
+  The tutorial's job queue at three sizes: a program, a service, a
+  deployed system. The claim is continuity, so each step marks what it
+  added (a tick in the gutter) and what it carried over unchanged from the
+  step before (a dotted underline), and the ledger beside it says both.
 
-  scripts/check-site.mjs extracts each `const NAME` rendered by <Hale>
-  and prepends `const NAME_prelude` before running `hale check`, so
-  every tab genuinely typechecks: the service tab's prelude carries the
-  types and the loci the excerpt doesn't show, and the system tab's
-  prelude carries the whole service. The snippets are the tutorial's
-  own (docs/tutorial/job-queue), which keeps this section and the
-  "build it yourself" link telling one story.
+  scripts/check-site.mjs compiles each listing here: it finds every
+  `const NAME` rendered by <Hale code={NAME} title="…"> and prepends
+  `const NAME_prelude`. The service prelude carries the types and loci the
+  excerpt does not show; the system prelude carries the whole service. The
+  snippets are the tutorial's own (docs/tutorial/job-queue).
 */
 import Hale from './Hale.astro';
 
@@ -43,6 +41,7 @@ locus Submitter {
     }
 }
 `;
+
 const service = `topic Jobs    { payload: Job; }
 topic Results { payload: Result; }
 
@@ -85,6 +84,7 @@ locus Reporter {
     fn on_result(r: Result) { println("job ", r.id, " done -> ", r.out); }
 }
 `;
+
 const system = `main locus WorkerNode {
     params {
         worker:   Worker   = Worker { };
@@ -98,133 +98,50 @@ const system = `main locus WorkerNode {
     }
 }`;
 
-const tabs = [
-  {
-    key: 'program',
-    label: 'Program',
-    code: program,
-    file: 'jobs.hl',
-    appeared: 'A type, a function, a main. The whole language a script needs.',
-    unchanged: 'Nothing yet — this is the baseline the next two tabs preserve.',
-  },
-  {
-    key: 'service',
-    label: 'Service',
-    code: service,
-    file: 'service.hl',
-    appeared:
-      'Two topics and a worker locus: work arrives instead of being looped over, and the channel is typed.',
-    unchanged: '`Job` and `process` — the first tab, line for line.',
-  },
-  {
-    key: 'system',
-    label: 'System',
-    code: system,
-    file: 'worker-node.hl',
-    appeared:
-      'Placement and a socket binding, in `main` only: the worker gets its own pool, and `Jobs` arrives over a Unix socket from another process.',
-    unchanged:
-      'Every locus and every topic from the service tab. Deployment changed; the program did not.',
-  },
-];
+const programMarks = { new: [1, 3, 7] };
+const serviceMarks = { new: [1, 2, 4, 6, 7], kept: [[9, 'Job'], [10, 'process']] as [number, string][] };
+const systemMarks = {
+  new: [6, 7, 9, 10],
+  kept: [[3, 'Worker'], [4, 'Reporter'], [10, 'Jobs']] as [number, string][],
+};
 ---
-<div class="growth-switcher">
-  <input type="radio" name="growth-tab" id="growth-program" checked />
-  <input type="radio" name="growth-tab" id="growth-service" />
-  <input type="radio" name="growth-tab" id="growth-system" />
+<div class="alt">
+  <input type="radio" name="alt" id="alt-program" checked />
+  <input type="radio" name="alt" id="alt-service" />
+  <input type="radio" name="alt" id="alt-system" />
 
-  <div class="growth-tabs" role="tablist" aria-label="The same program at three altitudes">
-    {tabs.map((t) => (
-      <label for={`growth-${t.key}`} role="tab">{t.label}</label>
-    ))}
+  <div class="dial" role="radiogroup" aria-label="The same program at three sizes">
+    <label for="alt-program"><span class="n">01</span><b>Program</b><small>jobs.hl</small></label>
+    <label for="alt-service"><span class="n">02</span><b>Service</b><small>service.hl</small></label>
+    <label for="alt-system"><span class="n">03</span><b>System</b><small>worker-node.hl</small></label>
   </div>
+  <p class="legend"><span><span class="sw" aria-hidden="true"></span>added at this step</span><span><span class="kept">kept</span>&nbsp; unchanged from the step before</span></p>
 
-  <div class="growth-panels">
-    {tabs.map((t) => (
-      <section class={`growth-panel panel-${t.key}`}>
-        <Hale code={t.code} title={t.file} />
-        <dl>
-          <div>
-            <dt>what appeared</dt>
-            <dd set:html={t.appeared.replace(/`([^`]+)`/g, '<code>$1</code>')} />
-          </div>
-          <div>
-            <dt>what didn't change</dt>
-            <dd set:html={t.unchanged.replace(/`([^`]+)`/g, '<code>$1</code>')} />
-          </div>
-        </dl>
-      </section>
-    ))}
+  <div class="alt-panels">
+    <section class="alt-panel panel-program" aria-label="Program">
+      <Hale code={program} title="jobs.hl" kind="program" marks={programMarks} />
+      <dl class="ledger">
+        <div><dt>added</dt><dd>A type, a function and a main. That is everything a script needs.</dd></div>
+        <div><dt>unchanged</dt><dd>Nothing yet. This is the baseline the next two steps keep.</dd></div>
+      </dl>
+    </section>
+
+    <section class="alt-panel panel-service" aria-label="Service">
+      <Hale code={service} title="service.hl" kind="service" marks={serviceMarks} />
+      <dl class="ledger">
+        <div><dt>added</dt><dd>Two topics and a Worker locus. Work arrives on a typed topic; nothing loops over it.</dd></div>
+        <div><dt>unchanged</dt><dd><code>Job</code> and <code>process</code>, line for line.
+          <ul class="carried" aria-label="Carried over unchanged"><li>type Job</li><li>fn process</li></ul></dd></div>
+      </dl>
+    </section>
+
+    <section class="alt-panel panel-system" aria-label="System">
+      <Hale code={system} title="worker-node.hl" kind="system" marks={systemMarks} />
+      <dl class="ledger">
+        <div><dt>added</dt><dd>A placement block and a socket binding, both in <code>main</code>. The worker gets its own pool, and <code>Jobs</code> arrives over a Unix socket from another process.</dd></div>
+        <div><dt>unchanged</dt><dd>Every locus and every topic from the service. Only the deployment changed.
+          <ul class="carried" aria-label="Carried over unchanged"><li>topic Jobs</li><li>topic Results</li><li>locus Worker</li><li>locus Reporter</li></ul></dd></div>
+      </dl>
+    </section>
   </div>
 </div>
-
-<style>
-  .growth-switcher { position: relative; }
-  .growth-switcher > input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
-  }
-  .growth-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-bottom: 1rem;
-  }
-  .growth-tabs label {
-    padding: 0.48rem 0.9rem;
-    border: 1px solid var(--border-2);
-    border-radius: 999px;
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 0.78rem;
-    cursor: pointer;
-    user-select: none;
-  }
-  .growth-tabs label:hover { border-color: var(--jade); color: var(--jade-deep); }
-  .growth-panel {
-    display: none;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    gap: 1.5rem;
-    align-items: start;
-    padding: 0;
-  }
-  .growth-panel dl { margin: 0; border-block: 1px solid var(--border); }
-  .growth-panel dl > div {
-    display: grid;
-    grid-template-columns: 8.5rem 1fr;
-    gap: 0.8rem;
-    padding: 0.9rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .growth-panel dl > div:last-child { border-bottom: 0; }
-  .growth-panel dt {
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 0.76rem;
-  }
-  .growth-panel dd { margin: 0; color: var(--ink-soft); font-size: 0.93rem; }
-
-  #growth-program:checked ~ .growth-tabs label[for="growth-program"],
-  #growth-service:checked ~ .growth-tabs label[for="growth-service"],
-  #growth-system:checked ~ .growth-tabs label[for="growth-system"] {
-    border-color: var(--jade);
-    background: var(--jade-tint);
-    color: var(--jade-deep);
-  }
-  #growth-program:checked ~ .growth-panels .panel-program,
-  #growth-service:checked ~ .growth-panels .panel-service,
-  #growth-system:checked ~ .growth-panels .panel-system { display: grid; }
-
-  @media (max-width: 760px) {
-    .growth-panel,
-    #growth-program:checked ~ .growth-panels .panel-program,
-    #growth-service:checked ~ .growth-panels .panel-service,
-    #growth-system:checked ~ .growth-panels .panel-system {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .growth-panel dl > div { grid-template-columns: 7rem 1fr; }
-  }
-</style>

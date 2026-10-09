@@ -2,7 +2,6 @@
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
-
 const reject = `// you write:
 locus Reader {
     bus { publish Frame; }
@@ -11,77 +10,85 @@ locus Reader {
 //   error: publish references unknown topic 'Frame'
 //   (no 'topic Frame' declaration in this file)`;
 ---
-<Base title="Hale tooling: one binary, the whole loop">
-  <Field kind="tooling" />
-  <section class="container prose">
-    <span class="tag">/tooling</span>
-    <h1>One binary, the whole loop.</h1>
-    <p class="lede">
-      Everything ships in <code>hale</code>: build, run, test, format,
-      document, benchmark, verify: plus a language server and an MCP server.
-      The same fast, structured diagnostics reach every author: an editor, a
-      CI job, a coding assistant.
-    </p>
-
-    <h2>The compiler as the oracle</h2>
-    <p>
-      <code>hale check</code> answers with structured, location-precise
-      diagnostics, fast enough to run on every keystroke, legible enough to
-      act on without archaeology:
-    </p>
-    <Hale code={reject} title="hale-check" />
-    <p class="muted" style="font-size:0.92rem;">
-      Unknown fields, unknown topics, and methods that return a managed entity
-      are all hard errors, whole bug classes stopped at build time.
-    </p>
-
-    <h2>Editor integration</h2>
-    <p>
-      <code>hale lsp</code> speaks the Language Server Protocol: diagnostics
-      as you type, hover, go-to-definition, and completion in any
-      LSP-speaking editor. <code>hale fmt</code> keeps a canonical style;
-      {' '}<code>hale doc</code> renders API reference from <code>///</code>
-      comments (<code>--json</code> for machine consumption).
-    </p>
-
-    <h2 id="mcp">MCP server</h2>
-    <p>
-      <code>hale mcp</code> (built into the binary) exposes the toolchain over
-      the Model Context Protocol: <code>hale_check</code> /
-      <code>hale_build</code> / <code>hale_run</code> / <code>hale_fmt</code> /
-      <code>hale_fetch</code> and <code>hale_docs_search</code>, for any MCP
-      host, including shell-less ones.
-    </p>
-    <div class="install" style="margin-bottom:0.6rem;">
-      <span class="sigil">$</span>
-      <span class="cmd">claude mcp add hale -- hale mcp</span>
+<Base title="The toolchain" description="One binary: build, run, check, verify, test, bench, fmt, doc, fetch and fleet, with the language server and the MCP server compiled in.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>One binary: build, run, check, verify, test, bench, fmt, doc, fetch and fleet.</h1>
+      <p class="lede">
+        Everything ships in <code>hale</code>, with a language server and an
+        MCP server compiled into the same binary. The same structured
+        diagnostic reaches an editor, a CI job and a coding assistant.
+      </p>
     </div>
 
-    <h2 id="context-pack">Machine-readable docs</h2>
-    <p>
-      The documentation ships in forms built for programmatic consumption:
-      {' '}<a href="/llms.txt">llms.txt</a> (index) and
-      {' '}<a href="/llms-full.txt">llms-full.txt</a> (the full spec corpus), plus
-      bundled context packs, essentials, spec, and real-world gotchas in one
-      file. The <strong>slim</strong> pack (~14k tokens) fits comfortably in a
-      context window.
-    </p>
-    <p>
-      <a class="btn btn-primary" href="/hale-context-slim.txt" download>Context pack: slim</a>
-      <a class="btn btn-ghost" href="/hale-context.txt" download>Full pack</a>
-      <a class="btn btn-ghost" href="/llms-full.txt" download>llms-full.txt</a>
-    </p>
+    <div class="prose">
+      <h2>The compiler answers quickly and precisely</h2>
+      <p>
+        <code>hale check</code> returns structured, location-precise
+        diagnostics, fast enough to run on every keystroke and specific enough
+        to act on without reading around them.
+      </p>
+      <Hale code={reject} title="hale-check" kind="diagnostic" />
+      <p class="muted">
+        Unknown fields, unknown topics, and methods that return a managed
+        entity are hard errors. Those bug classes stop at build time.
+      </p>
 
-    <h2>Project rules files</h2>
-    <p>
-      Ready-made rules files distilled from the style guide, the two-channel
-      discipline, the pattern catalog, the gotchas, in the formats coding
-      tools pick up automatically:
-    </p>
-    <p>
-      <a class="btn btn-ghost" href="/agent/AGENTS.md" download>AGENTS.md</a>
-      <a class="btn btn-ghost" href="/agent/CLAUDE.md" download>CLAUDE.md</a>
-      <a class="btn btn-ghost" href="/agent/.cursorrules" download>.cursorrules</a>
-    </p>
+      <h2>In the editor</h2>
+      <p>
+        <code>hale lsp</code> speaks the Language Server Protocol: diagnostics
+        as you type, hover, go to definition and completion in any editor that
+        speaks it. <code>hale fmt</code> keeps one canonical style. <code>hale doc</code> renders API reference from <code>///</code> comments, and <code>--json</code> gives the same for machines.
+      </p>
+
+      <h2 id="mcp">For a coding assistant</h2>
+      <p>
+        <code>hale mcp</code> exposes the toolchain over the Model Context
+        Protocol: <code>hale_check</code>, <code>hale_build</code>, <code>hale_run</code>, <code>hale_fmt</code>, <code>hale_fetch</code> and <code>hale_docs_search</code>, for any MCP host, including ones
+        without a shell.
+      </p>
+      <div class="install" role="group" aria-label="Add the Hale MCP server">
+        <span class="sigil" aria-hidden="true">$</span>
+        <span class="cmd">claude mcp add hale -- hale mcp</span>
+      </div>
+
+      <h2 id="context-pack">The documentation, for machines</h2>
+      <p>
+        The documentation ships in forms built to be read programmatically: <a href="/llms.txt">llms.txt</a> is the index and <a href="/llms-full.txt" download>llms-full.txt</a> is the full specification
+        corpus. Two bundled context packs put the essentials, the spec and the
+        real-world gotchas in one file. The slim pack is about 14k tokens.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="/hale-context-slim.txt" download>Context pack, slim</a>
+        <a class="btn btn-ghost" href="/hale-context.txt" download>Full pack</a>
+        <a class="btn btn-ghost" href="/llms-full.txt">llms-full.txt</a>
+      </div>
+
+      <h2>Rules files</h2>
+      <p>
+        Rules files distilled from the style guide, the two-channel
+        discipline, the pattern catalog and the gotchas, in the formats coding
+        tools pick up on their own.
+      </p>
+      <div class="actions">
+        <a class="btn btn-ghost" href="/agent/AGENTS.md" download>AGENTS.md</a>
+        <a class="btn btn-ghost" href="/agent/CLAUDE.md" download>CLAUDE.md</a>
+        <a class="btn btn-ghost" href="/agent/.cursorrules" download>.cursorrules</a>
+      </div>
+
+      <h2>Every subcommand</h2>
+      <ul class="facts">
+        <li><b>build · run</b><p>One static binary from a file or a project; run it in place.</p></li>
+        <li><b>check · verify</b><p>The whole-project check, and the stricter gate that turns every advisory into a failure.</p></li>
+        <li><b>test · bench</b><p>Tests and benchmarks from the same tree, with the same diagnostics.</p></li>
+        <li><b>fmt · doc</b><p>One canonical style; reference rendered from <code>///</code> comments, as a page or as JSON.</p></li>
+        <li><b>fetch</b><p>Vendor a pinned git dependency into the tree.</p></li>
+        <li><b>fleet</b><p>Compose the topology artifacts of separately built binaries and check law across them.</p></li>
+        <li><b>describe · call · watch · admin <span class="ev">main</span></b><p>Clients for a served API surface: read its description, call a member, follow a stream, open a dashboard. They need no code from the program.</p></li>
+        <li><b>lsp · mcp</b><p>The language server and the MCP server, in the same binary. <code>hale mcp --app</code> serves a program's own API surface to an MCP host as tools.</p></li>
+        <li><b>dna</b><p>The organization over a codebase. <a href="/dna">Its own page.</a></p></li>
+      </ul>
+    </div>
   </section>
 </Base>

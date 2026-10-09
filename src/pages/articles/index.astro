@@ -6,40 +6,32 @@ import Field from '../../components/Field.astro';
 const all = await getCollection('articles');
 
 /*
-  One view, per the go.dev/blog model: a dense, flat, newest-first table a
-  reader scans in one screen — not a feed of cards. Series membership rides
-  on each row as a tag (name · part); a separate series rail above the list
-  was tried and cut as redundant with it.
+  One view, per the go.dev/blog model: a dense, flat, newest-first list a
+  reader scans in one screen. Each entry says who wrote it, from the
+  `authorship` field the collection requires, so a reader never has to
+  guess whether a piece was written by a person or a model.
 */
-const index = [...all].sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
-);
+const index = [...all].sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const fmt = (d: Date) =>
-  d.toLocaleDateString('en-GB', {
-    // Frontmatter dates coerce to UTC midnight, so formatting in the
-    // build machine's local zone renders every article a day early
-    // anywhere west of UTC.
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  // Frontmatter dates coerce to UTC midnight; format in UTC or every
+  // article reads a day early west of Greenwich.
+  d.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 
-const tag = (p: (typeof all)[number]) =>
-  p.data.series && p.data.part
-    ? `${p.data.series} · ${p.data.part}`
-    : p.data.kind === 'announcement'
-      ? 'announcement'
-      : null;
+const series = (p: (typeof all)[number]) =>
+  p.data.series && p.data.part ? `${p.data.series} · ${p.data.part}` : null;
 ---
-
-<Base title="Articles">
-  <Field kind="articles" />
-  <section class="container prose articles-index">
-    <span class="tag">/articles</span>
-    <h1>Articles &amp; announcements</h1>
-
+<Base title="Articles" description="Changes to the language, written in context, with who wrote each one.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>Articles and announcements</h1>
+      <p class="lede">
+        Changes to the language, written in context. Each entry says who
+        wrote it: the frontmatter records whether an article was written by
+        a person or by a model, and the list shows it.
+      </p>
+    </div>
     <ol class="index" reversed>
       {index.map((p) => (
         <li>
@@ -47,7 +39,10 @@ const tag = (p: (typeof all)[number]) =>
           <span class="entry">
             <span class="head">
               <a href={`/articles/${p.id}`}>{p.data.title}</a>
-              {tag(p) && <span class="entry-tag">{tag(p)}</span>}
+              {series(p) && <span class="tag">{series(p)}</span>}
+              {p.data.authorship === 'human'
+                ? <span class="tag">written by hand</span>
+                : <span class="tag ai">written by a model</span>}
             </span>
             <span class="summary">{p.data.summary}</span>
           </span>
@@ -56,78 +51,3 @@ const tag = (p: (typeof all)[number]) =>
     </ol>
   </section>
 </Base>
-
-<style>
-  .index {
-    list-style: none;
-    padding: 0;
-    margin: 2rem 0 0;
-  }
-  .index li {
-    display: grid;
-    grid-template-columns: 6.5rem 1fr;
-    gap: 0 1rem;
-    padding: 0.45rem 0;
-    border-top: 1px solid
-      color-mix(in srgb, currentColor 12%, transparent);
-  }
-  .index li:first-child {
-    border-top: none;
-  }
-  .date {
-    font-size: 0.82rem;
-    opacity: 0.6;
-    font-variant-numeric: tabular-nums;
-    padding-top: 0.15rem;
-    white-space: nowrap;
-  }
-  .entry {
-    min-width: 0;
-  }
-  .head {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    min-width: 0;
-  }
-  .head a {
-    font-weight: 600;
-    text-decoration: none;
-  }
-  .head a:hover {
-    text-decoration: underline;
-  }
-  /* The series marker is the only signal that a row belongs to a larger
-     argument, so it earns a pill rather than fading at half opacity. */
-  .entry-tag {
-    padding: 0.08rem 0.55rem;
-    border: 1px solid var(--jade-ring);
-    border-radius: 999px;
-    background: rgba(117, 232, 255, 0.06);
-    color: var(--lotus-cyan);
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    white-space: nowrap;
-  }
-  .summary {
-    display: block;
-    font-size: 0.88rem;
-    opacity: 0.75;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @media (max-width: 40rem) {
-    .index li {
-      grid-template-columns: 1fr;
-      gap: 0;
-    }
-    .summary {
-      white-space: normal;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-  }
-</style>

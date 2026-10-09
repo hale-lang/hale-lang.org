@@ -1,52 +1,36 @@
 ---
 import Logo from './Logo.astro';
+// The long tail the header omits. Labels are one word wherever the
+// destination allows it; `Semantic model` keeps its qualifier because
+// `Model` is a different page beside it.
 const cols = [
-  // A footer earns its place by covering the LONG TAIL, not by
-  // repeating the header — and for a while it did both, carrying
-  // Examples, Playground, Packages and Proof while the header
-  // already had them. Those four are gone; what is left is
-  // deliberately the set the header omits, so the two navs stop
-  // competing to be the same nav.
-  //
-  // `Understand` gives the essays a home about ideas rather than one
-  // about governance, and surfaces the two model documents that
-  // nothing else on the site links to.
-  //
-  // Labels are ONE WORD wherever the destination allows it, matching
-  // the header. A footer is scanned, not read: "The programming
-  // model" costs three words to say what "Model" says, and the
-  // article "The" carries no information at all. The exception is
-  // `Semantic model`, which needs the qualifier precisely because
-  // `Model` is a different page one column to its left.
-  { h: 'Start', links: [['Install', '/docs/getting-started/install'], ['Guide', '/docs']] },
-  { h: 'Understand', links: [['Model', '/model'], ['Articles', '/articles'], ['Design', '/docs/the-design'], ['DNA', '/dna']] },
-  { h: 'Reference', links: [['Spec', '/docs/reference'], ['Semantic model', '/docs/the-model'], ['Stdlib', '/docs/spec/stdlib'], ['Toolchain', '/tooling']] },
-  { h: 'Project', links: [['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only', '/text/'], ['llms.txt', '/llms.txt']] },
+  { h: 'Start', links: [['Install', '/docs/getting-started/install'], ['Guide', '/docs'], ['Playground', '/playground']] },
+  { h: 'Understand', links: [['Glossary', '/glossary'], ['Model', '/model'], ['Articles', '/articles'], ['Design', '/docs/the-design'], ['DNA', '/dna']] },
+  { h: 'Reference', links: [['Language', '/features'], ['Spec', '/docs/reference'], ['Semantic model', '/docs/the-model'], ['Stdlib', '/docs/spec/stdlib'], ['Toolchain', '/tooling']] },
+  { h: 'Project', links: [['Community', '/community'], ['GitHub', 'https://github.com/hale-lang'], ['Text-only', '/text'], ['llms.txt', '/llms.txt']] },
 ];
 ---
-<footer class="footer">
-  <div class="container wide cols">
-    <div>
-      <a class="brand" href="/"><Logo /> hale</a>
-      {/* Both of the old sentences were absolutes on the most-repeated
-          surface on the site: "one structural construct" (a fleet plan is
-          JSON, not a locus declaration) and "the compiler certifies it"
-          (it certifies named properties of an artifact, not the system).
-          The footer is the wrong place to be the boldest. */}
-      <p class="muted" style="font-size:0.88rem; margin-top:0.8rem; max-width:34ch;">
-        One recursive model, from function scope to fleet composition. Hale
-        checks the represented structure and emits evidence for the next
-        boundary.
-      </p>
-    </div>
-    {cols.map((c) => (
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
       <div>
-        <h5>{c.h}</h5>
-        {c.links.map(([label, href]) => <a href={href}>{label}</a>)}
+        <a class="brand" href="/"><Logo /> hale</a>
+        <p class="foot-note">
+          Hale is open source under Apache-2.0, built on LLVM 18. The
+          compiler checks the structure it can see and reports where it
+          could not see.
+        </p>
       </div>
-    ))}
-  </div>
-  <div class="container wide copy">
-    Hale is open source. © {new Date().getFullYear()} the Hale authors.
+      {cols.map((c) => (
+        <div class="links">
+          <h5>{c.h}</h5>
+          {c.links.map(([label, href]) => <a href={href}>{label}</a>)}
+        </div>
+      ))}
+    </div>
+    <div class="colophon">
+      <span>Hale is open source. © {new Date().getFullYear()} the Hale authors.</span>
+      <span>Set in Literata and JetBrains Mono. Also available as <a href="/text">plain text</a>.</span>
+    </div>
   </div>
 </footer>
