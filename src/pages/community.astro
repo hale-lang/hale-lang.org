@@ -1,42 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
+
 ---
-<Base title="Hale community">
-  <Field kind="community" />
-  <section class="container prose">
-    <span class="tag">/community</span>
-    <h1>Community</h1>
-    <p class="lede">
-      Open source, built in the open. The language is early enough that
-      what you report still changes it.
-    </p>
-
-    <h2>Where things happen</h2>
-    <ul>
-      <li><strong>GitHub</strong>: the compiler, the spec, and the pond
-        libraries live under
-        {' '}<a href="https://github.com/hale-lang">github.com/hale-lang</a>. Issues
-        and discussions are the main channel today. The clearest way to help is
-        a small, reproducible example of something that fought you.</li>
-    </ul>
-
-    <h2>Contributing</h2>
-    <p>
-      The highest-leverage contributions right now are real programs: write
-      something in Hale, and file an issue where the language or the docs got in
-      your way. The pattern catalog and the standard library grow from concrete
-      use, not speculation.
-    </p>
-    <ul>
-      <li>Read the <a href="/docs">guide</a> and the
-        {' '}<a href="/docs/spec/styleguide">style guide</a>.</li>
-      <li>Browse <a href="/packages">pond</a> for the library shapes to mirror.</li>
-    </ul>
-
-    <p class="muted">
-      A chat space and a formal contribution guide are on the way. Until then,
-      open an issue, early questions are welcome.
-    </p>
+<Base title="Community" description="Where Hale is built and how to take part.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>Where Hale is built</h1>
+      <p class="lede">
+        In the open, on GitHub. The language is early enough that what you
+        report still changes it.
+      </p>
+    </div>
+    <div class="prose">
+      <ul class="facts">
+        <li><b>GitHub</b><p>The compiler, the specification and the pond libraries live under <a href="https://github.com/hale-lang">github.com/hale-lang</a>. Issues and discussions are the channel today. The most useful report is a small, reproducible example of something that fought you.</p></li>
+        <li><b>What helps most</b><p>Real programs. Write something in Hale and file an issue where the language or the docs got in your way. The pattern catalog and the standard library grow from concrete use.</p></li>
+        <li><b>Before you start</b><p>Read the <a href="/docs">guide</a> and the <a href="/docs/spec/styleguide">style guide</a>, and browse <a href="/packages">pond</a> for the library shapes to mirror.</p></li>
+        <li><b>Not yet</b><p>A chat space and a formal contribution guide. Open an issue meanwhile. Early questions are welcome.</p></li>
+      </ul>
+    </div>
   </section>
 </Base>

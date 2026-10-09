@@ -1,0 +1,44 @@
+---
+import Base from '../layouts/Base.astro';
+import Field from '../components/Field.astro';
+import { GROUPS } from '../data/glossary.mjs';
+/*
+  Every Hale word: the familiar idea first, then the one difference worth
+  knowing. The same entries feed the build step that underlines a term's
+  first use on every other page (src/integrations/gloss.mjs), so the hover
+  text and this page cannot disagree.
+*/
+---
+<Base title="Glossary" description="Every Hale term, with the familiar idea it names and the one difference that matters.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>Hale's words, in familiar terms</h1>
+      <p class="lede">
+        Hale uses a small vocabulary of its own. Most of it names things you
+        already know from other languages and tools, with one difference each
+        that is worth knowing. This page gives the familiar idea first, then
+        the difference. A dotted word anywhere on the site shows the same gloss
+        when you hover it and links here.
+      </p>
+    </div>
+    <div class="prose wide">
+      {GROUPS.map((g) => (
+        <>
+          <h2>{g.title}</h2>
+          <ul class="facts">
+            {g.entries.map((e) => (
+              <li id={e.id}>
+                <b set:html={e.term} />
+                <p>
+                  <em>Familiar:</em> <span set:html={e.familiar} />
+                  {e.difference && <> <em>The difference:</em> <span set:html={e.difference} /></>}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ))}
+    </div>
+  </section>
+</Base>

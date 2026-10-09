@@ -1,0 +1,79 @@
+/* ============================================================
+   The palette, the type and the spacing, defined once.
+
+   Imported by global.css (the site's own pages) and starlight.css
+   (the docs), so the two cannot drift. Light is the default; dark is
+   the same tokens redefined, chosen by the reader's system setting or
+   by the theme toggle, which writes data-theme on <html> exactly as
+   Starlight's own picker does.
+
+   The colours are a lotus pond: rose for the flower and the page
+   accent, gold for its centre and for numbers, jade for leaves, types
+   and routes, violet for keywords, blue for function names.
+   ============================================================ */
+
+:root {
+  --paper: #fbf6ec;
+  --paper-2: #f3ebdc;
+  --paper-3: #eadfcc;
+  --ink: #1c1814;
+  --ink-2: #5c5147;
+  --ink-3: #8a7e72;
+  --hair: #e2d8c6;
+  --hair-2: #cfc3ad;
+
+  --accent: #c2256b;
+  --accent-soft: rgba(194, 37, 107, 0.1);
+  --jade: #1e7a5a;
+  --gold: #9a6600;
+  --violet: #6a3fc9;
+  --blue: #2457c5;
+  --warn: #9a6600;
+  --warn-soft: rgba(154, 102, 0, 0.12);
+  --fail: #c0392b;
+
+  --lotus-petal: #d04a86;
+  --lotus-petal-2: #7b5bd6;
+  --lotus-core: #d39a2b;
+  --lotus-line: #5fa68a;
+  --wash-1: rgba(194, 37, 107, 0.08);
+  --wash-2: rgba(211, 154, 43, 0.09);
+
+  --serif: 'Literata', Georgia, 'Times New Roman', serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --radius: 4px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s6: 24px;
+  --s8: 32px; --s12: 48px; --s16: 64px; --s24: 96px;
+  --maxw: 1280px;
+  --measure: 66ch;
+  --nav-h: 48px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #131015; --paper-2: #1b171e; --paper-3: #241f28;
+    --ink: #f1eae0; --ink-2: #b3a89c; --ink-3: #7e7468;
+    --hair: #302a34; --hair-2: #403845;
+    --accent: #ff8fa5; --accent-soft: rgba(255, 143, 165, 0.12);
+    --jade: #59f2cf; --gold: #ffd28a; --violet: #b39bff; --blue: #7fb2ff;
+    --warn: #ffd28a; --warn-soft: rgba(255, 210, 138, 0.12); --fail: #ff7a6b;
+    --lotus-petal: #ff8fa5; --lotus-petal-2: #b39bff; --lotus-core: #ffd28a; --lotus-line: #59f2cf;
+    --wash-1: rgba(255, 143, 165, 0.1); --wash-2: rgba(255, 210, 138, 0.07);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #131015; --paper-2: #1b171e; --paper-3: #241f28;
+  --ink: #f1eae0; --ink-2: #b3a89c; --ink-3: #7e7468;
+  --hair: #302a34; --hair-2: #403845;
+  --accent: #ff8fa5; --accent-soft: rgba(255, 143, 165, 0.12);
+  --jade: #59f2cf; --gold: #ffd28a; --violet: #b39bff; --blue: #7fb2ff;
+  --warn: #ffd28a; --warn-soft: rgba(255, 210, 138, 0.12); --fail: #ff7a6b;
+  --lotus-petal: #ff8fa5; --lotus-petal-2: #b39bff; --lotus-core: #ffd28a; --lotus-line: #59f2cf;
+  --wash-1: rgba(255, 143, 165, 0.1); --wash-2: rgba(255, 210, 138, 0.07);
+  color-scheme: dark;
+}

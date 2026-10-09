@@ -48,56 +48,48 @@ const tiers = [
   ]],
 ];
 ---
-<Base title="pond: Hale packages">
-  <Field kind="packages" />
-  <section class="container prose">
-    <span class="tag">/packages</span>
-    <h1>pond</h1>
-    <p class="lede">
-      The “non-std stdlib”: opinionated, domain-shaped libraries you vendor and
-      import. Extensible by tier, from infrastructure to agent orchestration.
-    </p>
-    <div class="install" style="margin-bottom:0.5rem;">
-      <span class="sigil">$</span><span class="cmd">hale fetch</span>
-    </div>
-    <p class="muted" style="font-size:0.9rem;">
-      Vendoring is the v1 dependency primitive, pin a git ref, vendor the
-      source. Tiers are a taxonomy rather than a sequence: 4, 6 and 7 are
-      backlog nobody has needed yet, so the numbering has gaps. Editor
-      tooling is not here, the tree-sitter grammar moved to
-      {' '}<a href="https://github.com/hale-lang/tree-sitter-hale">tree-sitter-hale</a>
-      and the language server ships inside the <code>hale</code> binary.
-    </p>
-
-    <div class="callout" style="margin-top:1.25rem;">
-      <strong>Graduated to the stdlib:</strong> the HTTP client, the router, and
-      metrics were promoted out of pond, they now ship as
-      {' '}<code>std::http</code> (client + <code>Router</code>) and
-      {' '}<code>std::metrics</code>, no import needed. pond keeps tracking copies;
-      new code should use the stdlib.
-    </div>
-
-    {tiers.map(([h, libs]) => (
-      <div style="margin-top:2rem;">
-        <h2 style="font-size:1.3rem;">{h}</h2>
-        <table class="matrix">
-          <tbody>
-            {libs.map(([name, desc]) => (
-              <tr>
-                {/* Each name stays whole; a cell listing several breaks
-                    between them. A nowrap cell instead pins the table's
-                    min-content wider than a phone. */}
-                <td class="lib">
-                  {name.split(' · ').map((n, i) => (
-                    <>{i > 0 ? ' · ': ''}<code>{n}</code></>
-                  ))}
-                </td>
-                <td>{desc}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+<Base title="pond" description="Hale's contributed library collection, vendored with hale fetch: crypto, databases, units, observability, realtime, agents and a terminal UI.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>pond</h1>
+      <p class="lede">
+        The contributed library collection: opinionated, domain-shaped
+        libraries you vendor and import. Vendoring is the dependency
+        primitive. Pin a git ref, vendor the source.
+      </p>
+      <div class="install" role="group" aria-label="Fetch dependencies">
+        <span class="sigil" aria-hidden="true">$</span>
+        <span class="cmd">hale fetch</span>
       </div>
-    ))}
+      <p class="muted" style="margin-top:var(--s4);font-size:.95rem">
+        Tiers are a taxonomy, and the numbering has gaps on purpose: 4, 6 and
+        7 are backlog nobody has needed yet. The HTTP client, the router and
+        metrics graduated to the standard library and ship as <code>std::http</code> and <code>std::metrics</code> with no import; pond keeps
+        tracking copies for existing pins. Editor tooling lives elsewhere:
+        the tree-sitter grammar is <a href="https://github.com/hale-lang/tree-sitter-hale">tree-sitter-hale</a> and
+        the language server ships inside the <code>hale</code> binary.
+      </p>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <tbody>
+          {tiers.map(([h, libs]) => (
+            <>
+              <tr class="tier"><th colspan="2" scope="rowgroup">{h}</th></tr>
+              {(libs as string[][]).map(([name, desc]) => (
+                <tr>
+                  {/* Each name stays whole; a cell listing several breaks
+                      between them rather than pinning the table wider than
+                      a phone. */}
+                  <td class="lib">{name.split(' · ').map((n, i) => <>{i > 0 ? ' · ' : ''}<code>{n}</code></>)}</td>
+                  <td>{desc}</td>
+                </tr>
+              ))}
+            </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   </section>
 </Base>

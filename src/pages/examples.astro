@@ -4,164 +4,69 @@ import Field from '../components/Field.astro';
 import ExampleRow from '../components/ExampleRow.astro';
 import { examples } from '../examples/manifest.mjs';
 import captures from '../generated/examples.json';
-import '../styles/storefront.css';
 
 /*
-  Every panel is a pair: the program, and what the machine says
-  about it. The outputs come from src/generated/examples.json,
-  produced at build time by scripts/capture-examples.mjs invoking
-  the compiler — nothing here is transcribed by hand, so nothing
-  here can quietly rot. The "break it" tab is the page's argument:
-  the diagnostic, not the declaration, is the product.
-
-  Two tiers, everyday first: the page defines the perceived
-  boundary of the language, and a visitor should see the programs
-  they'd write in Python or Node before the systems the language
-  was named for.
+  Every row is a pair: the program, and what the compiler says about it.
+  The outputs come from src/generated/examples.json, produced at build time
+  by scripts/capture-examples.mjs invoking the compiler, so nothing here is
+  transcribed by hand and nothing can quietly rot. Everyday programs come
+  first: a visitor should see the programs they would write in Python or
+  Node before the systems the language was named for.
 */
-const cap = (id) => (captures.examples as any)[id] ?? {};
-const fullMods = import.meta.glob('../examples/full/*.mjs', {
-  eager: true,
-});
+const cap = (id: string) => (captures.examples as any)[id] ?? {};
+const fullMods = import.meta.glob('../examples/full/*.mjs', { eager: true });
 const fulls = Object.values(fullMods)
   .map((m: any) => m.full)
-  .map((f: any) => ({
-    ...f,
-    lines: (captures as any).fulls?.[f.slug]?.lines ?? 0,
-  }));
+  .map((f: any) => ({ ...f, lines: (captures as any).fulls?.[f.slug]?.lines ?? 0 }));
 
 const everyday = examples.filter((e) => e.tier === 'everyday');
 const systems = examples.filter((e) => e.tier !== 'everyday');
-const everydayFulls = fulls.filter((f: any) => f.tier === 'everyday');
-const systemFulls = fulls.filter((f: any) => f.tier !== 'everyday');
 ---
 <Base
-  title="Hale examples"
-  description="Hale programs beside what the compiler says about them — everyday CLIs, JSON, files, and HTTP, then complete systems with run output, refusals with witnesses, and a recorded run replayed."
+  title="Examples"
+  description="Hale programs beside what the compiler says about them: everyday CLIs, JSON, files and HTTP, then systems with keyed topics, causal boundaries, certified hot paths and claims, each with a deliberate break."
 >
-  <Field kind="examples" />
-  <section class="container wide examples-page">
-    <div class="section-intro">
-      <p class="eyebrow">examples</p>
-      <h1>Programs, with their evidence.</h1>
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>Programs, and what the compiler says about them</h1>
       <p class="lede">
-        Programs read beside what the machine says about them — run
-        transcripts, refusals with witnesses, recorded runs replayed.
-        Everything is captured from{' '}
-        <code>{captures.hale}</code> at build time; the code on every
-        page is the exact program the build verified.
+        Each program sits beside a deliberate break. The run output and the
+        compiler's refusal are captured from <code>{captures.hale.split('\n')[0]}</code> at build time, so nothing under a machine label is
+        typed by hand.
       </p>
     </div>
 
-    <div class="section-intro strip-intro">
-      <h2 class="strip-title">Everyday Hale.</h2>
-      <p class="lede">
-        The altitude you would reach for Python or Node: arguments,
-        files, JSON, HTTP, config — ordinary programs, each with the
-        compiler's side of the story.
-      </p>
+    <div class="prose wide">
+      <h2 style="margin-top:0">Everyday Hale</h2>
+      <p class="muted">Arguments, files, JSON, HTTP and config. The level you would use Python or Node for.</p>
     </div>
+    {everyday.map((ex) => <ExampleRow ex={ex} cap={cap(ex.id)} />)}
 
-    {everyday.map((ex, i) => (
-      <ExampleRow ex={ex} cap={cap(ex.id)} rev={i % 2 === 1} />
-    ))}
-
-    {everydayFulls.length > 0 && (
-      <div class="full-cards">
-        {everydayFulls.map((f) => (
-          <a class="full-card" href={`/examples/${f.slug}`}>
-            <p class="eyebrow">{f.lines} lines · {f.file}</p>
-            <h2>{f.title}</h2>
-            <p>{f.tagline}</p>
-            <span class="card-cta">Read the whole program →</span>
-          </a>
-        ))}
-      </div>
-    )}
-
-    <div class="section-intro strip-intro">
-      <h2 class="strip-title">Complete systems, with their evidence.</h2>
-      <p class="lede">
-        Full systems read top to bottom: keyed fan-out, causal
-        boundaries, certified hot paths, fleet composition — the code
-        on every page concatenates to the exact program the build
-        verified.
-      </p>
+    <div class="prose wide" style="margin-top:var(--s12)">
+      <h2 style="margin-top:0">Complete programs</h2>
+      <p class="muted">Whole programs, read top to bottom. The code on each page concatenates to the exact program the build verified.</p>
     </div>
-
-    <div class="full-cards">
-      {systemFulls.map((f) => (
-        <a class="full-card" href={`/examples/${f.slug}`}>
-          <p class="eyebrow">{f.lines} lines · {f.file}</p>
-          <h2>{f.title}</h2>
-          <p>{f.tagline}</p>
-          <span class="card-cta">Read the whole system →</span>
+    <div class="cards">
+      {fulls.map((f: any) => (
+        <a href={`/examples/${f.slug}`}>
+          <span class="cardfile">{f.lines ? `${f.lines} lines · ` : ''}{f.file ?? (f.files ?? []).join(', ')}</span>
+          <strong>{f.title}</strong>
+          <span>{f.tagline}</span>
         </a>
       ))}
     </div>
 
-    <div class="section-intro strip-intro">
-      <h2 class="strip-title">One guarantee at a time.</h2>
-      <p class="lede">
-        The same discipline at snippet scale: the honest version and a
-        one-line break, with the compiler's actual refusal beside it.
-      </p>
+    <div class="prose wide" style="margin-top:var(--s12)">
+      <h2 style="margin-top:0">One guarantee at a time</h2>
+      <p class="muted">The same discipline at snippet scale: the honest version and a one-line break, with the compiler's refusal beside it.</p>
     </div>
+    {systems.map((ex) => <ExampleRow ex={ex} cap={cap(ex.id)} />)}
 
-    {systems.map((ex, i) => (
-      <ExampleRow ex={ex} cap={cap(ex.id)} rev={i % 2 === 1} />
-    ))}
-
-    <div class="examples-next">
-      <h2>Try the full progression.</h2>
-      <p>
-        The browser tour moves from ordinary functions to loci, typed
-        topics, supervision, and deployment without changing tools.
-      </p>
-      <a class="btn btn-primary" href="/playground">Open the playground</a>
+    <div class="prose" style="margin-top:var(--s12)">
+      <h2 style="margin-top:0">The whole progression</h2>
+      <p>The browser tour moves from ordinary functions to loci, typed topics, supervision and deployment without changing tools.</p>
+      <div class="actions"><a class="btn btn-primary" href="/playground">Open the playground</a></div>
     </div>
   </section>
 </Base>
-
-<style>
-  .full-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-    gap: 1rem;
-    margin: 2rem 0 3.5rem;
-  }
-  .full-card {
-    display: block;
-    padding: 1.3rem 1.4rem;
-    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-    border-radius: 12px;
-    text-decoration: none;
-  }
-  .full-card:hover {
-    border-color: currentColor;
-  }
-  .full-card h2 {
-    margin: 0.35rem 0 0.5rem;
-    font-size: 1.25rem;
-  }
-  .full-card p {
-    margin: 0;
-    font-size: 0.92rem;
-    opacity: 0.8;
-  }
-  .full-card .eyebrow {
-    opacity: 0.6;
-  }
-  .card-cta {
-    display: inline-block;
-    margin-top: 0.9rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-  .strip-intro {
-    margin-top: 1rem;
-  }
-  .strip-title {
-    font-size: 1.5rem;
-  }
-</style>

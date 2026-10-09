@@ -1,25 +1,22 @@
 ---
 import '../styles/global.css';
+import '../styles/nav.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 
 interface Props { title?: string; description?: string; }
 const {
-  title = 'Hale: a general-purpose, native, memory-safe language',
-  // Read cold, in a search result, by someone who has never heard of Hale —
-  // so this stays in the factual register, and it now leads with the
-  // CATEGORY (the repositioning brief's diagnosis: the old line read as a
-  // distributed-systems DSL to a stranger). The recursive-model claim is
-  // still here — as the second sentence, where it lands as a property of
-  // an ordinary language rather than an entry requirement.
-  description = "Hale is a general-purpose language for scripts, services, and systems: ordinary functions, CLIs, files, JSON, HTTP, and WebAssembly. As a program grows, the same language keeps ownership, concurrency, placement, effects, and architectural rules visible to the compiler — one recursive model, from function scope to fleet.",
+  title = 'Hale: less language, more compiler',
+  // Read cold, in a search result, by someone who has never heard of
+  // Hale: what it does for an application, in plain terms.
+  description = 'Hale is a compiled language that checks your architecture on every build, gives you concurrency with no locks or data races, runs the same code as a test, one binary or a fleet, frees memory with no garbage collector, keeps units on money and time, and grows a script into a service without changing tools.',
 } = Astro.props;
 ---
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -32,21 +29,29 @@ const {
     <meta property="og:image" content="https://hale-lang.org/og.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
-    <meta property="og:image:alt" content="Hale — a general-purpose language, from scripts to systems." />
+    <meta property="og:image:alt" content="Hale: less language, more compiler." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://hale-lang.org/og.png" />
-    <meta name="theme-color" content="#02040a" />
-    <meta name="color-scheme" content="dark" />
-    {/*
-      The digital-lotus reskin is dark only: data-theme is pinned in the
-      markup above, so there is no pre-paint theme script to run and
-      nothing to flash. Starlight resolves its own data-theme on the docs;
-      starlight.css maps both of its values onto the same palette.
-    */}
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf6ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131015" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400;1,7..72,500&family=JetBrains+Mono:wght@400;500;700&display=swap" />
+    {/* Resolve the theme before first paint, exactly as Starlight's own
+        provider does in the docs: a stored choice, else the system. */}
+    <script is:inline>
+      (() => {
+        let stored = '';
+        try { stored = localStorage.getItem('starlight-theme') || ''; } catch (e) {}
+        const theme = stored || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+      })();
+    </script>
   </head>
   <body>
     <Nav />
-    <main>
+    <main id="main">
       <slot />
     </main>
     <Footer />

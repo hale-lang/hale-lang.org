@@ -16,13 +16,21 @@
   GitHub does not read og:image from the site — the repo social preview is
   a manual upload under Settings -> Social preview.
 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500&family=JetBrains+Mono:wght@500&display=swap">
 <style>
+  /* The site's dark palette (src/styles/tokens.css): plum-black ground, a
+     rose and gold wash, warm ink. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1280px; height: 640px; }
   body {
-    background: radial-gradient(90% 120% at 60% 20%, #0a1226 0%, #02040a 70%);
-    color: #f5f8ff;
-    font-family: ui-sans-serif, system-ui, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+    background:
+      radial-gradient(55% 70% at 74% 22%, rgba(255, 143, 165, 0.14), transparent 70%),
+      radial-gradient(45% 60% at 18% 88%, rgba(255, 210, 138, 0.1), transparent 70%),
+      #131015;
+    color: #f1eae0;
+    font-family: 'Literata', Georgia, serif;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -31,27 +39,20 @@
     padding: 0 110px;
     -webkit-font-smoothing: antialiased;
   }
-  .mark { display: flex; align-items: center; gap: 26px; }
-  .mark img { width: 110px; height: 110px; flex: none; filter: drop-shadow(0 0 26px rgba(117, 232, 255, 0.35)); }
-  .name { font-size: 92px; font-weight: 300; letter-spacing: 0.01em; line-height: 1; }
-  .tag {
-    margin-top: 36px;
-    font-size: 35px;
-    line-height: 1.34;
-    color: #8996aa;
-    max-width: 34ch;
-    letter-spacing: -0.012em;
-  }
+  .mark { display: flex; align-items: center; gap: 24px; }
+  .mark img { width: 92px; height: 92px; flex: none; }
+  .name { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 76px; font-weight: 500; letter-spacing: 0.01em; line-height: 1; }
+  .tag { margin-top: 40px; font-size: 64px; font-weight: 500; line-height: 1.08; letter-spacing: -0.02em; }
+  .sub { margin-top: 22px; font-size: 30px; line-height: 1.35; color: #b3a89c; max-width: 34ch; }
   .foot {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 66px;
-    font-family: ui-monospace, "DejaVu Sans Mono", "Liberation Mono", monospace;
-    font-size: 25px;
-    color: #75e8ff;
-    letter-spacing: 0.01em;
-    text-shadow: 0 0 20px rgba(117, 232, 255, 0.4);
+    bottom: 58px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 24px;
+    color: #ffd28a;
+    letter-spacing: 0.04em;
   }
 </style>
 </head>
@@ -61,9 +62,8 @@
     <img src="../public/favicon.svg" alt="" />
     <div class="name">hale</div>
   </div>
-  <!-- Non-breaking hyphen: the shorter tagline lets the line break land
-       inside "GC-free" otherwise, which reads as a typo at card size. -->
-  <p class="tag">A general&#8209;purpose language, from scripts to systems.</p>
+  <p class="tag">Less language. More compiler.</p>
+  <p class="sub">One language from a five&#8209;line script to a self&#8209;evolving distributed system.</p>
   <div class="foot">hale-lang.org</div>
 </body>
 </html>

@@ -1,0 +1,10 @@
+---
+// The lotus field: a canvas that fills its positioned parent. The script
+// is bundled once per page however many fields the page has.
+---
+<div class="lotus-field" aria-hidden="true"><canvas></canvas></div>
+
+<script>
+  import { mountLotusFields } from '../lib/lotus-field';
+  mountLotusFields();
+</script>

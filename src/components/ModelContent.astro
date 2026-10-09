@@ -1,19 +1,20 @@
 ---
 import Hale from './Hale.astro';
-// Inlined rather than <img>: the renderer emits a light theme with an
-// opaque background, and only inline SVG can be re-themed by CSS. The
-// files stay byte-for-byte `hale topology graph` output.
-import busGraph from '../diagrams/model-bus-graph.svg?raw';
-import residueGraph from '../diagrams/model-residue-graph.svg?raw';
 import SystemMap from './SystemMap.astro';
 import StatusRail from './StatusRail.astro';
+// Inlined rather than <img>: only inline SVG can be re-inked by the page's
+// tokens. The files stay byte-for-byte `hale topology graph` output; the
+// renderer's own <style> block and fixed size are dropped here, at render.
+import busRaw from '../diagrams/model-bus-graph.svg?raw';
+import residueRaw from '../diagrams/model-residue-graph.svg?raw';
+const inline = (svg: string) => svg.replace(/<style>[\s\S]*?<\/style>\n?/, '').replace(/ width="\d+" height="\d+"/, '');
+const busGraph = inline(busRaw);
+const residueGraph = inline(residueRaw);
 
 /*
   Offstage context for the panels below (scripts/check-site.mjs prepends
-  `_prelude` before `hale check`; nothing renders it). The `main` panel
-  binds topic Reading, which only the `bus` panel above it declares — so
-  on its own it would not check, and the page would be asserting something
-  the compiler had never seen.
+  `_prelude` to every snippet in this file, and `main_prelude` to `main`,
+  before `hale check`; nothing renders them).
 */
 const _prelude = `type Sample { id: Int; value: Int; }
 `;
@@ -63,228 +64,170 @@ const main = `main locus App {
         Reading: unix("/run/readings.sock", role: listen);
     }
 }`;
-
 ---
-<section class="container prose model-page">
-  <span class="tag">/model</span>
-  <h1>Programs used to describe computations. Hale describes running systems.</h1>
-  <p class="lede">
-    Ownership, lifetime, concurrency, communication, supervision, and
-    deployment are usually documented in different languages. Hale treats them
-    as views of one program.
-  </p>
-
-  <div class="model-callout">
-    <strong>Code is getting cheaper. Consequences are not.</strong>
-    <p>
-      More implementations will be produced by more people and more tools. The
-      hard part is knowing what each part may touch, publish, block on,
-      allocate, depend on, or destroy. Hale makes those facts compiler input.
+<div class="page-head">
+    <h1>What a Hale program describes</h1>
+    <p class="lede">
+      A running system: who owns which state, what
+      talks to what, where each part runs, and what may influence what.
+      Those are usually written in different languages. Hale makes them
+      views of one program.
     </p>
   </div>
 
-  <h2>The locus is the situated part of the program</h2>
-  <p>
-    A <code>type</code> is data. A <code>locus</code> is anything that owns
-    state or participates in flow: an application, service, connection,
-    worker, cache, pipeline stage, or adapter.
-  </p>
-  <p>
-    Each locus has a parent, may own children, and owns a memory region. The
-    ownership tree is therefore also a lifetime and failure tree. When a locus
-    dissolves, its owned structure dissolves with it.
-  </p>
+  <div class="prose">
+    <h2>A type is data. A locus is anything that lives.</h2>
+    <p>
+      A <code>type</code> is shape. A <code>locus</code> is anything that owns
+      state or takes part in flow: an application, a service, a connection,
+      a worker, a cache, a pipeline stage, an adapter. Anyone who knows actors, or services that only talk over queues, knows most of it already;
+      the rest of this page is what the compiler can do once nothing else
+      exists. Each locus has a
+      parent, may own children, and owns a memory region. The ownership tree
+      is therefore also the lifetime tree and the failure tree. A locus that dissolves takes what it owns with it.
+    </p>
+  </div>
 
   <SystemMap />
 
-  <h2>There are three graphs, and Hale knows how they meet</h2>
-  <div class="model-graphs">
-    <article><strong>Ownership</strong><p>Who owns state, lifetime, children, and recovery.</p></article>
-    <article><strong>Communication</strong><p>Which typed subjects connect publishers and subscribers.</p></article>
-    <article><strong>Placement</strong><p>Where each locus executes and how each edge is realized.</p></article>
+  <div class="prose">
+    <h2>Three graphs, and the compiler knows how they meet</h2>
   </div>
-  <p>
-    Most stacks scatter those graphs across source code, runtime libraries,
-    broker configuration, and deployment manifests. Hale keeps them separate
-    enough to reason about and joined enough for the compiler to check.
-  </p>
-
-  <p>
-    You do not have to take that on faith. The compiler will draw them.
-    Here is the communication graph of a four-locus program, rendered
-    by <code>hale topology graph</code> from the build artifact — not
-    a diagram anyone maintained:
-  </p>
-  <figure class="model-figure">
-    <div class="model-diagram" role="img"
-         aria-label="Communication graph: Sampler publishes to the Readings topic, which is subscribed by both Store and Monitor; Monitor publishes to Alerts, which Pager subscribes."
-         set:html={busGraph} />
+  <div class="grid4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <article><b>Ownership</b><p>Who owns state, lifetime, children and recovery.</p></article>
+    <article><b>Communication</b><p>Which typed topics connect publishers to subscribers.</p></article>
+    <article><b>Placement</b><p>Where each locus runs and how each edge is carried.</p></article>
+  </div>
+  <div class="prose">
+    <p style="margin-top:var(--s6)">
+      Most stacks spread those three across source, runtime libraries, broker
+      configuration and deployment manifests. Hale keeps them separate enough
+      to reason about and joined enough for one checker to walk all three.
+      The compiler will draw them. The communication graph of a four-locus program follows, rendered by <code>hale topology graph</code> from the build artifact.
+    </p>
+  </div>
+  <figure class="graph">
+    <div class="drawing" role="img" aria-label="Communication graph: Sampler publishes to the Readings topic, which Store and Monitor subscribe to; Monitor publishes to Alerts, which Pager subscribes to." set:html={busGraph} />
     <figcaption>
-      <code>Readings</code> is one vertex with one edge in
-      and <strong>two</strong> out — a single publish reaching two
-      subscribers. The topic is a vertex because in Hale it is one: a
-      declared entity with a wire subject and a payload contract, not an
-      edge recovered by analysis. <code>Monitor</code> both subscribes
-      and publishes, so the second hop is visible in the same picture.
+      <code>Readings</code> is one vertex with one edge in and two out: a
+      single publish reaching two subscribers. The topic is a vertex because
+      in Hale it is one, a declared entity with a wire subject and a payload
+      contract. <code>Monitor</code> both subscribes and publishes, so the second hop is in the same picture.
+    </figcaption>
+  </figure>
+  <div class="prose">
+    <p>
+      Change one line so a value passes through a function-typed parameter,
+      and the graph grows a vertex that is not part of the program.
+    </p>
+  </div>
+  <figure class="graph">
+    <div class="drawing" role="img" aria-label="Residue graph: the same program, with an unresolved indirect_call node attached to the apply function by a dashed edge." set:html={residueGraph} />
+    <figcaption>
+      The dashed box is a hole: a typed record of what the compiler could
+      not determine, naming the relations it withdraws. Most program graphs
+      show what was found. This one also shows where the compiler stopped
+      looking, which is why a law that reaches that edge reports <em>uncertified</em>, a different answer from <em>holds</em>.
     </figcaption>
   </figure>
 
-  <p>
-    Change one line so a value passes through a function-typed parameter,
-    and the graph grows a vertex that is not part of the program:
-  </p>
-  <figure class="model-figure">
-    <div class="model-diagram" role="img"
-         aria-label="Residue graph: the same program, with an unresolved indirect_call node attached to the apply function by a dashed edge."
-         set:html={residueGraph} />
-    <figcaption>
-      That trapezoid is a <strong>hole</strong> — a typed record of what
-      the compiler could not determine, naming the relations it
-      withdraws. Most program graphs show you what was found. This one
-      also shows you where it stopped looking, which is why a law that
-      reaches that edge reports <em>uncertified</em> rather
-      than <em>holds</em>.
-    </figcaption>
-  </figure>
+  <div class="prose">
+    <h2>A topic names the edge and says nothing about the mechanism</h2>
+    <p>
+      A topic is a typed, named edge. A publisher declares the authority to
+      send; a subscriber declares the handler that receives. No channel
+      handle or broker client is threaded through constructors.
+    </p>
+    <Hale code={bus} title="pipeline.hl" kind="service" />
+    <p>
+      A closed-world local edge may lower to a direct call. Other local edges
+      use the bus. A binding can carry the same topic over a socket, shared
+      memory, UDP, or an adapter you wrote.
+    </p>
 
-  <h2>Topics describe communication without smuggling in a mechanism</h2>
-  <p>
-    A topic is a typed, named edge. Publishers declare authority to send;
-    subscribers declare the handler that receives. No channel handle or broker
-    client is threaded through constructors.
-  </p>
-  <Hale code={bus} title="pipeline.hl" />
-  <p>
-    A closed-world local edge may lower to a direct call. Other local edges use
-    the bus. A binding can carry the same topic over a socket, shared memory,
-    UDP, or a user-written adapter.
-  </p>
+    <h2>main is the architectural linker</h2>
+    <p>
+      Domain loci say what the system is. <code>main</code> says where its
+      parts run and how its topic edges travel. A test can omit bindings;
+      production can split the same source across processes.
+    </p>
+    <Hale code={main} title="main.hl" kind="systems" />
 
-  <h2><code>main locus</code> is the architectural linker</h2>
-  <p>
-    Domain loci say what the system is. <code>main</code> says where its parts
-    run and how its topic edges travel. Tests can omit bindings; production can
-    split the same source across processes.
-  </p>
-  <Hale code={main} title="main.hl" />
+    <h2>Effects include causality</h2>
+    <p>
+      Hale can constrain blocking, allocation, syscalls, time, entropy,
+      publication, spawning and recursion across a reachable call path.
+      Causality is an effect because it follows the same rule as the rest: a property is declared at one site
+      and proven over everything that site can reach, and reaching does not
+      stop where the call stack does. A function that publishes has handed
+      its influence to whoever subscribes, and to whoever they publish to in
+      turn. A declared dependency set says which subjects may arrive at the
+      end of that chain, and the compiler walks it. <a href="/#causality">See it reject one</a>, or read <a href="/proof">the witness it hands back</a>.
+    </p>
 
-  <h2>Effects include causality, not only local side effects</h2>
-  <p>
-    Hale can constrain blocking, allocation, syscalls, time, entropy,
-    publication, spawning, and recursion across a reachable call path. What
-    makes causality an <em>effect</em> rather than a separate analysis is that
-    it obeys the same rule as the rest: a property is declared at one site and
-    proven over everything that site can reach. Reaching, here, does not stop
-    where the call stack does.
-  </p>
-  <p>
-    That is the whole of the idea. A function that publishes has not ended its
-    influence; it has handed it to whoever subscribes, and to whoever they
-    publish to in turn. Declaring a dependency set says which subjects may
-    arrive at the end of that chain, and the compiler walks it.
-    {' '}<a href="/#causality">See it reject one</a>, or read
-    {' '}<a href="/proof">the witness it hands back</a>.
-  </p>
+    <h2>The law keeps going past the executable</h2>
+    <p>
+      Effects close around a function. Claims close around one assembled
+      application. Neither can say anything about the entry point next door,
+      or about the arrangement of binaries you actually deploy. The structure
+      continues, and the same checker follows it.
+    </p>
+    <p>
+      A <strong>constitution</strong> is a claimset written once and adopted
+      per entry point. Every clause is still evaluated in the adopting
+      main's own closed world: one text, many worlds, many independent
+      verdicts. Composition is by union only, so a derived constitution can
+      add a rule and cannot replace one. Which law applies is a property of
+      where you deploy, so the binding lives in <code>hale.toml</code>, and <code>hale check --matrix</code> proves every entry point against every
+      environment that runs it. An entry point listed in no environment is an
+      error.
+    </p>
+    <p>
+      A <strong>fleet</strong> is one scale further out. Each application
+      emits a byte-reproducible topology artifact. A plan names deployed
+      instances and the routes between them. <code>hale fleet check</code> composes those artifacts, never merged source, and proves law no single
+      binary can state. Matching topic declarations connect nothing; only an
+      explicit route creates an edge, because an unbound topic is in-process
+      by default and merging source would invent edges no deployment has.
+      Signatures over the artifact's exact bytes, and per-instance binary
+      digests, carry the certificate to the machine that runs it.
+    </p>
+    <p>
+      A plan carries instances, routes, groups and claims, so it plays the
+      role of a <code>main locus</code> one scale out, over separately
+      compiled binaries. The plan composes certified artifacts and is
+      itself JSON; Hale source has no fleet syntax. What recurs is the model.
+    </p>
 
-  <h2>The law keeps going past the executable</h2>
-  <p>
-    Effects close around a function; claims close around one assembled
-    application. Neither can say anything about the entrypoint next door, or
-    about the arrangement of binaries you actually deploy. The structure
-    continues, and the same checker follows it.
-  </p>
-  <p>
-    A <strong>constitution</strong> is a claimset authored once and adopted per
-    entrypoint. Every clause is still evaluated in the adopting main's own
-    closed world: one text, many worlds, many independent verdicts.
-    Composition is union only, so a derived constitution can add a rule and
-    can never replace one. Weakening isn't rejected, it's unexpressible.
-    Binding lives in <code>hale.toml</code>, because which law applies is a
-    property of where you deploy, and <code>hale check --matrix</code> proves
-    every entrypoint against every environment that runs it. An entrypoint
-    listed in no environment is an error rather than a skip, which is the one
-    hole composition cannot close by itself.
-  </p>
-  <p>
-    A <strong>fleet</strong> is one scale further out. Each application emits a
-    byte-reproducible topology artifact; a plan names deployed instances and
-    the routes between them; <code>hale fleet check</code> composes those
-    artifacts, never merged source, and proves law no single binary can
-    state. Matching topic declarations connect nothing: only an explicit route
-    creates an edge, because an unbound topic is in-process by default and
-    merging source would invent edges no deployment has. Signatures over the
-    artifact's exact bytes, and per-instance binary digests, carry the
-    certificate to the machine that runs it.
-  </p>
-  <p>
-    Note the shape of that last rung. A plan carries instances, routes, groups
-    and claims, so it plays the role of a <code>main locus</code> one scale
-    out: children, bus edges, and law, over separately compiled binaries. It
-    is a composition of certified artifacts rather than a locus declaration —
-    the plan is JSON, and there is no fleet syntax in Hale source. What
-    recurs is the model, not the spelling. The recursion did not stop at the
-    process boundary; it changed what a component is.
-  </p>
-  <p>
-    That is the whole thesis in one line, so it is worth being exact about
-    what is claimed. Hale is not one construct wearing six costumes; it is one
-    account of ownership, flow, closure, and law, which a value, a locus, an
-    application, and a fleet are each a projection of. The claim is about the
-    model, not the grammar.
-  </p>
+    <h2>Two axes</h2>
+    <p>
+      This page climbs one axis and the <a href="/docs">guide</a> climbs
+      another. <strong>Scale</strong> is how large the composed system is,
+      from function scope to fleet. <strong>Altitude</strong> is how much of
+      the machinery you choose to control, from everyday code to explicit
+      systems work. They are independent: one locus takes part at every
+      scale while being written at whichever altitude the job needs, which is
+      why the guide can teach a script before it teaches placement without
+      leaving this model.
+    </p>
 
-  <h2>Two axes, not one ladder</h2>
-  <p>
-    This page climbs one axis, and the <a href="/docs">guide</a> climbs
-    another, which is worth saying out loud before they read as rival
-    accounts. Hale scales along <strong>system scale</strong>, from function
-    scope to fleet, and along <strong>control altitude</strong>, from everyday
-    code to explicit systems machinery. Scale asks how large the composed
-    system is; altitude asks how much of the machinery you are choosing to
-    control. They are independent: a single locus participates at every scale
-    while being written at whichever altitude the job needs, which is why the
-    guide can teach a script before it teaches placement without ever leaving
-    the model this page describes.
-  </p>
+    <h2>The commitments</h2>
+    <ul class="facts">
+      <li><b>Nothing stateful is ownerless</b><p>State and lifetime have a structural home.</p></li>
+      <li><b>No edge is ambient</b><p>Every communication edge is named, typed and authorized.</p></li>
+      <li><b>Behaviour can be surfaced</b><p>Blocking, allocation, publication and dependence can become contracts.</p></li>
+      <li><b>Failure goes somewhere structural</b><p>Recovery belongs to an owner with context.</p></li>
+      <li><b>Deployment is part of the program</b><p>Placement and transport are declared in the program.</p></li>
+      <li><b>Unknown is not proven</b><p>A hard guarantee fails closed at a certification boundary. Ordinary <code>hale check</code> still reports some topology findings as advisories; <code>hale verify</code>, a contract or a claim turns not knowing into a failure.</p></li>
+      <li><b>Runtime change crosses declared seams</b><p>Dynamism moves between valid arrangements.</p></li>
+    </ul>
 
-  <h2>The commitments</h2>
-  <ol class="constitution">
-    <li><strong>Nothing stateful is ownerless.</strong> State and lifetime have a structural home.</li>
-    <li><strong>No communication edge is ambient.</strong> It is named, typed, and authorized.</li>
-    <li><strong>Operational behavior can be surfaced.</strong> Blocking, allocation, publication, and dependence can become contracts.</li>
-    <li><strong>Failure goes somewhere structural.</strong> Recovery belongs to an owner with context.</li>
-    <li><strong>Deployment is part of the program.</strong> Placement and transport are not unrelated afterthoughts.</li>
-    <li><strong>At a certification boundary, unknown is not proven.</strong> A hard guarantee must fail closed. Ordinary <code>hale check</code> still reports some topology findings as advisories; it is <code>hale verify</code>, a contract, or a claim that turns not-knowing into a failure.</li>
-    <li><strong>Runtime change crosses declared seams.</strong> Dynamism should move between valid arrangements, not mutate the graph arbitrarily.</li>
-  </ol>
-
-  <h2>The direction</h2>
-  <p>
-    Hale makes architecture declarative, then checkable, then observable,
-    each stage handing evidence to the next rather than asking to be trusted.
-  </p>
+    <h2>Where it stands</h2>
+    <p>Each stage hands evidence to the next.</p>
+  </div>
   <StatusRail />
-
-  <hr />
-  {/* The rung that was missing. This page is the programming model —
-      what you write. One level down is the SEMANTIC model: the typed
-      value the compiler derives from it, which claims, artifacts,
-      fleet composition and lowering all read. A reader who wanted
-      that had no path to it from here. The footer listed both, but a
-      footer is where you go when you already know the name of the
-      thing you want. Below that, the spec is the contract, linked in
-      turn from the doc page — three rungs, each naming the next. */}
-  <p class="muted">
-    That is the model you write. For the one the compiler
-    {' '}<em>derives</em> from it — the typed value behind claims,
-    artifacts, fleet composition and lowering — continue to
-    {' '}<a href="/docs/the-model">the semantic model</a>, which ends
-    at the contract itself in
-    {' '}<a href="https://github.com/hale-lang/hale/blob/main/spec/model.md"><code>spec/model.md</code></a>.
-  </p>
-  <p class="muted">
-    Otherwise: the <a href="/docs">guide</a>, the
-    {' '}<a href="/proof">verification surface</a>, or
-    {' '}<a href="/playground">the tour</a>.
-  </p>
-</section>
+  <div class="prose">
+    <p style="margin-top:var(--s8)" class="muted">
+      That is the model you write. The one the compiler derives from it, the typed value behind claims, artifacts, fleet composition and lowering, is <a href="/docs/the-model">the semantic model</a>, which ends at the contract itself in <a href="https://github.com/hale-lang/hale/blob/main/spec/model.md"><code>spec/model.md</code></a>.
+    </p>
+  </div>

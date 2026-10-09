@@ -1,14 +1,62 @@
 ---
-import { Code } from 'astro:components';
-import hale from '../grammars/hale.tmLanguage.json';
+/*
+  A code listing: a caption with the file name and what kind of thing it
+  is, the code in the site's two code themes, and optional line marks.
 
-interface Props { code: string; title?: string; }
-const { code, title = 'hale' } = Astro.props;
+    marks.new   lines that appeared at this step (a tick in the gutter)
+    marks.warn  lines a diagnostic points at
+    marks.ids   an id on a line, for a description that points at it
+    marks.kept  [line, word] pairs carried over unchanged from a previous
+                step (a dotted underline)
+
+  scripts/check-site.mjs compiles every snippet rendered through this
+  component, finding it by the <Hale … code={NAME} title="…"> tag, so a
+  page keeps its snippets in `const NAME = \`…\`` and a literal title.
+*/
+import { Code } from 'astro:components';
+import type { ShikiTransformer } from 'shiki';
+import { haleLight, haleDark, haleGrammar } from '../code/themes.mjs';
+
+interface Marks {
+  new?: number[];
+  warn?: number[];
+  ids?: Record<number, string>;
+  kept?: [number, string][];
+}
+interface Props {
+  code: string;
+  title?: string;
+  kind?: string;
+  lang?: string;
+  marks?: Marks;
+  foot?: [string, string];
+}
+const { code, title = 'hale', kind, lang = 'hale', marks = {}, foot } = Astro.props;
+const gutter = Boolean(marks.new?.length || marks.warn?.length);
+
+const transformers: ShikiTransformer[] = [
+  {
+    name: 'hale-line-marks',
+    line(node, line) {
+      if (marks.new?.includes(line)) this.addClassToHast(node, 'ln-new');
+      if (marks.warn?.includes(line)) this.addClassToHast(node, 'ln-warn');
+      const id = marks.ids?.[line];
+      if (id) node.properties.id = id;
+    },
+    span(node, line, _col, _lineEl, token) {
+      const word = token.content.trim();
+      if (word && marks.kept?.some(([l, w]: [number, string]) => l === line && w === word)) this.addClassToHast(node, 'kept');
+    },
+  },
+];
 ---
-<div class="code">
-  <div class="code-head">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-    <span class="code-title">{title}</span>
-  </div>
-  <Code code={code.trim()} lang={hale as any} theme="github-dark" />
-</div>
+<figure class:list={['listing', { gutter }]}>
+  <figcaption><span class="file">{title}</span>{kind && <span>{kind}</span>}</figcaption>
+  <Code
+    code={code.trim()}
+    lang={(lang === 'hale' ? haleGrammar : lang) as any}
+    themes={{ light: haleLight, dark: haleDark }}
+    transformers={transformers}
+  />
+  {foot && <div class="listing-foot"><span>{foot[0]}</span><span class="ok">{foot[1]}</span></div>}
+</figure>

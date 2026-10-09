@@ -2,8 +2,7 @@
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 import Hale from '../components/Hale.astro';
-import '../styles/storefront.css';
-
+import Terminal from '../components/Terminal.astro';
 const effectDiagnostic = `effect assertion violated:
   price must not reach syscall
 
@@ -45,322 +44,118 @@ hale bench .
 hale doc --stdlib
 hale lsp
 hale mcp`;
-
 ---
-<Base
-  title="Hale proof"
-  description="Every property the Hale compiler certifies, from a function's effect classes to a signed fleet: each with the witness it returns when the property is false."
->
-  <Field kind="proof" />
-  <section class="container wide proof-page">
-    <div class="section-intro">
-      <p class="eyebrow">proof</p>
-      <h1>What the compiler certifies, and the witness it hands back.</h1>
+<Base title="What is checked" description="Every property the Hale compiler checks, who checks it, and the witness that comes back when it is false.">
+  <Field />
+  <section class="wrap page">
+    <div class="page-head">
+      <h1>What is checked, and what comes back when it fails</h1>
       <p class="lede">
-        Each rung of the structure closes at a different scale, and each one is
-        checked as an error rather than a suggestion. When a property is false,
-        the answer is a countermodel in your own spelling: the path, the route,
-        and the three places you would edit.
+        Each property below is checked as an error.
+        A property that is false gets a witness back from the compiler, the concrete path
+        that breaks the rule, in your own names: the call, the route, and the
+        places you would edit.
       </p>
     </div>
 
-    {/*
-      A "shipped" status board used to sit here, listing the same nine
-      capabilities the matrix below covers. Its only added axis was the
-      word "shipped", nine times, on a page whose subject is what is
-      certified today — a constant column carries no information, and
-      the matrix says who checks each one and how, which is the part a
-      reader came for.
-    */}
-
-    <div class="proof-matrix">
-      <article>
-        <span>compiler</span>
-        <h2>Typed bus topology</h2>
-        <p>
-          Topic declarations establish payload type and publish/subscribe
-          authority. The compiler inspects the closed-world graph for orphaned
-          subjects, impossible handlers, routing-policy errors, and re-entrant
-          cycles.
-        </p>
-        <a href="/docs/services/bus">Bus semantics →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>Effect reachability</h2>
-        <p>
-          Assertions such as <code>@no_syscall</code>,
-          {' '}<code>@no_block</code>, <code>@deterministic</code>, and
-          {' '}<code>@budget</code> are checked across reachable calls, imported
-          seeds, handles, and interface dispatch.
-        </p>
-        <a href="/docs/effects">Effects and contracts →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>Causal bus contracts</h2>
-        <p>
-          <code>causes:</code> follows outward influence across publishes.
-          <code>depends:</code> walks backward through subscriptions and
-          republishers to check the complete set that may reach a locus
-          {' '}<em>over the bus graph</em>, including through a republisher in
-          another library. Influence that travels outside the bus is not
-          part of that closure.
-        </p>
-        <a href="/docs/effects">Causality contracts →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>System claims</h2>
-        <p>
-          Groups name the domains; the main locus states the law:
-          {' '}<code>forbid reaches</code>, <code>only edges</code> grants,
-          {' '}<code>require</code>/<code>cover</code>/<code>count</code>,
-          interposition via <code>avoiding</code>, and capability bounds.
-          Violations are errors with countermodels, and the checked model
-          exports as a diffable artifact under a shape hash.
-        </p>
-        <a href="/articles/claims-in-hale">Claims →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>One claimset, many worlds</h2>
-        <p>
-          A claim is evaluated in a closed world, so law used to be copied
-          into every entrypoint. A <code>constitution</code> moves the
-          authorship without moving the evaluation: each adopting main still
-          proves it in its own world. Composition only ever adds: a stricter
-          rule is a second clause, never a replacement, and identity follows
-          the normalized closure, so a shared name is not mistaken for a
-          shared claimset.
-        </p>
-        <a href="/articles/constitutions-in-hale">Constitutions in Hale →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>Across binaries</h2>
-        <p>
-          Sealed application artifacts compose into one deployment model.
-          A plan names deployed instances and the routes between them, and
-          law that no single binary can state, every order path crosses
-          risk, exactly one deployed publisher, is checked over the
-          arrangement. Composition takes artifacts, never merged source:
-          matching wire identities establish compatibility, and only an
-          explicit route creates an edge.
-        </p>
-        <a href="/docs/services/multi-binary">Across binaries →</a>
-      </article>
-
-      <article>
-        <span>compiler</span>
-        <h2>State a caller cannot reach</h2>
-        <p>
-          A locus marked <code>@sealed</code> keeps its params to itself:
-          others may call it, not read or write it. Loci are not otherwise
-          encapsulated at the field level, so this is what makes
-          confinement a fact the compiler knows rather than one you verify
-          by reading. The library's key holders take the <em>name</em> of a
-          source rather than the bytes, so no line of application code
-          holds the material.
-        </p>
-        <p>
-          The law is then ordinary: one classified operation, and claims
-          that say who may reach it and how often. Two verbs quantify over
-          the whole program rather than a path, every locus in a group
-          confined, every boundary crossing naming a purpose, so code
-          written next month is covered without editing the claim.
-        </p>
-        <p>
-          Confinement, not information flow: a value derived from the key
-          is not tracked, and a constant-time compare still lets the
-          verdict be published. Both limits are stated in the
-          specification.
-        </p>
-        <a href="/docs/verification#secrets-confine-classify-claim">Confine, classify, claim →</a>
-      </article>
-
-      <article>
-        <span>runtime + compiler</span>
-        <h2>Structural lifetime</h2>
-        <p>
-          Loci own regions and children. The compiler enforces managed-entity
-          rules; the runtime dissolves the owned structure deterministically
-          and reports residency when growth needs inspection.
-        </p>
-        <a href="/docs/systems/memory">Memory and lifetime →</a>
-      </article>
-
-      <article>
-        <span>runtime</span>
-        <h2>Supervised failure</h2>
-        <p>
-          Lifecycle failures travel to an owning parent. Binding startup
-          failures refuse birth instead of installing a route that silently
-          accepts and drops messages.
-        </p>
-        <a href="/docs/services/failure">Failure and supervision →</a>
-      </article>
-
-      <article>
-        <span>CI</span>
-        <h2>Concurrent substrate</h2>
-        <p>
-          Models of the runtime's synchronization protocols are model-checked
-          under permitted thread interleavings in CI. This narrows the trusted
-          base beneath queues, mailboxes, maps, and arenas, without emptying
-          it.
-        </p>
-        <a href="#substrate">What the models do and do not establish →</a>
-      </article>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th scope="col">who checks</th><th scope="col">what</th><th scope="col">how</th><th scope="col"></th></tr></thead>
+      <tbody>
+        <tr><td class="who">compiler</td><td>Typed bus topology</td><td class="wrap">Topic declarations fix the payload type and the publish and subscribe authority. The compiler inspects the closed-world graph for orphaned subjects, impossible handlers, routing-policy errors and re-entrant cycles.</td><td class="go"><a href="/docs/services/bus">bus →</a></td></tr>
+        <tr><td class="who">compiler</td><td>Effect reachability</td><td class="wrap"><code>@no_syscall</code>, <code>@no_block</code>, <code>@deterministic</code> and <code>@budget</code> are checked across reachable calls, imported seeds, handles and interface dispatch.</td><td class="go"><a href="/docs/effects">effects →</a></td></tr>
+        <tr><td class="who">compiler</td><td>Causal bus contracts</td><td class="wrap"><code>causes:</code> follows outward influence across publishes. <code>depends:</code> walks backward through subscriptions and republishers to check the complete set that may reach a locus over the bus graph, including through a republisher in another library. Influence that travels outside the bus is not part of that closure.</td><td class="go"><a href="/docs/effects">causality →</a></td></tr>
+        <tr><td class="who">compiler</td><td>System claims</td><td class="wrap">Groups name the domains; the main locus states the law: <code>forbid reaches</code>, <code>only edges</code>, <code>require</code>, <code>cover</code>, <code>count</code>, interposition with <code>avoiding</code>, and capability bounds. Violations are errors with countermodels, and the checked model exports as a diffable artifact under a shape hash.</td><td class="go"><a href="/articles/claims-in-hale">claims →</a></td></tr>
+        <tr><td class="who">compiler</td><td>One claimset, many worlds</td><td class="wrap">A claim is evaluated in a closed world, so law used to be copied into every entry point. A <code>constitution</code> moves the authorship without moving the evaluation: each adopting main still proves it in its own world. Composition only adds. Identity follows the normalized closure, so a shared name is not mistaken for a shared claimset.</td><td class="go"><a href="/articles/constitutions-in-hale">constitutions →</a></td></tr>
+        <tr><td class="who">compiler</td><td>Across binaries</td><td class="wrap">Sealed application artifacts compose into one deployment model. A plan names deployed instances and the routes between them, and law that no single binary can state is checked over the arrangement. Composition takes artifacts, never merged source. Matching wire identities establish compatibility, and only an explicit route creates an edge.</td><td class="go"><a href="/docs/services/multi-binary">binaries →</a></td></tr>
+        <tr><td class="who">compiler</td><td>State a caller cannot reach</td><td class="wrap">A locus marked <code>@sealed</code> keeps its params to itself: others may call it and cannot read or write it. Loci are not otherwise encapsulated at the field level, so this is what makes confinement a fact the compiler knows. The library's key holders take the name of a source and never the bytes, so no line of application code holds the material. The check covers confinement and leaves information flow out: a value derived from the key is not tracked, and a constant-time compare still lets the verdict be published. Both limits are stated in the specification.</td><td class="go"><a href="/docs/verification#secrets-confine-classify-claim">secrets →</a></td></tr>
+        <tr><td class="who">runtime + compiler</td><td>Structural lifetime</td><td class="wrap">Loci own regions and children. The compiler enforces the managed-entity rules; the runtime dissolves the owned structure deterministically and reports residency when growth needs inspection.</td><td class="go"><a href="/docs/systems/memory">memory →</a></td></tr>
+        <tr><td class="who">runtime</td><td>Supervised failure</td><td class="wrap">Lifecycle failures travel to an owning parent. A binding that fails to start refuses birth, so no route is installed that accepts and drops messages.</td><td class="go"><a href="/docs/services/failure">failure →</a></td></tr>
+        <tr><td class="who">ci</td><td>Concurrent substrate</td><td class="wrap">Models of the runtime's synchronization protocols are model-checked under permitted thread interleavings in CI. This narrows the trusted base beneath queues, mailboxes, maps and arenas, without emptying it.</td><td class="go"><a href="#substrate">the models →</a></td></tr>
+      </tbody>
+    </table>
     </div>
 
-    <div class="proof-detail">
+    <div class="witness" style="margin-top:var(--s12)">
       <div>
-        <p class="eyebrow">operational witness</p>
         <h2>The diagnostic names the call path.</h2>
-        <p>
-          A hard rule is useful only when a rejection shows how the forbidden
-          behavior became reachable.
-        </p>
+        <p>A hard rule is useful only when a rejection shows how the forbidden behaviour became reachable.</p>
       </div>
-      <Hale code={effectDiagnostic} title="hale check" />
+      <Hale code={effectDiagnostic} title="hale check" kind="effect witness" lang="text" />
     </div>
 
-    <div class="proof-detail rev">
-      <Hale code={dependencyDiagnostic} title="hale check" />
+    <div class="witness">
       <div>
-        <p class="eyebrow">architectural witness</p>
         <h2>The path continues through the broker.</h2>
-        <p>
-          Local inspection cannot see a dependency hidden behind a republisher.
-          The bus graph can, and the witness should name every step.
-        </p>
+        <p>Local inspection cannot see a dependency hidden behind a republisher. The bus graph can, and the witness names every step.</p>
       </div>
+      <Hale code={dependencyDiagnostic} title="hale check" kind="dependency witness" lang="text" />
     </div>
 
-    <div class="proof-detail">
+    <div class="witness">
       <div>
-        <p class="eyebrow">system witness</p>
         <h2>The law names its countermodel.</h2>
-        <p>
-          A bundle-level claim quantifies over every represented path. When
-          the assembled graph escapes its declared law, the diagnostic
-          returns the route, calls and message hops, that makes the
-          sentence false.
-        </p>
+        <p>A claim quantifies over every represented path. A graph that escapes its declared law gets a diagnostic with the route, calls and message hops, that makes the sentence false.</p>
       </div>
-      <Hale code={claimDiagnostic} title="hale check" />
+      <Hale code={claimDiagnostic} title="hale check" kind="claim witness" lang="text" />
     </div>
 
-    <div class="proof-detail">
+    <div class="witness">
       <div>
-        <p class="eyebrow">deployment witness</p>
         <h2>The path is named across binaries.</h2>
-        <p>
-          The same sentence, one altitude up. Each component checked clean on
-          its own; the arrangement did not. The witness crosses artifacts,
-          naming every hop, the route that carries it, and the file each
-          vertex lives in, because a deployment defect is only actionable if
-          it says which config and which source to open.
-        </p>
+        <p>The same sentence, one scale out. Each component checked clean on its own; the arrangement did not. The witness crosses artifacts and names every hop, the route that carries it, and the file each vertex lives in, because a deployment defect is only actionable if it says which config and which source to open.</p>
       </div>
-      <Hale code={fleetWitness} title="hale fleet check" />
+      <Hale code={fleetWitness} title="hale fleet check" kind="fleet witness" lang="text" />
     </div>
 
-    <div class="contract-bar">
-      <div>
-        <p class="eyebrow">the bar for a certificate</p>
-        <h2>Unknown is not proven.</h2>
-      </div>
-      <div class="contract-states">
-        <span><b>Proven</b> the build may continue</span>
-        <span><b>Violated</b> fail with a witness</span>
-        <span><b>Unknown</b> fail closed for a hard contract</span>
-        <span><b>Unsupported</b> say exactly what cannot be checked</span>
-      </div>
+    <div class="prose wide" style="margin-top:var(--s12)">
+      <h2 style="margin-top:0">The four answers a check can give</h2>
+    </div>
+    <div class="states">
+      <div class="ok"><b>Proven</b><span>The build may continue.</span></div>
+      <div class="bad"><b>Violated</b><span>Fail, with a witness.</span></div>
+      <div class="unk"><b>Unknown</b><span>Fail closed, for a hard contract.</span></div>
+      <div><b>Unsupported</b><span>Say exactly what cannot be checked.</span></div>
     </div>
 
-    <div class="proof-detail">
+    <div class="witness" style="margin-top:var(--s12)">
       <div>
-        <p class="eyebrow">reproduce it</p>
         <h2>The checks ship with the language.</h2>
-        <p>
-          The command line, editor integration, CI, and MCP server all use the
-          compiler's structured diagnostics. The quickest evaluation is to run
-          the examples and make the compiler disagree with you.
-        </p>
+        <p>The command line, editor integration, CI and the MCP server all read the compiler's structured diagnostics. The quickest evaluation is to run the examples and make the compiler disagree with you.</p>
       </div>
-      <Hale code={commands} title="toolchain" />
+      <Terminal code={commands} title="toolchain" kind="commands" />
     </div>
 
-    <section class="proof-detail proof-substrate" id="substrate">
-      <div>
-        <p class="eyebrow">what stays in the trusted base</p>
-        <h2>The model is a transcription, and that is a boundary.</h2>
-        <p>
-          Each <code>*_model.c</code> under <code>verification/</code> is a
-          hand-written transcription of one synchronization protocol, stripped
-          to its atomics. GenMC explores those models across permitted
-          interleavings on every substrate CI run, so a violation of the
-          synchronization logic is caught. What it does not do is check the
-          transcription against the C it was transcribed from: correspondence
-          is maintained by hand, and a model that still passes proves a
-          property of the runtime as it stood when the model was written.
-        </p>
-        <p>
-          The repository's own audit is the honest inventory, and it is public:
-          which atomics postdate their model, which primitive verifies only
-          under sequential consistency and reports a use-after-free under the
-          release-acquire model that matches the runtime's orderings, and which
-          code paths are not transcribed at all. Until drift is detected
-          mechanically and that counterexample is resolved, the claim is about
-          the models, not about the runtime by implication.
-        </p>
-        <a href="https://github.com/hale-lang/hale/blob/main/verification/README.md">
-          The verification audit, including its gaps →
-        </a>
-      </div>
-    </section>
-
-    <section class="proof-scope" aria-labelledby="proof-scope-heading">
-      <p class="eyebrow">the division of labor</p>
-      <h2 id="proof-scope-heading">Compile time certifies the structure. Runtime measures the world.</h2>
-      <div class="proof-scope-grid">
-        <article>
-          <h3>Proven before it runs</h3>
-          <p>
-            Reachability, topology, causality, cardinality, confinement, and
-            bounds, over every path in the closed world, not the ones a test
-            happened to take.
-          </p>
-        </article>
-        <article>
-          <h3>Measured while it runs</h3>
-          <p>
-            Birth, dissolve, publish, delivery, and transport evidence, emitted
-            by the observation plane and read against the same model the
-            compiler certified.
-          </p>
-        </article>
-        <article>
-          <h3>Carried between them</h3>
-          <p>
-            The topology artifact: a byte-reproducible record of the checked
-            model, signed and attested, so the fleet that runs is the fleet
-            that was certified.
-          </p>
-        </article>
-      </div>
-      <p class="proof-scope-note">
-        <a href="/docs/verification">The verification chapter</a> specifies the
-        analysis boundary: what closed world reasoning covers, and where a
-        budget is a source level bound.
+    <div class="prose" id="substrate" style="margin-top:var(--s12)">
+      <h2 style="margin-top:0">What stays in the trusted base</h2>
+      <p>
+        Each <code>*_model.c</code> under <code>verification/</code> is a
+        hand-written transcription of one synchronization protocol, stripped
+        to its atomics. GenMC explores those models across permitted
+        interleavings on every substrate CI run, so a violation of the
+        synchronization logic is caught. What it does not do is check the
+        transcription against the C it was transcribed from. Correspondence is
+        maintained by hand, and a model that still passes proves a property of
+        the runtime as it stood when the model was written.
       </p>
-    </section>
+      <p>
+        The repository's own audit is the inventory, and it is public: which
+        atomics postdate their model, which primitive verifies only under
+        sequential consistency and reports a use-after-free under the
+        release-acquire model that matches the runtime's orderings, and which
+        code paths are not transcribed at all. The claim is about the models
+        alone until drift is detected mechanically and that counterexample is
+        resolved.
+      </p>
+      <p><a href="https://github.com/hale-lang/hale/blob/main/verification/README.md">The verification audit, including its gaps →</a></p>
+
+      <h2>Compile time certifies the structure. Runtime measures the world.</h2>
+    </div>
+    <div class="grid4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <article><b>Proven before it runs</b><p>Reachability, topology, causality, cardinality, confinement and bounds, over every path in the closed world, including the ones no test takes.</p></article>
+      <article><b>Measured while it runs</b><p>Birth, dissolve, publish, delivery and transport evidence, emitted by the observation plane and read against the same model the compiler certified.</p></article>
+      <article><b>Carried between them</b><p>The topology artifact: a byte-reproducible record of the checked model, signed and attested, so the fleet that runs is the fleet that was certified.</p></article>
+    </div>
+    <div class="prose"><p style="margin-top:var(--s6)" class="muted"><a href="/docs/verification">The verification chapter</a> specifies the analysis boundary: what closed-world reasoning covers, and where a budget is a source-level bound.</p></div>
   </section>
 </Base>

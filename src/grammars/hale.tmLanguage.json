@@ -249,7 +249,7 @@
       "patterns": [
         {
           "name": "meta.annotation.hale",
-          "match": "@(form|ffi|locality)\\b",
+          "match": "@[A-Za-z_][A-Za-z0-9_]*\\b",
           "captures": {
             "0": {
               "name": "entity.name.function.decorator.hale"
