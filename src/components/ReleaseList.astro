@@ -1,0 +1,25 @@
+---
+/*
+  The compiler's recent releases, from its CHANGELOG headings
+  (src/generated/releases.json, written by scripts/sync-docs.mjs), with
+  how many the changelog lists and since when. A reader can see the
+  project is alive without anyone having to say so.
+*/
+import releases from '../generated/releases.json';
+
+interface Props { count?: number }
+const { count = 5 } = Astro.props;
+const fmt = (iso: string) =>
+  new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+const first = releases[releases.length - 1];
+---
+<p class="cadence">The changelog lists {releases.length} releases since {fmt(first.date)}. The latest:</p>
+<ol class="releases">
+  {releases.slice(0, count).map((r) => (
+    <li>
+      <a class="ver" href={`https://github.com/hale-lang/hale/releases/tag/v${r.version}`}>v{r.version}</a>
+      <span class="date">{fmt(r.date)}</span>
+      <span class="title">{r.title}</span>
+    </li>
+  ))}
+</ol>

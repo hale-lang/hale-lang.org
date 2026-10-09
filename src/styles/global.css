@@ -530,3 +530,44 @@ a.term[data-gloss]:hover::after, a.term[data-gloss]:focus-visible::after { displ
 
 /* a ruled list inside prose keeps its own edge */
 .prose .facts, .prose .nots { padding-left: 0; }
+
+/* ---------------- the thesis, and the Erlang answer ---------------- */
+.thesis { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s12); margin-top: var(--s12); padding-top: var(--s8); border-top: 1px solid var(--hair); }
+.thesis h3 { margin: 0 0 var(--s3); }
+.thesis p { color: var(--ink-2); margin: 0; }
+
+/* ---------------- what it rejects, what it misses, where it is slower ---------------- */
+.checks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s12); }
+.checks h3, .perf h3 { margin: 0 0 var(--s4); }
+.checks .facts li { grid-template-columns: 11rem minmax(0, 1fr); }
+.perf { margin-top: var(--s12); max-width: 52rem; }
+.perf .tbl td.num { font-family: var(--mono); font-size: 0.82rem; text-align: right; white-space: nowrap; color: var(--ink); }
+.perf .tbl th:not(:first-child) { text-align: right; }
+.perf .tbl td.faster { color: var(--jade); }
+.perf .tbl td.slower { color: var(--accent); }
+.perf .tbl td:first-child { font-weight: 400; white-space: normal; }
+.perf .tbl td:first-child code { font-size: 0.8rem; }
+
+/* ---------------- built in the open ---------------- */
+.cadence { color: var(--ink-2); margin: 0 0 var(--s3); }
+.releases { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.releases li { display: grid; grid-template-columns: 5.5rem 7.5rem minmax(0, 1fr); gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+.releases .ver { font-family: var(--mono); font-size: 0.86rem; text-decoration: none; }
+.releases .date { font-family: var(--mono); font-size: 0.76rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.releases .title { color: var(--ink); }
+.grid4.two { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; }
+.grid4.two > * { border-bottom: 1px solid var(--hair); }
+.grid4.two > *:nth-child(2n) { border-right: 0; }
+.grid4.two > *:nth-last-child(-n + 2) { border-bottom: 0; }
+
+@media (max-width: 1100px) {
+  .thesis, .checks { grid-template-columns: minmax(0, 1fr); gap: var(--s8); }
+}
+@media (max-width: 640px) {
+  .checks .facts li { grid-template-columns: minmax(0, 1fr); }
+  .releases li { grid-template-columns: 5.5rem minmax(0, 1fr); }
+  .releases .title { grid-column: 1 / -1; }
+  .grid4.two { grid-template-columns: minmax(0, 1fr); }
+  .grid4.two > * { border-right: 0; border-bottom: 1px solid var(--hair); }
+  .grid4.two > *:last-child { border-bottom: 0; }
+}

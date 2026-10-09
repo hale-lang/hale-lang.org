@@ -17,7 +17,7 @@ import { GROUPS, MATCH } from '../data/glossary.mjs';
 
 const GLOSS = Object.fromEntries(GROUPS.flatMap((g) => g.entries).map((e) => [e.id, e.gloss]));
 const SKIP_TAG = /^(a|b|strong|pre|code|h1|h2|h3|h4|h5|figure|figcaption|label|th|dt|button|title|svg|style|script|header|nav|footer|aside|select|option|textarea)$/;
-const SKIP_CLASS = /\b(gets|frame-meta|scale-label|rung|path|version|carried|install|listing-foot|states|tag|ev|smap|ptabs|dial|legend|ledger)\b/;
+const SKIP_CLASS = /\b(releases|cadence|gets|frame-meta|scale-label|rung|path|version|carried|install|listing-foot|states|tag|ev|smap|ptabs|dial|legend|ledger)\b/;
 const VOID = /^(br|hr|img|input|meta|link|path|circle|rect|line|use|stop|source|track|wbr|col|area|base|param|embed)$/;
 const attr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 

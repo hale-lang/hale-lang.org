@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
-
+import ReleaseList from '../components/ReleaseList.astro';
 ---
 <Base title="Community" description="Where Hale is built and how to take part.">
   <Field />
@@ -20,6 +20,8 @@ import Field from '../components/Field.astro';
         <li><b>Before you start</b><p>Read the <a href="/docs">guide</a> and the <a href="/docs/spec/styleguide">style guide</a>, and browse <a href="/packages">pond</a> for the library shapes to mirror.</p></li>
         <li><b>Not yet</b><p>A chat space and a formal contribution guide. Open an issue meanwhile. Early questions are welcome.</p></li>
       </ul>
+      <h2>Releases</h2>
+      <ReleaseList count={10} />
     </div>
   </section>
 </Base>
