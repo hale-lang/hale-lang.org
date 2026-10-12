@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 import glossTerms from './src/integrations/gloss.mjs';
 import { haleLight, haleDark, haleGrammar } from './src/code/themes.mjs';
 
@@ -80,6 +81,10 @@ export default defineConfig({
     '/why': '/model',
   },
   integrations: [
+    // Registered here so it can be filtered; Starlight adds its own only
+    // when none is present. The text-only copies under /text/ declare the
+    // styled page as canonical, so they stay out of the sitemap.
+    sitemap({ filter: (page) => !new URL(page).pathname.startsWith('/text/') }),
     textOnlyAssets(),
     glossTerms(),
     starlight({
