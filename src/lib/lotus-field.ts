@@ -4,8 +4,8 @@
  * Not a particle soup. Each lotus is a locus, each route a declared edge
  * between two of them, and every packet travels one route and makes the
  * receiving lotus pulse. The lotuses sit on the petal curves of one large
- * lotus, two layers deep, with a core and a cradle, so the field reads as
- * one structure made of small ones. Drawn in the page's own tokens
+ * lotus, two layers deep around a core, so the field reads as one
+ * structure made of small ones. Drawn in the page's own tokens
  * (--lotus-petal, --lotus-core, --lotus-line), so it follows the theme.
  *
  * Lifecycle: one still frame under reduced motion, no frames while the
@@ -45,11 +45,12 @@ function withAlpha(color, a) {
 }
 
 /* ---- scene: one large lotus, built from small ones ----
-   Nodes sit on the petal curves of a macro lotus (two layers), at its
-   core, and along its cradle. Routes trace the petal outlines, join
-   neighbouring petals at the base, tie the inner layer to the core,
-   and tie the core to the cradle. On a short, wide band the flower
-   opens flat: central petals rise, outer ones sweep to the sides. */
+   Nodes sit on the petal curves of a macro lotus (two layers) and at
+   its core. Routes trace the petal outlines, join neighbouring petals
+   at the base, and tie the inner layer and the outermost petals to the
+   core. The flower ends where its petals meet: a bowl or stem beneath
+   it read as a fleur-de-lis. On a short, wide band the flower opens
+   flat: central petals rise, outer ones sweep to the sides. */
 function build(W, H, seed) {
   var rnd = seeded(seed + Math.round(W) * 17 + Math.round(H) * 31);
   var short = H < 240, narrow = W < 560, mid = W < 900;
@@ -102,16 +103,7 @@ function build(W, H, seed) {
   var inner = layer(innerN, innerSpread, L * 0.62, 0.82, 0.9);
   inner.forEach(function (p) { add(p.l, core); });
   inner.forEach(function (p, i) { var o = outer[Math.round((i + 0.5) / inner.length * (outer.length - 1))]; if (o) add(p.r, o.l); });
-  if (!short) {
-    var Lc = L * 0.55, prev = -1, cradle = [];
-    for (var t = 0.1; t <= 0.91; t += 0.2) {
-      var u = 1 - t, cx = u*u*u*(-Lc) + 3*u*u*t*(-0.54*Lc) + 3*u*t*t*(0.54*Lc) + t*t*t*Lc, cy = u*u*u*(0.3*Lc) + 3*u*u*t*(1.0*Lc) + 3*u*t*t*(1.0*Lc) + t*t*t*(0.3*Lc);
-      var id = node(bx + cx, by + cy - L * 0.05, 7 + rnd() * 2, 0.6); cradle.push(id); if (prev >= 0) add(prev, id); prev = id;
-    }
-    add(cradle[0], outer[0].l); add(cradle[cradle.length - 1], outer[outer.length - 1].r); add(cradle[Math.floor(cradle.length / 2)], core);
-  } else {
-    add(outer[0].l, core); add(outer[outer.length - 1].r, core);
-  }
+  add(outer[0].l, core); add(outer[outer.length - 1].r, core);
   nodes.forEach(function (n) { n.x = clamp(n.x, 6, W - 6); n.y = clamp(n.y, 6, H + 30); });
   var packets = [], np = clamp(Math.round(edges.length * 0.4), 4, 26);
   for (var p = 0; p < np; p++) { var e = edges[Math.floor(rnd() * edges.length)]; if (!e) break; packets.push({ edge: e.id, dir: rnd() > 0.5 ? 1 : -1, t: rnd(), speed: 0.06 + rnd() * 0.09, size: 1.8 + rnd() * 1.6, shape: p % 3, phase: rnd() * TAU }); }
