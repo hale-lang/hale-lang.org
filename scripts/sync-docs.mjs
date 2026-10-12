@@ -4,7 +4,8 @@
 //   The Book  (hale/docs/src/*)  → /docs/*        the guided tour (primary)
 //   The Spec  (hale/spec/*.md)   → /docs/spec/*   the canonical reference
 //
-// Injects Starlight frontmatter (title from the first H1, then strips it)
+// Injects Starlight frontmatter (title from the first H1, then strips it;
+// description from the first paragraph of prose)
 // and rewrites in-repo markdown links to site paths (or GitHub for
 // non-doc files). Also generates the Starlight sidebar from the Book's
 // SUMMARY.md (src/generated/book-sidebar.json, read by astro.config.mjs)
@@ -51,6 +52,48 @@ function rewriteLinks(body, fileRepoPath) {
   });
 }
 
+// A page's description, the snippet search engines and agents show for it:
+// its opening prose as plain text, cut at a word near 160 characters.
+// Without one, Starlight gives every docs page the site's single
+// description, and every search result for the docs reads the same.
+function describe(md, title) {
+  const paras = [];
+  let para = [], fence = false;
+  const flush = () => { if (para.length) { paras.push(para.join(' ')); para = []; } };
+  for (const line of md.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) { fence = !fence; flush(); continue; }
+    if (fence) continue;
+    // a quoted line counts: a page that opens on a callout is introduced by it
+    const t = line.trim().replace(/^>\s?/, '').trim();
+    // a blank line ends a paragraph; headings, tables, lists, asides,
+    // HTML, images, rules and link definitions are not prose
+    if (!t || /^(#|\||[-*+] |\d+[.)] |<|!\[|:::|---|\*\*\*|\[[^\]]+\]:)/.test(t)) {
+      flush();
+      if (paras.join(' ').length >= 80) break;
+      continue;
+    }
+    para.push(t);
+  }
+  flush();
+  let text = '';
+  for (const p of paras) { text = text ? `${text} ${p}` : p; if (text.length >= 80) break; }
+  text = text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\s][^*]*)\*/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return `${title}, in the Hale programming language documentation.`;
+  if (text.length > 160) {
+    const cut = text.slice(0, 157);
+    text = cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:.\s(—-]+$/, '') + '…';
+  }
+  return text;
+}
+
 async function convert(srcFile, repoPath, destFile, note) {
   let raw = await readFile(srcFile, 'utf8');
   const m = raw.match(/^#\s+(.+)$/m);
@@ -63,7 +106,8 @@ async function convert(srcFile, repoPath, destFile, note) {
   // token as the language name, finds none, and renders the block
   // plain; here the tag is meaningless, so the fence becomes `hale`.
   const body = rewriteLinks(raw, repoPath).replace(/^(\s*```)hale(?:,[\w-]+)+[ \t]*$/gm, '$1hale');
-  const fm = `---\ntitle: "${title}"\n---\n\n${note ? note + '\n\n' : ''}`;
+  const description = JSON.stringify(describe(raw, title.replace(/\\"/g, '"')));
+  const fm = `---\ntitle: "${title}"\ndescription: ${description}\n---\n\n${note ? note + '\n\n' : ''}`;
   await mkdir(dirname(destFile), { recursive: true });
   await writeFile(destFile, fm + body);
 }
