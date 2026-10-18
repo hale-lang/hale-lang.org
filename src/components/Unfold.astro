@@ -128,15 +128,16 @@ locus Supervisor {
     panel stays the four interesting lines. Nothing renders it.
   */
   { title: 'claims.hl',
-    prelude: `topic Tasks { payload: Int; }
+    prelude: `type Task { n: Int; }
+topic Tasks { payload: Task; }
 
 locus Planner {
     bus { publish Tasks; }
-    fn plan(n: Int) { Tasks <- n; }
+    fn plan(n: Int) { Tasks <- Task { n: n }; }
 }
 locus Worker {
     bus { subscribe Tasks as take; }
-    fn take(n: Int) { }
+    fn take(t: Task) { }
 }
 locus Auditor {
     fn record(n: Int) { }
@@ -154,18 +155,19 @@ main locus Fleet {
     }
 }` },
   { title: 'constitution.hl',
-    prelude: `topic Settled { payload: Int; }
+    prelude: `type Settlement { n: Int; }
+topic Settled { payload: Settlement; }
 
 locus Billing {
     bus { publish Settled; }
-    fn settle(n: Int) { Settled <- n; }
+    fn settle(n: Int) { Settled <- Settlement { n: n }; }
 }
 locus Research {
     fn study(n: Int) { }
 }
 locus Ledger {
     bus { subscribe Settled as post; }
-    fn post(n: Int) { }
+    fn post(s: Settlement) { }
 }
 `,
     code: `group billing  = { Billing };

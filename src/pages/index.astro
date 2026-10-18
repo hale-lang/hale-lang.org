@@ -85,6 +85,9 @@ const diagnosticMarks = { warn: [1, 7] };
 
 const perfDate = new Date(perf.date + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
 
+// Offstage context for the supervision panel: checked, never rendered.
+const failure_prelude = `locus Worker { }
+`;
 const failure = `locus WorkerPool {
     accept(c: Worker) { }
 
