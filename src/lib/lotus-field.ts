@@ -32,7 +32,16 @@ function tangent(a, c, b, t) { return { x: 2*(1-t)*(c.x-a.x) + 2*t*(b.x-c.x), y:
 function ink() {
   var cs = getComputedStyle(document.documentElement);
   var v = function (n) { return cs.getPropertyValue(n).trim(); };
-  return { line: v('--lotus-line') || '#5fa68a', petal: v('--ink-3') || '#8a7e72', accent: v('--lotus-petal') || '#d04a86', violet: v('--lotus-petal-2') || '#7b5bd6', core: v('--lotus-core') || '#d39a2b', ink: v('--ink') || '#1c1814' };
+  var dark = document.documentElement.dataset.theme !== 'light';
+  return {
+    line: v('--lotus-line') || '#00f5c4',
+    petal: v('--ink-3') || '#607699',
+    accent: v('--lotus-petal') || '#00e5ff',
+    violet: v('--lotus-petal-2') || '#b084ff',
+    core: v('--lotus-core') || '#ffca58',
+    ink: v('--ink') || '#eef5ff',
+    dark: dark,
+  };
 }
 function withAlpha(color, a) {
   var c = color.trim();
@@ -120,31 +129,43 @@ function petal(ctx, r, w) {
 }
 function drawLotus(ctx, n, p, t, col) {
   var d = n.depth, breath = 1 + Math.sin(t * 0.62 + n.phase) * 0.03, rec = clamp(n.energy, 0, 1), r = n.radius * breath;
-  var fade = 0.35 + d * 0.65, hc = n.hue ? col.violet : col.accent;
+  var fade = 0.38 + d * 0.62, hc = n.hue ? col.violet : col.accent;
   ctx.save(); ctx.translate(p.x, p.y);
+  if (col.dark && r > 9) {
+    var glowR = r * (1.25 + rec * 0.55);
+    var g = ctx.createRadialGradient(0, 0, 0, 0, 0, glowR);
+    g.addColorStop(0, withAlpha(hc, (0.14 + rec * 0.16) * fade));
+    g.addColorStop(1, withAlpha(hc, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, glowR, 0, TAU); ctx.fill();
+  }
   if (n.orbit && r > 13) {
-    ctx.strokeStyle = withAlpha(col.line, 0.55 * fade); ctx.lineWidth = 0.7; ctx.setLineDash([r * 0.12, r * 0.17]); ctx.lineDashOffset = -t * 2.2 - n.phase * 3;
+    ctx.strokeStyle = withAlpha(col.line, 0.6 * fade); ctx.lineWidth = 0.75; ctx.setLineDash([r * 0.12, r * 0.17]); ctx.lineDashOffset = -t * 2.2 - n.phase * 3;
     ctx.beginPath(); ctx.arc(0, 0, r * 1.32, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = withAlpha(col.petal, 0.7 * fade);
+    ctx.fillStyle = withAlpha(col.petal, 0.75 * fade);
     [[0, -1.55], [1.55, 0], [0, 1.55], [-1.55, 0]].forEach(function (pp) { ctx.beginPath(); ctx.arc(pp[0] * r, pp[1] * r, 1.3, 0, TAU); ctx.fill(); });
   }
   var layers = r < 14 ? 2 : 3;
   for (var L = 0; L < layers; L++) {
     var count = Math.max(3, n.petals - L * 2), lr = r * (1 - L * 0.25), w = lr * (0.55 - L * 0.05);
-    ctx.lineWidth = clamp(r * (0.045 - L * 0.006), 0.6, 1.4);
-    ctx.strokeStyle = withAlpha(L === 2 ? col.petal : hc, (L === 0 ? 0.7 : L === 1 ? 0.5 + rec * 0.3 : 0.5) * fade);
+    ctx.lineWidth = clamp(r * (0.048 - L * 0.006), 0.65, 1.45);
+    ctx.strokeStyle = withAlpha(L === 2 ? col.petal : hc, (L === 0 ? 0.78 : L === 1 ? 0.55 + rec * 0.3 : 0.52) * fade);
     for (var pi = 0; pi < count; pi++) { var spread = count === 1 ? 0 : pi / (count - 1) - 0.5; ctx.save(); ctx.rotate(spread * Math.PI * 0.84); petal(ctx, lr, w); ctx.stroke(); ctx.restore(); }
   }
-  ctx.strokeStyle = withAlpha(col.line, (0.7 + rec * 0.2) * fade); ctx.lineWidth = clamp(r * 0.048, 0.6, 1.4);
+  ctx.strokeStyle = withAlpha(col.line, (0.75 + rec * 0.2) * fade); ctx.lineWidth = clamp(r * 0.05, 0.65, 1.45);
   ctx.beginPath(); ctx.moveTo(-r * 1.02, r * 0.37); ctx.bezierCurveTo(-r * 0.54, r * 1.1, r * 0.54, r * 1.1, r * 1.02, r * 0.37); ctx.stroke();
-  ctx.fillStyle = withAlpha(col.core, (0.85 + rec * 0.15) * fade); ctx.beginPath(); ctx.arc(0, r * 0.1, clamp(r * 0.16, 1.8, 4.5), 0, TAU); ctx.fill();
-  if (rec > 0.02) { ctx.strokeStyle = withAlpha(hc, rec * 0.8 * fade); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, r * (1.3 + (1 - rec) * 0.9), 0, TAU); ctx.stroke(); }
+  ctx.fillStyle = withAlpha(col.core, (0.88 + rec * 0.12) * fade); ctx.beginPath(); ctx.arc(0, r * 0.1, clamp(r * 0.16, 1.8, 4.5), 0, TAU); ctx.fill();
+  if (rec > 0.02) { ctx.strokeStyle = withAlpha(hc, rec * 0.85 * fade); ctx.lineWidth = 1.1; ctx.beginPath(); ctx.arc(0, 0, r * (1.3 + (1 - rec) * 0.9), 0, TAU); ctx.stroke(); }
   ctx.restore();
 }
 function drawPacket(ctx, pk, pt, ang, col, fade, hc) {
   ctx.save(); ctx.translate(pt.x, pt.y); ctx.rotate(ang);
-  ctx.fillStyle = withAlpha(hc, 0.95 * fade); ctx.strokeStyle = withAlpha(hc, 0.95 * fade); ctx.lineWidth = 1;
   var s = pk.size;
+  if (col.dark) {
+    ctx.fillStyle = withAlpha(hc, 0.22 * fade);
+    ctx.beginPath(); ctx.arc(0, 0, s * 2.1, 0, TAU); ctx.fill();
+  }
+  ctx.fillStyle = withAlpha(hc, 0.95 * fade); ctx.strokeStyle = withAlpha(hc, 0.95 * fade); ctx.lineWidth = 1;
   if (pk.shape === 0) { ctx.beginPath(); ctx.arc(0, 0, s * 0.7, 0, TAU); ctx.fill(); }
   else if (pk.shape === 1) { ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.72, 0); ctx.lineTo(0, s); ctx.lineTo(-s * 0.72, 0); ctx.closePath(); ctx.fill(); }
   else { ctx.beginPath(); ctx.arc(0, 0, s * 0.75, 0, TAU); ctx.stroke(); }
@@ -166,6 +187,8 @@ function step(sc, dt) {
 }
 function draw(ctx, sc, t, col, cam) {
   ctx.clearRect(0, 0, sc.W, sc.H);
+  ctx.save();
+  if (col.dark) ctx.globalCompositeOperation = 'lighter';
   var project = function (p, depth) { return { x: (p.x - sc.W / 2) * cam.zoom + sc.W / 2 + cam.x * depth, y: (p.y - sc.H / 2) * cam.zoom + sc.H / 2 + cam.y * depth }; };
   sc.stars.forEach(function (s) { var tw = 0.5 + 0.5 * Math.sin(t * 0.7 + s.phase) * Math.sin(t * 0.7 + s.phase); var p = project(s, s.depth); ctx.fillStyle = withAlpha(col.petal, s.a * tw); ctx.beginPath(); ctx.arc(p.x, p.y, s.r, 0, TAU); ctx.fill(); });
   var order = sc.edges.slice().sort(function (a, b) { return a.depth - b.depth; });
@@ -177,6 +200,7 @@ function draw(ctx, sc, t, col, cam) {
   });
   sc.nodes.slice().sort(function (a, b) { return a.depth - b.depth; }).forEach(function (n) { drawLotus(ctx, n, project(n, n.depth), t, col); });
   sc.packets.forEach(function (pk) { var e = sc.edges[pk.edge], a = project(sc.nodes[e.a], e.depth), b = project(sc.nodes[e.b], e.depth), c = project(e.c, e.depth), tt = clamp(pk.t, 0, 1), pt = q(a, c, b, tt), tg = tangent(a, c, b, tt); drawPacket(ctx, pk, pt, Math.atan2(tg.y, tg.x), col, 0.35 + e.depth * 0.65, col.core); });
+  ctx.restore();
 }
 
 /* ---- lifecycle ---- */

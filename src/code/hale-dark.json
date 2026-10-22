@@ -2,9 +2,9 @@
   "name": "hale-dark",
   "type": "dark",
   "colors": {
-    "editor.background": "#1b171e",
-    "editor.foreground": "#f1eae0",
-    "editor.selectionBackground": "#241f28"
+    "editor.background": "#040813",
+    "editor.foreground": "#eef5ff",
+    "editor.selectionBackground": "#102244"
   },
   "tokenColors": [
     {
@@ -15,7 +15,7 @@
         "punctuation.definition.comment"
       ],
       "settings": {
-        "foreground": "#8c8396",
+        "foreground": "#5c7399",
         "fontStyle": "italic"
       }
     },
@@ -28,7 +28,7 @@
         "string.quoted.double.json"
       ],
       "settings": {
-        "foreground": "#ffb07a"
+        "foreground": "#7df4ff"
       }
     },
     {
@@ -36,7 +36,7 @@
         "string.quoted.time.hale"
       ],
       "settings": {
-        "foreground": "#ffd28a"
+        "foreground": "#ffca58"
       }
     },
     {
@@ -45,7 +45,7 @@
         "constant.numeric.json"
       ],
       "settings": {
-        "foreground": "#ffd28a"
+        "foreground": "#ffca58"
       }
     },
     {
@@ -54,7 +54,7 @@
         "entity.name.function.decorator"
       ],
       "settings": {
-        "foreground": "#ffd28a",
+        "foreground": "#00e5ff",
         "fontStyle": "bold"
       }
     },
@@ -67,7 +67,7 @@
         "keyword.other"
       ],
       "settings": {
-        "foreground": "#b39bff",
+        "foreground": "#b084ff",
         "fontStyle": "bold"
       }
     },
@@ -76,7 +76,7 @@
         "keyword.operator"
       ],
       "settings": {
-        "foreground": "#f1eae0"
+        "foreground": "#9bb0d1"
       }
     },
     {
@@ -84,7 +84,7 @@
         "keyword.operator.send.hale"
       ],
       "settings": {
-        "foreground": "#ff8fa5",
+        "foreground": "#ff4d88",
         "fontStyle": "bold"
       }
     },
@@ -96,7 +96,7 @@
         "constant.other.hale"
       ],
       "settings": {
-        "foreground": "#ff8fa5",
+        "foreground": "#ff4d88",
         "fontStyle": "bold"
       }
     },
@@ -108,7 +108,7 @@
         "support.type.property-name.json"
       ],
       "settings": {
-        "foreground": "#59f2cf"
+        "foreground": "#00f5c4"
       }
     },
     {
@@ -118,7 +118,7 @@
         "support.function"
       ],
       "settings": {
-        "foreground": "#7fb2ff"
+        "foreground": "#52a8ff"
       }
     },
     {
@@ -128,7 +128,7 @@
         "punctuation"
       ],
       "settings": {
-        "foreground": "#f1eae0"
+        "foreground": "#eef5ff"
       }
     }
   ]

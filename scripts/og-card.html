@@ -18,19 +18,19 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@600;700&display=swap">
 <style>
-  /* The site's dark palette (src/styles/tokens.css): plum-black ground, a
-     rose and gold wash, warm ink. */
+  /* The site's Dark Technofuturism palette (src/styles/tokens.css):
+     obsidian ground, cyan & violet bioluminescent nebula, ice-white ink. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1280px; height: 640px; }
   body {
     background:
-      radial-gradient(55% 70% at 74% 22%, rgba(255, 143, 165, 0.14), transparent 70%),
-      radial-gradient(45% 60% at 18% 88%, rgba(255, 210, 138, 0.1), transparent 70%),
-      #131015;
-    color: #f1eae0;
-    font-family: 'Literata', Georgia, serif;
+      radial-gradient(55% 70% at 74% 22%, rgba(0, 229, 255, 0.16), transparent 70%),
+      radial-gradient(45% 60% at 18% 88%, rgba(176, 132, 255, 0.14), transparent 70%),
+      #03060e;
+    color: #eef5ff;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -40,10 +40,20 @@
     -webkit-font-smoothing: antialiased;
   }
   .mark { display: flex; align-items: center; gap: 24px; }
-  .mark img { width: 92px; height: 92px; flex: none; }
-  .name { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 76px; font-weight: 500; letter-spacing: 0.01em; line-height: 1; }
-  .tag { margin-top: 40px; font-size: 64px; font-weight: 500; line-height: 1.08; letter-spacing: -0.02em; }
-  .sub { margin-top: 22px; font-size: 30px; line-height: 1.35; color: #b3a89c; max-width: 34ch; }
+  .mark img { width: 92px; height: 92px; flex: none; filter: drop-shadow(0 0 18px rgba(0, 229, 255, 0.45)); }
+  .name { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 76px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
+  .tag {
+    margin-top: 40px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #ffffff 0%, #d8f8ff 55%, #00e5ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .sub { margin-top: 22px; font-size: 30px; line-height: 1.38; color: #9bb0d1; max-width: 34ch; }
   .foot {
     position: absolute;
     left: 0;
@@ -51,8 +61,8 @@
     bottom: 58px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 24px;
-    color: #ffd28a;
-    letter-spacing: 0.04em;
+    color: #00e5ff;
+    letter-spacing: 0.06em;
   }
 </style>
 </head>

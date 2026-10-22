@@ -1,15 +1,9 @@
 /* ============================================================
-   The docs, in the site's design.
+   The docs, in the site's Dark Technofuturism design.
 
    Starlight's palette is mapped onto the same tokens the rest of the
    site uses (tokens.css), in both themes, so a reader who moves from a
-   page to the guide sees one design. Starlight resolves data-theme with
-   its own pre-paint script and the shared header's toggle writes the
-   same key, so the tokens and Starlight's layer always agree.
-
-   Starlight's dark scale runs white (text) to black (ground); its light
-   scale runs the other way. Mapping each step to a token by role, ink to
-   paper, keeps the meaning right in both.
+   page to the guide sees one cohesive architecture.
    ============================================================ */
 @import './tokens.css';
 @import './nav.css';
@@ -17,7 +11,7 @@
 :root,
 :root[data-theme='light'],
 :root[data-theme='dark'] {
-  --sl-font: var(--serif);
+  --sl-font: var(--sans);
   --sl-font-mono: var(--mono);
 
   --sl-color-white: var(--ink);
@@ -32,15 +26,15 @@
 
   --sl-color-accent-low: var(--accent-soft);
   --sl-color-accent: var(--accent);
-  --sl-color-accent-high: var(--accent);
+  --sl-color-accent-high: var(--accent-bright);
   --sl-color-text: var(--ink);
   --sl-color-text-accent: var(--accent);
   --sl-color-text-invert: var(--paper);
 
   --sl-color-bg: var(--paper);
-  --sl-color-bg-nav: var(--paper);
-  --sl-color-bg-sidebar: var(--paper);
-  --sl-color-bg-inline-code: var(--paper-2);
+  --sl-color-bg-nav: rgba(3, 6, 14, 0.85);
+  --sl-color-bg-sidebar: rgba(4, 8, 19, 0.72);
+  --sl-color-bg-inline-code: var(--accent-soft);
   --sl-color-bg-accent: var(--accent);
   --sl-color-hairline-light: var(--hair);
   --sl-color-hairline: var(--hair);
@@ -49,16 +43,137 @@
   --sl-nav-height: var(--nav-h);
 }
 
-/* Code exactly as typed: no ligature turns != or -> into one glyph. */
-.expressive-code pre, .expressive-code code, .sl-markdown-content code { font-feature-settings: 'liga' 0, 'calt' 0; }
+:root[data-theme='light'] {
+  --sl-color-bg-nav: rgba(244, 248, 253, 0.88);
+  --sl-color-bg-sidebar: rgba(232, 240, 250, 0.65);
+}
 
-/* Headings in the site's serif, at its weights. */
-.sl-markdown-content :is(h1, h2, h3, h4) { font-weight: 500; letter-spacing: -0.015em; }
-.sl-markdown-content h3 { font-style: italic; font-weight: 400; }
-.sl-markdown-content code:not(pre code) { font-size: 0.86em; }
+body {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse 75% 40% at 55% -10%, rgba(0, 229, 255, 0.07), transparent 70%),
+    linear-gradient(to right, rgba(96, 165, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(96, 165, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+  background-attachment: scroll, fixed, fixed;
+}
+
+header.header {
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid var(--hair-2);
+}
+
+/* Code exactly as typed: no ligature turns != or -> into one glyph. */
+.expressive-code pre, .expressive-code code, .sl-markdown-content code {
+  font-feature-settings: 'liga' 0, 'calt' 0;
+}
+
+.expressive-code .frame {
+  border-radius: var(--radius);
+  box-shadow: var(--glow-panel);
+}
+
+/* Headings in Space Grotesk display font — clean geometric precision, no italics. */
+.sl-markdown-content :is(h1, h2, h3, h4, h5) {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-style: normal;
+  color: var(--ink);
+}
+
+h1#_top {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #ffffff 0%, #e2faff 58%, #52ebff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+:root[data-theme='light'] h1#_top {
+  background: linear-gradient(135deg, #061024 0%, #0d2a5c 60%, #0077a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sl-markdown-content h2 {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+.sl-markdown-content code:not(pre code) {
+  font-size: 0.85em;
+  color: var(--accent-bright);
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 229, 255, 0.16);
+  padding: 0.1em 0.36em;
+  border-radius: 4px;
+}
+:root[data-theme='light'] .sl-markdown-content code:not(pre code) {
+  color: var(--accent);
+  border-color: rgba(0, 119, 168, 0.22);
+}
+
+/* Markdown tables in the docs */
+.sl-markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--hair-2);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  overflow: hidden;
+  font-size: 0.92rem;
+}
+.sl-markdown-content th {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--hair-2);
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+}
+.sl-markdown-content td {
+  border-bottom: 1px solid var(--hair);
+  padding: 0.6rem 0.85rem;
+  color: var(--ink-2);
+  vertical-align: top;
+}
+.sl-markdown-content td:first-child {
+  color: var(--ink);
+}
+
+/* Sidebar active item glow */
+.sidebar-content a[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+  border-left: 2px solid var(--accent);
+  font-weight: 600;
+}
+:root[data-theme='light'] .sidebar-content a[aria-current='page'] {
+  color: var(--accent);
+}
+
+.sidebar-content summary .large {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Asides / admonitions */
+.starlight-aside {
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  box-shadow: var(--glow-panel);
+}
 
 /* The synced-from-source note at the top of a page: quiet. */
-.sl-markdown-content blockquote:first-of-type { font-size: 0.85rem; opacity: 0.8; }
+.sl-markdown-content blockquote:first-of-type { font-size: 0.85rem; opacity: 0.85; }
 
 /* Starlight's header bar owns the height; the shared component fills it. */
 .site-header { height: 100%; }
