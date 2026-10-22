@@ -64,7 +64,7 @@ function describe(md, title) {
     if (/^\s*(```|~~~)/.test(line)) { fence = !fence; flush(); continue; }
     if (fence) continue;
     // a quoted line counts: a page that opens on a callout is introduced by it
-    const t = line.trim().replace(/^>\s?/, '').trim();
+    const t = line.trim().replace(/^>\s?/, '').replace(/^\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, '').trim();
     // a blank line ends a paragraph; headings, tables, lists, asides,
     // HTML, images, rules and link definitions are not prose
     if (!t || /^(#|\||[-*+] |\d+[.)] |<|!\[|:::|---|\*\*\*|\[[^\]]+\]:)/.test(t)) {
@@ -105,7 +105,29 @@ async function convert(srcFile, repoPath, destFile, note) {
   // the compiler refuses on purpose). Expressive Code reads the whole
   // token as the language name, finds none, and renders the block
   // plain; here the tag is meaningless, so the fence becomes `hale`.
-  const body = rewriteLinks(raw, repoPath).replace(/^(\s*```)hale(?:,[\w-]+)+[ \t]*$/gm, '$1hale');
+  let body = rewriteLinks(raw, repoPath).replace(/^(\s*```)hale(?:,[\w-]+)+[ \t]*$/gm, '$1hale');
+  // Convert GitHub-style alert blockquotes (> [!NOTE], > [!IMPORTANT], etc.)
+  // into Starlight's native :::note / :::tip / :::caution / :::danger blocks.
+  body = body.replace(
+    /^>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n((?:>[ \t]?.*\n?)+)/gm,
+    (_, kind, content) => {
+      const map = { NOTE: 'note', TIP: 'tip', IMPORTANT: 'note', WARNING: 'caution', CAUTION: 'danger' };
+      const inner = content.replace(/^>[ \t]?/gm, '').trimEnd();
+      return `:::${map[kind] || 'note'}\n${inner}\n:::\n`;
+    },
+  );
+  // Replace inline math spans ($O(1)$, $\to$, $\Sigma$, etc.) with clean Unicode
+  // since Starlight does not load a LaTeX math renderer.
+  body = body
+    .replace(/\$O\(1\)\$/g, '`O(1)`')
+    .replace(/\$\\to\$/g, '→')
+    .replace(/\$\\Sigma\\text\{-proto\}\$/g, '`Σ-proto`')
+    .replace(/\$\\Sigma\$/g, 'Σ')
+    .replace(/\$\\Delta\$/g, 'Δ')
+    .replace(/\$\\Pi\$/g, 'Π')
+    .replace(/\$\\perp\$/g, '⊥')
+    .replace(/\$\\bowtie\$/g, '⋈')
+    .replace(/\$K\$/g, '`K`');
   const description = JSON.stringify(describe(raw, title.replace(/\\"/g, '"')));
   const fm = `---\ntitle: "${title}"\ndescription: ${description}\n---\n\n${note ? note + '\n\n' : ''}`;
   await mkdir(dirname(destFile), { recursive: true });
@@ -146,7 +168,7 @@ async function buildSidebar(bookFiles) {
     inNav.add(rel + '.md');
     // a chapter named index.md is its directory's page (Starlight collapses the slug)
     const slug = rel === 'introduction' ? 'docs' : 'docs/' + rel.replace(/\/index$/, '');
-    const item = { label, slug };
+    const item = { label: label.replace(/`/g, ''), slug };
     (current ? current.items : prefix).push(item);
   }
   if (groups.length) groups[0].items.unshift(...prefix);

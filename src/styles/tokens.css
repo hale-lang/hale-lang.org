@@ -1,79 +1,109 @@
 /* ============================================================
    The palette, the type and the spacing, defined once.
 
+   Dark technofuturism: deep obsidian void, bioluminescent cyan,
+   matrix jade, quantum violet, and amber telemetry gold.
    Imported by global.css (the site's own pages) and starlight.css
-   (the docs), so the two cannot drift. Light is the default; dark is
-   the same tokens redefined, chosen by the reader's system setting or
-   by the theme toggle, which writes data-theme on <html> exactly as
-   Starlight's own picker does.
-
-   The colours are a lotus pond: rose for the flower and the page
-   accent, gold for its centre and for numbers, jade for leaves, types
-   and routes, violet for keywords, blue for function names.
+   (the docs), so the two cannot drift. Dark is the default; light
+   remains available via the explicit theme toggle.
    ============================================================ */
 
-:root {
-  --paper: #fbf6ec;
-  --paper-2: #f3ebdc;
-  --paper-3: #eadfcc;
-  --ink: #1c1814;
-  --ink-2: #5c5147;
-  --ink-3: #8a7e72;
-  --hair: #e2d8c6;
-  --hair-2: #cfc3ad;
+:root,
+:root[data-theme='dark'] {
+  --paper: #03060e;
+  --paper-2: #070e1e;
+  --paper-3: #0c1730;
+  --surface-glass: rgba(7, 14, 30, 0.78);
+  --surface-card: linear-gradient(155deg, rgba(12, 23, 48, 0.78) 0%, rgba(4, 9, 20, 0.92) 100%);
+  --surface-code: #040813;
 
-  --accent: #c2256b;
-  --accent-soft: rgba(194, 37, 107, 0.1);
-  --jade: #1e7a5a;
-  --gold: #9a6600;
-  --violet: #6a3fc9;
-  --blue: #2457c5;
-  --warn: #9a6600;
-  --warn-soft: rgba(154, 102, 0, 0.12);
-  --fail: #c0392b;
+  --ink: #eef5ff;
+  --ink-2: #9bb0d1;
+  --ink-3: #607699;
 
-  --lotus-petal: #d04a86;
-  --lotus-petal-2: #7b5bd6;
-  --lotus-core: #d39a2b;
-  --lotus-line: #5fa68a;
-  --wash-1: rgba(194, 37, 107, 0.08);
-  --wash-2: rgba(211, 154, 43, 0.09);
+  --hair: rgba(96, 165, 255, 0.15);
+  --hair-2: rgba(0, 229, 255, 0.30);
+  --hair-hot: rgba(0, 229, 255, 0.62);
 
-  --serif: 'Literata', Georgia, 'Times New Roman', serif;
-  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+  --accent: #00e5ff;
+  --accent-bright: #7df4ff;
+  --accent-soft: rgba(0, 229, 255, 0.12);
+  --jade: #00f5c4;
+  --jade-soft: rgba(0, 245, 196, 0.11);
+  --gold: #ffca58;
+  --violet: #b084ff;
+  --violet-soft: rgba(176, 132, 255, 0.12);
+  --blue: #52a8ff;
+  --warn: #ffca58;
+  --warn-soft: rgba(255, 202, 88, 0.12);
+  --fail: #ff4d6d;
 
-  --radius: 4px;
+  --lotus-petal: #00e5ff;
+  --lotus-petal-2: #b084ff;
+  --lotus-core: #00f5c4;
+  --lotus-line: #3898ff;
+  --wash-1: rgba(0, 229, 255, 0.13);
+  --wash-2: rgba(176, 132, 255, 0.10);
+
+  --glow-cyan: 0 0 26px rgba(0, 229, 255, 0.24);
+  --glow-jade: 0 0 24px rgba(0, 245, 196, 0.20);
+  --glow-panel: 0 20px 60px rgba(0, 0, 0, 0.62), 0 0 36px rgba(0, 229, 255, 0.05), inset 0 1px 0 rgba(125, 244, 255, 0.09);
+
+  --display: 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --serif: var(--sans);
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --radius: 6px;
+  --radius-lg: 10px;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s6: 24px;
   --s8: 32px; --s12: 48px; --s16: 64px; --s24: 96px;
   --maxw: 1280px;
-  --measure: 66ch;
-  --nav-h: 48px;
+  --measure: 68ch;
+  --nav-h: 56px;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --paper: #f2f6fc;
+  --paper-2: #e6eef8;
+  --paper-3: #d8e4f3;
+  --surface-glass: rgba(242, 246, 252, 0.86);
+  --surface-card: linear-gradient(155deg, rgba(255, 255, 255, 0.92) 0%, rgba(235, 243, 252, 0.95) 100%);
+  --surface-code: #f8fbff;
+
+  --ink: #091326;
+  --ink-2: #3a4e6d;
+  --ink-3: #647899;
+
+  --hair: rgba(15, 45, 90, 0.14);
+  --hair-2: rgba(0, 140, 190, 0.32);
+  --hair-hot: rgba(0, 140, 190, 0.62);
+
+  --accent: #0077a8;
+  --accent-bright: #005f88;
+  --accent-soft: rgba(0, 119, 168, 0.10);
+  --jade: #007a5e;
+  --jade-soft: rgba(0, 122, 94, 0.10);
+  --gold: #945d00;
+  --violet: #5e35b1;
+  --violet-soft: rgba(94, 53, 177, 0.10);
+  --blue: #1557c0;
+  --warn: #945d00;
+  --warn-soft: rgba(148, 93, 0, 0.11);
+  --fail: #c92a42;
+
+  --lotus-petal: #0088be;
+  --lotus-petal-2: #6a3fc9;
+  --lotus-core: #008f6f;
+  --lotus-line: #2970b8;
+  --wash-1: rgba(0, 140, 190, 0.09);
+  --wash-2: rgba(106, 63, 201, 0.07);
+
+  --glow-cyan: 0 4px 18px rgba(0, 119, 168, 0.14);
+  --glow-jade: 0 4px 18px rgba(0, 122, 94, 0.12);
+  --glow-panel: 0 12px 32px rgba(9, 19, 38, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --paper: #131015; --paper-2: #1b171e; --paper-3: #241f28;
-    --ink: #f1eae0; --ink-2: #b3a89c; --ink-3: #7e7468;
-    --hair: #302a34; --hair-2: #403845;
-    --accent: #ff8fa5; --accent-soft: rgba(255, 143, 165, 0.12);
-    --jade: #59f2cf; --gold: #ffd28a; --violet: #b39bff; --blue: #7fb2ff;
-    --warn: #ffd28a; --warn-soft: rgba(255, 210, 138, 0.12); --fail: #ff7a6b;
-    --lotus-petal: #ff8fa5; --lotus-petal-2: #b39bff; --lotus-core: #ffd28a; --lotus-line: #59f2cf;
-    --wash-1: rgba(255, 143, 165, 0.1); --wash-2: rgba(255, 210, 138, 0.07);
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --paper: #131015; --paper-2: #1b171e; --paper-3: #241f28;
-  --ink: #f1eae0; --ink-2: #b3a89c; --ink-3: #7e7468;
-  --hair: #302a34; --hair-2: #403845;
-  --accent: #ff8fa5; --accent-soft: rgba(255, 143, 165, 0.12);
-  --jade: #59f2cf; --gold: #ffd28a; --violet: #b39bff; --blue: #7fb2ff;
-  --warn: #ffd28a; --warn-soft: rgba(255, 210, 138, 0.12); --fail: #ff7a6b;
-  --lotus-petal: #ff8fa5; --lotus-petal-2: #b39bff; --lotus-core: #ffd28a; --lotus-line: #59f2cf;
-  --wash-1: rgba(255, 143, 165, 0.1); --wash-2: rgba(255, 210, 138, 0.07);
-  color-scheme: dark;
 }
