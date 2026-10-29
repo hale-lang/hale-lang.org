@@ -35,7 +35,7 @@ const prose = (t: string) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
       <h1>{full.title}</h1>
       <p class="lede" set:html={prose(full.intro)} />
       <p class="meta-line">
-        {cap.lines} lines · verified by <code>{(captures as any).hale.split('\n')[0]}</code> at build time · <a href={`/examples/${full.slug}.hl`}>download {full.file ?? 'the program'}</a>
+        {cap.lines} lines · verified by <code>{(captures as any).hale.split('\n')[0]}</code> at build time · <a href={`/examples/${full.slug}.hl`}>download {full.files ? 'source files' : full.file ?? 'the program'}</a>
       </p>
     </div>
     <div class="prose">
@@ -55,13 +55,13 @@ const prose = (t: string) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
             {c.run && c.run.outputs.map((o: string, i: number) => (
               <pre class="machine run"><span class="label">$ hale run {full.file}{c.run.outputs.length > 1 ? `   # run ${i + 1}` : ''}</span>{'\n'}{o}</pre>
             ))}
-            {c.fleet && <pre class="machine run"><span class="label">$ hale check --dump-topology …  &amp;&amp;  hale fleet check plan.json</span>{'\n'}{c.fleet.output}</pre>}
+            {c.fleet && <pre class="machine run"><span class="label">$ hale fleet check {full.fleetFile}</span>{'\n'}{c.fleet.output}</pre>}
             {c.fleetBreak && (() => {
               const k = s.captures?.find((x: any) => x.kind === 'fleet-break');
               return (
                 <>
                   {k && <pre class="diff"><span class="note">{k.note} ({k.file})</span>{'\n'}{`- ${k.find.trim()}`}{'\n'}{`+ ${k.replace.trim()}`}</pre>}
-                  <pre class="machine err"><span class="label">$ hale fleet check plan.json</span>{'\n'}{c.fleetBreak.output}</pre>
+                  <pre class="machine err"><span class="label">$ hale fleet check {full.fleetFile}</span>{'\n'}{c.fleetBreak.output}</pre>
                 </>
               );
             })()}
