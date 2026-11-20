@@ -5,7 +5,8 @@
 #
 # Downloads the latest prebuilt release from GitHub, verifies its
 # sha256, and installs to ~/.hale (override with HALE_INSTALL).
-# Pin a version with HALE_VERSION=v0.11.9.
+# Pin a version with HALE_VERSION=<tag>, a tag from
+# https://github.com/hale-lang/hale/releases.
 #
 # Prebuilt targets: x86_64/aarch64 Linux (glibc), Apple Silicon macOS.
 # Anything else (Intel macs, musl, BSD): build from source —

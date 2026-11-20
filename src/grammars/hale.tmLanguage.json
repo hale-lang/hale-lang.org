@@ -278,7 +278,7 @@
       "patterns": [
         {
           "name": "storage.type.declaration.hale",
-          "match": "\\b(locus|type|interface|perspective|fn|const|import|export|module|topic|ring_layout|main|trait|impl|macro|unit|constitution)\\b"
+          "match": "\\b(locus|type|interface|fn|const|import|topic|ring_layout|main|unit|constitution)\\b"
         },
         {
           "name": "keyword.other.unit.hale",
@@ -312,7 +312,7 @@
         },
         {
           "name": "keyword.other.api.hale",
-          "match": "\\b(api|serve|serves|http|principals|gated|includes|roles|on_unauthorized|on_full|refuse|watch_bound|on_watch_full)\\b"
+          "match": "\\b(api|gated|includes|on_unauthorized|on_full|refuse|watch_bound|on_watch_full)\\b"
         },
         {
           "name": "storage.type.declaration.claims.hale",
@@ -332,11 +332,11 @@
         },
         {
           "name": "keyword.other.placement.hale",
-          "match": "\\b(cooperative|pinned|pool|core|cores|heap|projection|rich|chunked|recognition|tier|capacity|topology|node|l3|reserve|replicas|schedule|fixed_cell|shared_slab|spillover|summary_only|cap|inline|intra_process|intra_machine|cross_machine|zero_copy|reperspective)\\b"
+          "match": "\\b(cooperative|pinned|pool|core|cores|heap|projection|rich|chunked|recognition|tier|capacity|topology|node|l3|reserve|replicas|fixed_cell|shared_slab|spillover|summary_only|cap|inline|intra_process|intra_machine|cross_machine|zero_copy)\\b"
         },
         {
           "name": "keyword.other.closure.hale",
-          "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|stable_when|serialize_as|where|tick|duration|explicit|with|until|sum|prod)\\b"
+          "match": "\\b(epoch|within|approx|captures|persists_through|resets_on|resets_per_epoch|where|tick|duration|explicit|with|until|sum|prod)\\b"
         },
         {
           "name": "keyword.control.fallible.hale",
@@ -344,7 +344,7 @@
         },
         {
           "name": "keyword.control.flow.hale",
-          "match": "\\b(if|else|match|for|in|while|return|break|continue|yield|async|await)\\b"
+          "match": "\\b(if|else|match|for|in|while|return|break|continue|yield)\\b"
         },
         {
           "name": "keyword.other.binding.hale",

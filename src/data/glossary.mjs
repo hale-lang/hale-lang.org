@@ -105,13 +105,6 @@ export const GROUPS = [
         "gloss": "An invariant on a component, audited by the runtime at phase boundaries."
       },
       {
-        "id": "perspective",
-        "term": "perspective",
-        "familiar": "an interface with a swappable implementation.",
-        "difference": "it can be swapped while the program runs, at the cost of a pointer flip, with state carried across.",
-        "gloss": "An interface with an implementation that can be swapped while the program runs."
-      },
-      {
         "id": "sealed",
         "term": "@sealed",
         "familiar": "private fields.",
@@ -143,7 +136,7 @@ export const GROUPS = [
         "id": "surface",
         "term": "api, rpc, surface",
         "familiar": "an API definition, like an OpenAPI document or a gRPC service, listing the operations and who may call each.",
-        "difference": "it is rows in the program, <code>rpc Shop::on_order requires: [clerk]</code>, and the compiler checks them, hashes them into a contract digest, and generates the OpenAPI, JSON Schema and MCP forms. Arrives in the next release.",
+        "difference": "it is rows in the program, <code>rpc Shop::on_order requires: [clerk]</code>, and the compiler checks them, hashes them into a contract digest, and generates the OpenAPI, JSON Schema, MCP and protobuf forms and typed clients. <code>///</code> doc comments on the rows travel into every one.",
         "gloss": "An API definition as rows in the program: the operations, and the roles a caller needs. The compiler checks and hashes it and generates the client forms."
       },
       {
@@ -157,7 +150,7 @@ export const GROUPS = [
         "id": "serve",
         "term": "api::serve, exposure",
         "familiar": "starting the server.",
-        "difference": "one line puts a surface on a transport the standard library ships, a Unix socket, HTTP or MCP, with a bounded queue and one policy for when it is full, and the running exposure describes itself to any client.",
+        "difference": "one param puts a surface on a transport the standard library ships, a Unix socket, HTTP, REST, MCP or gRPC, with a bounded queue and one policy for when it is full, and the running exposure describes itself to any client.",
         "gloss": "A surface put on a transport the library ships. A running exposure describes itself to any client."
       },
       {
@@ -333,8 +326,8 @@ export const GROUPS = [
         "id": "record",
         "term": "the record, the journal",
         "familiar": "an audit log.",
-        "difference": "it is kept as git commits on <code>refs/dna/journal</code>, one per event, in the repository the code lives in, so a clone carries the whole history.",
-        "gloss": "The audit log, kept as git commits in the repository the code lives in."
+        "difference": "it is signed, hash-chained rows in the organism's own database, one per event and never rewound, so every clone and every node reads the same history.",
+        "gloss": "The audit log: signed, hash-chained rows in the organism’s own database."
       },
       {
         "id": "memory",
@@ -402,9 +395,9 @@ export const GROUPS = [
       {
         "id": "habitat",
         "term": "habitat",
-        "familiar": "shared infrastructure: the records, access, identity and tools that several organisms and the people in them share.",
-        "difference": "sharing is deliberate publication between isolated records. Designed, and partly built.",
-        "gloss": "Shared infrastructure for several organisms: records, access, identity and tools. Designed, partly built."
+        "familiar": "shared infrastructure, run on your own machines: the databases, messaging, monitoring, forge and sign-in that several organisms and the people in them share.",
+        "difference": "every organism is born in one, with an allocation of its own, isolated by default; sharing between records is deliberate publication. Built for one machine or a LAN; a hosted profile and the rest of cross-record sharing are designed, not built.",
+        "gloss": "Shared infrastructure on your own machines, where every organism is born: databases, messaging, monitoring, a forge and sign-in."
       }
     ]
   }
@@ -423,7 +416,6 @@ export const MATCH = [
   ["bindings", /(?<!C |\) )\bbindings?\b/],
   ["params", /\bparams\b/],
   ["supervision", /\bsupervis(?:ion|ed)\b/],
-  ["perspective", /\bperspectives?\b/],
   ["effect", /\beffect classes\b/],
   ["claim", /\bclaims?\b/],
   ["group", /\bgroups\b/],
