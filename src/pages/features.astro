@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 
 ---
-<Base title="What is in the language" description="Every construct in Hale, with the kind of evidence behind it: shipped, Linux-only, modeled, reserved or next release.">
+<Base title="What is in the language" description="Every construct in Hale, with the kind of evidence behind it: shipped, experimental, Linux-only, modeled, reserved or next release.">
   <Field />
   <section class="wrap page">
     <div class="page-head">
@@ -13,12 +13,14 @@ import Field from '../components/Field.astro';
         and the runtime path exists. The <a href="/docs/spec/semantics">specification</a> describes current behaviour, and this page follows it.
       </p>
       <p class="ev-key">
-        Rows whose evidence differs are marked. <span class="ev">linux</span>
-        is a platform-specific path, <span class="ev">modeled</span> is
+        Rows whose evidence differs are marked. <span class="ev">experimental</span> is shipped, but in the experimental tier of the <a href="/docs/stability">stability table</a>: new, or still moving. <span class="ev">linux</span> is a platform-specific path, <span class="ev">modeled</span> is
         checked as a formal model whose match to the shipped code is
         maintained by hand, and <span class="ev">reserved</span> is named and
         specified but not built. <span class="ev">next release</span> is on the
         compiler's main branch and ships in the next release.
+      </p>
+      <p class="ev-key">
+        Hale is pre-1.0 and still changing quickly. Any release may change the language or the standard library, with no deprecation window, and every break is listed under its release's Breaking heading with a one-line migration. <a href="https://github.com/hale-lang/hale/blob/main/STABILITY.md">The stability policy.</a>
       </p>
     </div>
 
@@ -26,8 +28,7 @@ import Field from '../components/Field.astro';
       <h2>One construct</h2>
       <ul class="facts">
         <li><b>The locus</b><p>One construct where other languages have class, module, package, actor and service. An app, a cache, a handler and a library are all loci. Composition is a locus inside a locus.</p></li>
-        <li><b>Lifecycle</b><p><code>birth</code>, <code>run</code> and <code>dissolve</code>; <code>params &#123; &#125;</code> with defaults; parent and child nesting with deterministic cleanup on dissolve.</p></li>
-        <li><b>Perspectives</b><p>Live hot code swap at the cost of a pointer flip. <code>reperspective</code> carries state across and re-points bus edges without dropping messages.</p></li>
+        <li><b>Lifecycle</b><p><code>birth</code>, <code>run</code>, <code>drain</code> and <code>dissolve</code>; <code>params &#123; &#125;</code> with defaults; parent and child nesting with deterministic cleanup on dissolve. SIGINT and SIGTERM end every <code>run()</code> loop between two iterations and run the drain hooks, with no flag to thread through.</p></li>
         <li><b>Modes</b><p><code>bulk</code>, <code>harmonic</code> and <code>resolution</code> projections over capacity slots, for programs that reshape under load.</p></li>
       </ul>
 
@@ -35,21 +36,26 @@ import Field from '../components/Field.astro';
       <ul class="facts">
         <li><b>Topics are declarations</b><p><code>topic T &#123; payload: P; &#125;</code> with wire subjects, routing keys (<code>keyed_by</code>), and per-topic bounds with an explicit backpressure contract (<code>or wait</code>).</p></li>
         <li><b>Traffic is declared</b><p>Peer loci do not reference one another. They communicate through a declared topic, and messages are copies. Subscription and publish are declared surface, so the compiler sees the whole message graph.</p></li>
+        <li><b>Every type crosses the bus</b><p>A payload may hold <code>bounded</code> lists, enums with payloads, tuples and <code>std::json::Value</code>, in process and over <code>unix://</code> and <code>udp://</code>. What no frame can hold, such as a function value or a locus handle, is refused by the check.</p></li>
         <li><b>Topology checked at compile time</b><p><code>hale check</code> rejects payload mismatches and unconditional re-entry inside a locus. It reports orphaned topics, cross-locus cycles and statically unbounded backpressure as advisories. <code>hale verify</code> turns every advisory into a failing gate, so a project chooses its own strictness and the two kinds of finding stay distinct.</p></li>
       </ul>
 
       <h2>Types and data</h2>
       <ul class="facts">
-        <li><b>Structural interfaces</b><p>An <code>interface</code> is satisfied by shape. There is no <code>impl I for L</code>.</p></li>
-        <li><b>Synthesized forms</b><p><code>@form(vec | hashmap | ring_buffer | lru_cache)</code> generates type-specialized collections; <code>bounded[T; N]</code> gives fixed capacity. No generics on the everyday path.</p></li>
+        <li><b>Records and immutability</b><p>A <code>type</code> is data. A <code>let</code> binding is immutable, and so is the value it holds: writing a field or an element needs <code>let mut</code>. An optional field, <code>x?: T</code>, carries a real presence flag.</p></li>
+        <li><b>Enums and patterns</b><p>Enums with payloads, exhaustive <code>match</code>, or-patterns (<code>"assign" | "unassign" -&gt; …</code>), <code>if let</code> and <code>let … else</code>. Every enum gets <code>E::name</code>, <code>E::parse</code>, <code>E::variants</code> and <code>E::index</code>; a <code>json:</code> tag renames a variant on the wire, <code>@wire_case</code> spells them all, and a catch-all variant keeps a string no variant names.</p></li>
+        <li><b>How a value reads</b><p><code>@display("$&#123;dollars&#125;.&#123;cents:0&gt;2&#125;")</code> on a type or a variant is the text its values print as, everywhere a value is rendered. The template is checked like an f-string and runs no code. <code>&#123;x:?&#125;</code> shows the structure underneath.</p></li>
+        <li><b>Strings and bytes</b><p>f-strings, raw strings (<code>r"^\d+$"</code>), byte literals (<code>b'/'</code>), and open-ended slices (<code>s[a..]</code>, <code>s[..b]</code>). Appending to a String grows it in place, so building one is linear. <code>std::str::split</code>, <code>lines</code> and <code>words</code> walk a text in one pass, as a <code>for</code> source or a chain: <code>std::str::words(s).filter(len(it) &gt; 2).count()</code>.</p></li>
+        <li><b>Structural interfaces and generics</b><p>An <code>interface</code> is satisfied by shape; there is no <code>impl I for L</code>. A <code>type</code>, a <code>locus</code> or a <code>fn</code> takes type parameters, and each use is compiled as its own copy, so a generic costs nothing at run time.</p></li>
+        <li><b>Synthesized forms</b><p><code>@form(vec | hashmap | ring_buffer | lru_cache)</code> generates type-specialized collections; <code>bounded[T; N]</code> gives a fixed-capacity list that is a value, copied like a record. No generic container types.</p></li>
         <li><b>Element chains</b><p><code>xs.filter(it &gt; 2).count()</code> compiles to one loop, allocation-free, with no closure or iterator object.</p></li>
-        <li><b>Money and time as types</b><p><code>Decimal</code>, typed timestamps and durations. Inference for <code>let</code>, returns and locus params. f-strings.</p></li>
-        <li><b>Units, quantities, identities, ranges</b><p>A program declares units and the equations between them (<code>unit USD = 100 cent;</code>), then integer types counted in them: a <code>quantity</code> such as Money, a <code>point</code> such as Price, a <code>distinct Int</code> that never mixes with another, and an <code>Int &#123; range: 0..256; &#125;</code>. Every conversion is one exact factor; widening is free and narrowing names its rounding. The standard library's time units are declared the same way. New in 0.23.</p></li>
+        <li><b>Money and time as types</b><p><code>Decimal</code>, typed timestamps and durations. Inference for <code>let</code>, returns and locus params. <code>U256</code> and <code>I256</code> for chain values, which never wrap <span class="ev">experimental</span>.</p></li>
+        <li><b>Units, quantities, identities, ranges <span class="ev">experimental</span></b><p>A program declares units and the equations between them (<code>unit USD = 100 cent;</code>), then integer types counted in them: a <code>quantity</code> such as Money, a <code>point</code> such as Price, a <code>distinct Int</code> that never mixes with another, and an <code>Int &#123; range: 0..256; &#125;</code>. Every conversion is one exact factor; widening is free and narrowing names its rounding. The standard library's time units are declared the same way.</p></li>
       </ul>
 
       <h2>Failure</h2>
       <ul class="facts">
-        <li><b><code>fallible(E)</code> in the type</b><p>Every call that can fail is addressed at the call site with a disposition: <code>or default</code>, <code>or raise</code>, <code>or wait</code> and the rest. No exceptions, no <code>panic</code>.</p></li>
+        <li><b><code>fallible(E)</code> in the type</b><p>Every call that can fail is addressed at the call site with a disposition: <code>or default</code>, <code>or raise</code>, <code>or wait</code> and the rest. No exceptions, no <code>panic</code>. <code>or raise</code> converts the error into the caller's when a set type holds it or a <code>@raise fn</code> declares the conversion.</p></li>
         <li><b>Failure travels up</b><p>A child's failure goes to its parent, which owns recovery. There is no sideways error channel.</p></li>
         <li><b><code>closure</code> assertions</b><p>Declared invariants, audited by the runtime at phase boundaries.</p></li>
       </ul>
@@ -66,34 +72,37 @@ import Field from '../components/Field.astro';
       <h2>Memory and runtime</h2>
       <ul class="facts">
         <li><b>Arena per locus</b><p>No garbage collector, no borrow checker, no lifetime annotations. Memory is freed deterministically when a locus dissolves.</p></li>
+        <li><b>Arena per iteration</b><p>A loop frees what each iteration made when the iteration ends, in a locus method, in a free function and in <code>fn main</code>; what leaves the iteration is kept. A helper's local records are freed when it returns. A loop that keeps nothing opens no arena and still vectorizes.</p></li>
         <li><b>Model-checked synchronization <span class="ev">modeled</span></b><p>Hand-transcribed models of the runtime's concurrent protocols (the lock-free bus, mailboxes, rings, arenas) are explored with GenMC in CI. The models check the synchronization logic across permitted interleavings. Their match to the production runtime is maintained by hand and is part of the trusted base. <a href="/proof#substrate">What that does and does not establish.</a></p></li>
         <li><b>Static dispatch by default</b><p>Devirtualized bus delivery and calls. Cooperative pools with epoll-backed parking. Pinned threads and <code>replicas = K</code> fan-out declared in <code>main</code>. NUMA-aware arena placement and cache-domain pinning <span class="ev">linux</span>.</p></li>
       </ul>
 
       <h2>Deployment</h2>
       <ul class="facts">
-        <li><b>Same source, many shapes</b><p><code>placement &#123; &#125;</code> and <code>bindings &#123; &#125;</code> in <code>main</code> decide threads, cores and transports. A test, one binary or a mesh of binaries is an edit to one block.</p></li>
+        <li><b>Same source, many shapes</b><p><code>placement &#123; &#125;</code> and <code>bindings &#123; &#125;</code> in <code>main</code> decide threads, cores and transports. A test, one binary or a mesh of binaries is an edit to one block. <code>hale deploy render</code> writes the placement as compose or Kubernetes manifests.</p></li>
         <li><b>Transports</b><p>In-process queues, Unix sockets, zero-copy shared-memory rings, and broker adapters written as ordinary loci. Pluggable codecs.</p></li>
       </ul>
 
-      <h2>Exposure <span class="ev">next release</span></h2>
+      <h2>Exposure <span class="ev">experimental</span></h2>
       <ul class="facts">
-        <li><b>API surfaces</b><p><code>api NAME &#123; rpc Locus::fn requires: [role]; &#125;</code>, or <code>@rpc</code> on the handler. The compiler checks the rows, folds each surface into a contract digest, and prints the description a caller may see. <code>hale check --api</code> prints the inventory, and <code>--openapi</code>, <code>--json-schema</code> and <code>--mcp</code> print a surface's client forms.</p></li>
+        <li><b>API surfaces</b><p><code>api NAME &#123; rpc Locus::fn requires: [role]; &#125;</code>, or <code>@rpc</code> on the handler. The compiler checks the rows, folds each surface into a contract digest, and prints the description a caller may see. <code>hale check --api</code> prints the inventory, and <code>hale api export</code> writes a surface's OpenAPI, JSON Schema, MCP and <code>.proto</code> forms. <code>///</code> doc comments on a type, field, variant or handler are carried into every one of them.</p></li>
         <li><b>Roles</b><p>Declared vocabulary: <code>role manager includes clerk;</code>. A requirement is written once on the row; who holds a role is a source the serve site names, <code>std::api::StaticRoles</code> or any locus satisfying <code>std::api::RoleSource</code>.</p></li>
-        <li><b>Serving</b><p><code>api::serve(Surface, transport, as:, receivers:, bound:, on_full:)</code> over <code>unix::Rpc</code>, <code>http::Rpc</code> or <code>mcp::Rpc</code>; a stream is a topic bound to a <code>ws::Hub</code>. A handler may take <code>ctx: std::api::Context</code> for the caller, the request id and the door it came through.</p></li>
-        <li><b>Clients</b><p><code>hale describe</code>, <code>call</code>, <code>watch</code>, <code>admin</code> and <code>mcp --app</code> read an exposure's description and speak the contract's wire. The DNA head serves its commands the same way.</p></li>
+        <li><b>Serving</b><p>An exposure is a param, <code>api::serve(Surface, transport, as:, receivers:, bound:, on_full:)</code>, over <code>unix::Rpc</code>, <code>http::Rpc</code>, <code>http::Rest</code>, <code>mcp::Rpc</code> or <code>grpc::Rpc</code>; a stream is a topic bound to a <code>ws::Hub</code>. A handler may take <code>ctx: std::api::Context</code> for the caller, the request id and the door it came through.</p></li>
+        <li><b>Calling out</b><p><code>api::client(Surface, http::Client &#123; … &#125;)</code> is a typed client param. <code>hale api import</code> writes a surface from an OpenAPI document or an MCP endpoint's tools, and <code>hale api drift</code> holds it to the source. <code>hale api client</code> generates Hale, TypeScript and JavaScript clients.</p></li>
+        <li><b>Clients</b><p><code>hale api describe</code> and <code>hale api call</code> (short forms <code>hale describe</code> and <code>hale call</code>), <code>watch</code>, <code>admin</code> and <code>mcp --app</code> read an exposure's description and speak the contract's wire. The DNA head serves its commands the same way.</p></li>
+        <li><b>Calls with one value <span class="ev">next release</span></b><p><code>hale api call</code> sends a request that is one value by its parameter's name: <code>--id 7</code> for <code>fn submit(id: Int)</code>, checked against its type before it is sent.</p></li>
       </ul>
 
       <h2>Interop</h2>
       <ul class="facts">
         <li><b>C</b><p><code>@ffi("c")</code> bindings with <code>[ffi] csrc</code> compilation, in both directions across the boundary.</p></li>
         <li><b>WebAssembly</b><p>A <code>wasm32</code> target with <code>@export</code> loci and <code>@ffi("js")</code>. The <a href="/playground">playground</a> runs the result in the browser.</p></li>
-        <li><b>Packages</b><p><code>hale fetch</code> vendors pinned git dependencies. <a href="/packages">pond</a> is the contributed library collection.</p></li>
+        <li><b>Packages</b><p><code>hale fetch</code> vendors pinned git dependencies. An import list (<code>import "../store" as st &#123; Row &#125;;</code>) makes names bare and re-exports them. <a href="/packages">pond</a> is the contributed library collection.</p></li>
       </ul>
 
       <h2>Standard library</h2>
       <ul class="facts">
-        <li><b>Path-called, no imports</b><p>Processes, env, filesystem, TCP and UDP with zero-copy readers, TLS, HTTP (router and client), JSON including a streaming builder, metrics, logging with sinks, compression, tar, crypto and hashing, encodings, randomness, strings, regex, sets, time. <code>hale doc --stdlib</code> publishes each function's effect classes from the same registry the checker proves against.</p></li>
+        <li><b>Path-called, no imports</b><p>Processes, env, filesystem, TCP and UDP with zero-copy readers, TLS, HTTP (router and client), JSON including a streaming builder, metrics, logging with sinks, compression, tar, crypto and hashing, encodings, randomness, strings, regex, sets, time. <code>hale doc --stdlib</code> publishes each function's effect classes from the same registry the checker proves against, and <a href="/docs/stability">the stability table</a> marks each namespace stable or experimental.</p></li>
       </ul>
 
       <h2>Toolchain</h2>
@@ -106,12 +115,12 @@ import Field from '../components/Field.astro';
       <ul class="facts">
         <li><b>Prebuilt compiler</b><p>Linux x86-64, Linux ARM64 and macOS on Apple Silicon, on GitHub Releases, selected automatically by the install script.</p></li>
         <li><b>Builds from source</b><p>The above, plus Intel macOS. Needs the LLVM 18 development libraries and <code>clang</code>.</p></li>
-        <li><b>Emits</b><p>Native binaries for Linux and macOS, and <code>wasm32</code> objects for the browser. <code>x86_64-pc-windows-msvc</code> is named by <code>hale --list-targets</code> and refused with a precise error before any link step <span class="ev">reserved</span>.</p></li>
+        <li><b>Emits</b><p>Native binaries for Linux and macOS, and <code>wasm32</code> objects for the browser. <code>x86_64-pc-windows-msvc</code> is named by <code>hale targets</code> and refused with a precise error before any link step <span class="ev">reserved</span>.</p></li>
       </ul>
 
-      <h2>Reserved</h2>
+      <h2>Not in the language</h2>
       <ul class="facts">
-        <li><b>Surface awaiting a workload</b><p><code>async</code> and <code>await</code> keywords, traits with explicit impls, macros, richer form shapes. The runtime frontier is cost: a cheaper call protocol and spawn path. The spec stays the arbiter of what ships.</p></li>
+        <li><b>No surface waits for a workload</b><p>There are no <code>async</code> and <code>await</code>, traits with explicit impls or macros, and those words are ordinary names. Perspectives and <code>module &#123; &#125;</code> blocks were removed in 0.36: an interface plus generics covers the first, and a module is a directory you <code>import</code>. The runtime frontier is cost: a cheaper call protocol and spawn path. The spec stays the arbiter of what ships.</p></li>
         <li><b>To move a priority</b><p>The fastest signal is a real program that needs it. See <a href="/community">community</a>.</p></li>
       </ul>
     </div>

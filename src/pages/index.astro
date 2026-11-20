@@ -115,9 +115,10 @@ const failure = `locus WorkerPool {
           loud costs nothing and buys the rest of the page some credit. */}
       <p class="release">
         <b>v{release.minor}{release.prerelease ? ' · prerelease' : ''}</b>. Prebuilt for Linux x86-64, Linux ARM64 and
-        Apple Silicon. Compiles to native binaries and to wasm32. Syntax and
-        artifact formats still change between releases. Apache-2.0, built on
-        LLVM 18.
+        Apple Silicon. Compiles to native binaries and to wasm32. Hale is
+        pre-1.0 and still changing quickly: any release may change the
+        language, and each break is listed with its migration. Apache-2.0,
+        built on LLVM 18.
       </p>
     </div>
     <div class="hero-code">
@@ -139,10 +140,10 @@ const failure = `locus WorkerPool {
       <li><b>No garbage collector</b><span>Memory is freed when the part that owns it stops. No pauses, and no lifetimes to annotate.</span></li>
       <li><b>Money and time with units</b><span>Cents, dollars and milliseconds are types. Mixing them up, or rounding without saying how, is a compile error.</span></li>
       <li><b>Every failure has an owner</b><span>A crash goes to the part that started it, which can restart it, isolate it or pass it up.</span></li>
-      <li><b>APIs without server code</b><span>List the functions to expose and who may call each. Hale serves them over HTTP, a socket or MCP. Arrives in the next release.</span></li>
+      <li><b>APIs without server code</b><span>List the functions to expose and who may call each. Hale serves them over HTTP, REST, gRPC, a socket or MCP, and writes the OpenAPI document and typed clients.</span></li>
       <li><b>Script to service, one language</b><span>Start with a five-line script. Add messaging, deployment and rules later, in the same file and the same tools.</span></li>
-      <li><b>Delivery, ops and governance built in</b><span>Hale DNA wraps your app in review, deploys, rollbacks and an audit log kept in git. People and AI work under rules you set.</span></li>
-      <li><b>Shared infrastructure across apps</b><span>Several apps and teams share records, access and identity, each kept separate. Designed, and partly built.</span></li>
+      <li><b>Delivery, ops and governance built in</b><span>Hale DNA wraps your app in review, deploys, rollbacks and a signed audit log. People and AI work under rules you set.</span></li>
+      <li><b>Shared infrastructure across apps</b><span>The habitat runs several apps' databases, messaging, monitoring, forge and sign-in on your own machines, each kept separate. Sharing across organizations is designed, and partly built.</span></li>
     </ul>
     <div class="sec-link"><a href="/glossary">Hale's own words, in familiar terms →</a></div>
   </section>
@@ -461,18 +462,18 @@ const failure = `locus WorkerPool {
 
   <section class="wrap sec" aria-labelledby="dna-h" id="dna">
     <div class="frame">
-      <span class="frame-meta">hale dna init . &amp;&amp; hale dna dev</span>
+      <span class="frame-meta">hale habitat graft . --attach &amp;&amp; hale dna dev</span>
       <div class="sec-head">
         <h2 id="dna-h">One program for building, running, governing and recording an application.</h2>
         <p class="lede">
-          <code>hale dna init</code> generates it next to your code and leaves
-          the application untouched: people with final say, called the Board;
+          <code>hale habitat graft</code> generates it next to your code and
+          leaves the application untouched: people with final say, called the Board;
           a model-backed reviewer that decides within limits they set, called
           the Leader; the models and the budget it may use; and the parts that make each change in a sandbox, prove it
           with the toolchain, show it to whoever holds the authority, apply
           exactly what was approved, restart or redeploy it, and watch it. Its
-          working state lives in memory it owns. Its history is a branch of
-          your repository, <code>refs/dna/journal</code>, one commit per event.
+          working state lives in memory it owns, and its history is a signed,
+          append-only record there, one row per event.
         </p>
       </div>
       <Terminal code={session} kind="the demo application, editor on scripted models" />
@@ -484,12 +485,12 @@ const failure = `locus WorkerPool {
       </div>
       <h3 style="margin:var(--s12) 0 var(--s4)">What it needs, and what it does not claim</h3>
       <ul class="nots">
-        <li><b>git</b><p>The record lives in the repository. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
-        <li><b>docker compose</b><p><code>hale dna dev</code> brings up its private services with it: Postgres for its working state, NATS for messaging between its parts, Prometheus for monitoring.</p></li>
-        <li><b>A model</b><p>A key in the vault, ollama on your PATH, or a coding harness on it. DNA still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
+        <li><b>git</b><p>The code and every candidate change live in the repository. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
+        <li><b>docker compose</b><p>The habitat, <code>hale habitat up</code>, runs each organism's services: Postgres for its working state and record, NATS for messaging between its parts, Prometheus for monitoring, and a Forgejo forge where reviews become pull requests.</p></li>
+        <li><b>A model</b><p>A models provider grafted into the habitat, a key in the vault, ollama on your PATH, or a coding harness on it. DNA still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
         <li><b>Every change waits</b><p>Each waits for a verdict, the Leader's inside its grant or the Board's. A restart is a restart. Live state does not carry across.</p></li>
         <li><b>A blind spot</b><p>The structural view cannot see what a handler computes. A <code>+1</code> becoming <code>+100</code> is invisible to it, so the source diff is never optional, for people or for the Leader.</p></li>
-        <li><b>Shared infrastructure</b><p>Several applications and teams sharing records, access and identity. Designed and partly built; <a href="/dna#habitat">the DNA page</a> says which pieces are in the tree.</p></li>
+        <li><b>Shared infrastructure</b><p>The habitat runs on your machine or on machines on your LAN; a hosted profile and sharing between organizations' records are designed and partly built. <a href="/dna#habitat">The DNA page</a> says which pieces are in the tree.</p></li>
       </ul>
       <div class="sec-link"><a href="/docs/dna">DNA in the guide →</a> &nbsp;·&nbsp; <a href="/dna">DNA on one page →</a></div>
     </div>
@@ -500,7 +501,7 @@ const failure = `locus WorkerPool {
       <h2 id="nots-h">What it is not.</h2>
     </div>
     <ul class="nots">
-      <li><b>1.0</b><p>Version {release.minor} is a prerelease. Syntax and artifact formats change between releases.</p></li>
+      <li><b>1.0</b><p>Version {release.minor} is a prerelease. Until 1.0 any release may change the language, the standard library and the artifact formats, with no deprecation window; every break is listed under its release's Breaking heading with a one-line migration. <a href="https://github.com/hale-lang/hale/blob/main/STABILITY.md">The stability policy.</a></p></li>
       <li><b>A substitute for design</b><p>One owner and declared channels give software its form. The substance, where the seams go, is still the whole job, and a locus-shaped program can still have every seam in the wrong place.</p></li>
       <li><b>A reason to split everything</b><p>A script is one locus. Add a second when there is a real seam, and not before.</p></li>
     </ul>

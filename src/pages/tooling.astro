@@ -45,7 +45,7 @@ locus Reader {
       <h2 id="mcp">For a coding assistant</h2>
       <p>
         <code>hale mcp</code> exposes the toolchain over the Model Context
-        Protocol: <code>hale_check</code>, <code>hale_build</code>, <code>hale_run</code>, <code>hale_fmt</code>, <code>hale_fetch</code> and <code>hale_docs_search</code>, for any MCP host, including ones
+        Protocol: <code>hale_check</code>, <code>hale_verify</code>, <code>hale_build</code>, <code>hale_run</code>, <code>hale_test</code>, <code>hale_fmt</code>, <code>hale_doc</code>, <code>hale_docs_search</code> and more, including the program's bus graph, placement and allocation summary, for any MCP host, including ones
         without a shell.
       </p>
       <div class="install" role="group" aria-label="Add the Hale MCP server">
@@ -79,15 +79,19 @@ locus Reader {
 
       <h2>Every subcommand</h2>
       <ul class="facts">
+        <li><b>init</b><p>Start a project: <code>hale.toml</code>, <code>main.hl</code> and a first test.</p></li>
         <li><b>build · run</b><p>One static binary from a file or a project; run it in place.</p></li>
         <li><b>check · verify</b><p>The whole-project check, and the stricter gate that turns every advisory into a failure.</p></li>
         <li><b>test · bench</b><p>Tests and benchmarks from the same tree, with the same diagnostics.</p></li>
         <li><b>fmt · doc</b><p>One canonical style; reference rendered from <code>///</code> comments, as a page or as JSON.</p></li>
         <li><b>fetch</b><p>Vendor a pinned git dependency into the tree.</p></li>
         <li><b>fleet</b><p>Compose the topology artifacts of separately built binaries and check law across them.</p></li>
-        <li><b>describe · call · watch · admin <span class="ev">main</span></b><p>Clients for a served API surface: read its description, call a member, follow a stream, open a dashboard. They need no code from the program.</p></li>
+        <li><b>describe · call · watch · admin</b><p>Clients for a served API surface: read its description, call a member, follow a stream, open a dashboard. They need no code from the program. <code>hale describe</code> and <code>hale call</code> are short for <code>hale api describe</code> and <code>hale api call</code>.</p></li>
+        <li><b>api</b><p>A surface's documents (<code>export</code>: description, OpenAPI, JSON Schema, MCP, <code>.proto</code>), typed clients in Hale, TypeScript and JavaScript (<code>client</code>), a surface written from an OpenAPI document or an MCP endpoint (<code>import</code>) and held to it (<code>drift</code>).</p></li>
+        <li><b>replay · iris</b><p>Re-run a recorded execution and compare it, and watch a running program against the structure the compiler certified.</p></li>
+        <li><b>deploy render · model diff · topology graph</b><p>A program's placement as compose or Kubernetes manifests, a semantic diff of two topology artifacts, and the artifact drawn as a graph.</p></li>
         <li><b>lsp · mcp</b><p>The language server and the MCP server, in the same binary. <code>hale mcp --app</code> serves a program's own API surface to an MCP host as tools.</p></li>
-        <li><b>dna</b><p>The organization over a codebase. <a href="/dna">Its own page.</a></p></li>
+        <li><b>dna · habitat</b><p>The organization over a codebase, and the habitat it is born in. <a href="/dna">Their own page.</a></p></li>
       </ul>
     </div>
   </section>

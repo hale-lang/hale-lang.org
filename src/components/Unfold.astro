@@ -222,8 +222,7 @@ const p = Object.fromEntries(panels.map((x) => [x.title, x]));
                 then integer types counted in them: money in cents, sizes in
                 bytes, rates in basis points. Arithmetic stays exact, widening
                 is free, and narrowing is written where it happens, with the
-                rounding you chose. Units, quantities, identities and ranges
-                arrived in 0.23.
+                rounding you chose.
               </p>
               <p>
                 Ten effect classes describe what a function can reach: syscall,
@@ -235,7 +234,7 @@ const p = Object.fromEntries(panels.map((x) => [x.title, x]));
               </p>
             </div>
             <div class="stack">
-              <Hale code={p['money.hl'].code} title="money.hl" kind="value · new in 0.23" />
+              <Hale code={p['money.hl'].code} title="money.hl" kind="value" />
               <Hale code={p['frontier.hl'].code} title="frontier.hl" kind="value" />
             </div>
           </article>

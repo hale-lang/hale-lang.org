@@ -18,15 +18,15 @@ import { session } from '../data/dna-session.mjs';
         monitoring that watches it; the models it may call and the budget it
         may spend; and an audit log of every decision. Those are usually four
         systems and a wiki. Here they are one program next to your code,
-        with its working state in a database it owns and its history as
-        commits in your repository.
+        with its working state and its signed history in a database it
+        owns.
       </p>
     </div>
 
     <div class="prose">
-      <h2>What hale dna init writes</h2>
+      <h2>What a graft writes</h2>
       <p>
-        <code>hale dna init</code> generates the organism next to your code and
+        <code>hale habitat graft . --attach</code> generates the organism next to your code and
         leaves the application untouched. What it writes is the organization as
         source: a purpose and a charter, the Board and the Leader and the grant
         between them, the models and the daily budget, the work it accepts and
@@ -34,7 +34,7 @@ import { session } from '../data/dna-session.mjs';
         wiring you actually built. It also writes what the organism runs on and
         what watches it. One program carries the whole loop from then on. You
         ask for something in a sentence, from a terminal, another clone,
-        GitHub, or the page it serves. The substrate copies the repository,
+        or the page it serves. The substrate copies the repository,
         lets a model edit under a grant that is read, edit, format and check
         and nothing more, and commits the candidate there. The toolchain then
         checks, verifies and tests it, composes the fleet it would deploy,
@@ -47,15 +47,15 @@ import { session } from '../data/dna-session.mjs';
         model reading those views and leaving its reasoning on the record.
         The Board decides outside the grant, or when the law, an effect or
         the fleet's shape moves, and the Board is people. Approval is a
-        commit. It is expressed, restarted here or redeployed by every node
+        row in the record, and the approved commit is applied exactly. It is expressed, restarted here or redeployed by every node
         the plan assigns, and watched. An instance that falls over inside the observation window rolls the change back everywhere, and the record names the instance.
       </p>
       <p>
         The working state lives in a database the organism owns, under its own
         roles; the nerves are a stream; the vault holds its secrets. The
-        history is <code>refs/dna/journal</code>: one commit per event, in the
-        repository the code lives in, so a teammate with a clone has the whole
-        story and a pull request can be the review. The organism grows the
+        history is the record: signed, hash-chained rows in that database, one
+        per event, so every clone and every node reads the same story, and a
+        pull request on the forge can be the review. The organism grows the
         way the code does. A new responsibility, a practice or a wider grant is
         a proposal, a candidate commit, a verdict and a restart, so the record
         is the organization.
@@ -68,8 +68,8 @@ import { session } from '../data/dna-session.mjs';
       <li><b>Delivery</b><p>An ask becomes a task. A sandbox makes the change. The toolchain formats, checks, verifies and tests it, composes the fleet it would deploy, diffs the program's structure and rehearses the rollback. A review settles it, inside or outside the grant, or as a pull request. Approval applies it.</p></li>
       <li><b>Operations</b><p>Expression on your machine or across a fleet, with a plan naming each service's seed and node and <code>hale node</code> running one. Senses and reflexes watching it. Roles per client on every backend, secrets in a vault, deployment profiles. A crash inside the observation window rolls back on every node it reached.</p></li>
       <li><b>Business operations</b><p>Which models each position may call and a budget per day, probed by <code>hale dna models</code>. Spend reserved, settled and compensated under a grant's windows. Receipts filed as customer or confidential and read only as recorded rows. Schedules for recurring work.</p></li>
-      <li><b>Working state</b><p>Memory in a database the organism owns, the nerves as a stream, the vault for secrets, brought up together by <code>hale dna dev</code>.</p></li>
-      <li><b>History</b><p><code>refs/dna/journal</code>, one commit per event: the ask, the sandbox, every model call with its cost and digests, each check with its receipt, the verdict with a name on it, the apply, the deploy, the outcome. <code>hale dna history m1</code> is one change's whole story, from any clone.</p></li>
+      <li><b>Working state</b><p>Memory in a database the organism owns, the nerves as a stream, the vault for secrets, allocated by the habitat when the organism is grafted.</p></li>
+      <li><b>History</b><p>The record, one signed row per event: the ask, the sandbox, every model call with its cost and digests, each check with its receipt, the verdict with a name on it, the apply, the deploy, the outcome. <code>hale dna history m1</code> is one change's whole story, from any clone.</p></li>
     </ul>
 
     <div class="prose wide" style="margin-top:var(--s12)">
@@ -79,9 +79,9 @@ import { session } from '../data/dna-session.mjs';
     <Terminal code={session} kind="hale dna" />
     <div class="prose">
       <p style="margin-top:var(--s6)">
-        That is the daily surface: <code>ask</code>, <code>review</code>, <code>status</code>, <code>history</code>, <code>board</code>. A team
-        sets <code>git config dna.github</code>, which turns every pending review
-        into a pull request and every GitHub review into a verdict. A fleet
+        That is the daily surface: <code>task create</code>, <code>review</code>, <code>status</code>, <code>history</code>, <code>board</code>. Every
+        pending review goes out as a pull request on the habitat's forge, or on
+        GitHub when the Board allocates it there, and a review on it comes back as a verdict. A fleet
         adds a plan that names each service's seed and node; <code>hale node</code> runs a node, and an approval redeploys the instances it touched. The
         rest is how much the Leader may decide and which models it uses: a
         grant and a router in a file you own.
@@ -95,15 +95,25 @@ import { session } from '../data/dna-session.mjs';
       <li><b>More changes than you can read</b><p>Agents produce pull requests faster than reviewers absorb them, so review degrades to skimming and CI becomes the only real check. DNA does not make reading unnecessary. It makes each change one thing, already verified, and explains it twice: the source diff, and what changed in the program's shape. A rule that flips is one line in that view and a page of archaeology in the source. It also puts a first reader on every change whose reasoning you can audit: the Leader's verdict is a model call with its digests and its cost on the record, inside a grant only the Board can widen.</p></li>
       <li><b>Autonomy as a checkbox</b><p>Today an agent's permissions are a toggle in a tool: edit files, run commands, auto-approve. Here the boundary is a constitution the compiler enforces. The editing position cannot reach git, the network, a deployment or the organization's memory; the Leader decides and never commits; and <code>hale check</code> holds that against the org chart you wrote. Hand the editor a git handle and the build fails, with the path that shows why. Widening the grant is a reviewed commit, like any other change.</p></li>
       <li><b>Agents edit repositories; systems run</b><p>A change is usually judged by tests, in a checkout, with no idea what is running where. Hale programs are modeled by their compiler, so a candidate is measured on what it does to that model and composed as the fleet it would deploy. A change to one service that breaks a claim over all of them is denied before a person sees a line. Every instance reports the model hash it expresses into the record, so <code>hale dna fleet</code> can say which replica runs which version.</p></li>
-      <li><b>Provenance is a chat log</b><p>Why a change happened is usually reconstructed from PR descriptions and transcripts. DNA's record has the ask, the sandbox, every model call with its cost and digests (never the prompt), each check with its receipt, the verdict with a name on it, the apply, the deploy and the outcome, as commits next to the code, synced like code. <code>hale dna history m1</code> is one change's whole story, from any clone.</p></li>
+      <li><b>Provenance is a chat log</b><p>Why a change happened is usually reconstructed from PR descriptions and transcripts. DNA's record has the ask, the sandbox, every model call with its cost and digests (never the prompt), each check with its receipt, the verdict with a name on it, the apply, the deploy and the outcome, as signed rows that every clone reads. <code>hale dna history m1</code> is one change's whole story, from any clone.</p></li>
       <li><b>Rollback is a hope</b><p>A change that breaks production is reverted by whoever notices. Here a change that crashes one instance inside the observation window is reset to the commit it started from, on every node it reached, mechanically. A change you reject after the fact goes the same way. A retried apply reads its own record and never commits twice.</p></li>
-      <li><b>Where it runs</b><p>In the <code>hale</code> binary, on your workstation, with your model key or a local model, with git as the only shared service. No control plane.</p></li>
+      <li><b>Where it runs</b><p>In the <code>hale</code> binary and a habitat on your workstation or on machines on your LAN, with the habitat's models, your model key or a local model. No hosted control plane.</p></li>
     </ul>
 
     <div class="prose wide" style="margin-top:var(--s12)" id="habitat">
-      <h2 style="margin-top:0">The habitat <span class="ev">in development</span></h2>
+      <h2 style="margin-top:0">The habitat <span class="ev">partly built</span></h2>
     </div>
     <div class="prose">
+      <p>
+        Every organism is born in a habitat. <code>hale habitat up</code> starts
+        one on your machine, or on a machine on your LAN, and runs what its
+        organisms share as Docker Compose services: their databases, their
+        messaging, their monitoring, a Forgejo forge and sign-in, with each
+        organism's share allocated to it alone. <code>hale habitat graft</code> births an organism there, from your code or from a sapling in a
+        nursery the habitat trusts, and a machine can hold several habitats.
+        That much runs today. The rest of this section is the design it is
+        growing into.
+      </p>
       <p>
         An organism looks after one application and its record. People
         rarely work inside just one. The same person answers to a team, a
@@ -133,15 +143,22 @@ import { session } from '../data/dna-session.mjs';
     <table class="tbl">
       <thead><tr><th scope="col">piece of the design</th><th scope="col">in the tree today</th></tr></thead>
       <tbody>
+        <tr><td class="wrap">A habitat on your machine</td><td class="wrap">Yes: <code>hale habitat up</code>, <code>status</code>, <code>down</code>, with memory, nerves, senses, a Forgejo forge and the habitat's own face. <a href="/docs/habitat">The habitat</a>.</td></tr>
+        <tr><td class="wrap">Organisms born into it</td><td class="wrap">Yes: <code>hale habitat graft</code> allocates what the organism declares it needs and proposes its starting practices; <code>hale habitat nursery</code> trusts repositories of saplings to graft from.</td></tr>
+        <tr><td class="wrap">Machines on your LAN</td><td class="wrap">Yes: a habitat on another machine (<code>up --host</code>), hosts added over SSH or joined from the machine itself, and allocations placed on them.</td></tr>
+        <tr><td class="wrap">Several habitats on one machine</td><td class="wrap">Yes: <code>hale habitat list</code>, <code>use</code>, and <code>--habitat &lt;name&gt;</code> on any habitat or DNA verb.</td></tr>
+        <tr><td class="wrap">Models for every organism</td><td class="wrap">Yes: a models provider grafted into the habitat becomes every organism's model backend, each with a key the habitat draws.</td></tr>
+        <tr><td class="wrap">A hosted profile, on a platform's managed services</td><td class="wrap"><b>Not built.</b></td></tr>
         <tr><td class="wrap">A record per repository, never rewound</td><td class="wrap">Yes. <a href="/docs/dna/memory">Memory and the record</a>.</td></tr>
         <tr><td class="wrap">Deliberate publication between records</td><td class="wrap">Connections and handoffs of single facts with origin, lineage and purpose: <code>hale dna connect</code>, <code>hale dna handoff</code>.</td></tr>
         <tr><td class="wrap">Protected evidence outside the replicated record</td><td class="wrap">Receipts filed as <code>customer</code> or <code>confidential</code> are kept in memory alone, and every read is a row: <code>hale dna receipt</code>.</td></tr>
-        <tr><td class="wrap">Deployment profiles</td><td class="wrap"><code>hale dna new --profile local | remote-body</code>, <code>hale dna profile</code>.</td></tr>
+        <tr><td class="wrap">Deployment profiles</td><td class="wrap"><code>hale habitat graft --profile local | remote-body</code>, <code>hale dna profile</code>.</td></tr>
         <tr><td class="wrap">A verified principal source</td><td class="wrap">An OIDC-signed head: <code>git config dna.principal oidc</code>.</td></tr>
         <tr><td class="wrap">Roles per client on each backend</td><td class="wrap">Memory's roles, one broker account per role and per attached application, and vault slots.</td></tr>
         <tr><td class="wrap">Money reserved against grants</td><td class="wrap">Spend reserved, settled and compensated under a grant's windows.</td></tr>
         <tr><td class="wrap"><code>runs_under</code>, policies as projections, per-attachment credentials</td><td class="wrap"><b>Not built.</b> Reserved as a relation for the compiler's registry.</td></tr>
-        <tr><td class="wrap">Standard equipment</td><td class="wrap"><b>Not built.</b></td></tr>
+        <tr><td class="wrap">Moving organisms between records: extract, absorb, re-parent</td><td class="wrap"><b>Not built.</b></td></tr>
+        <tr><td class="wrap">Standard equipment</td><td class="wrap"><b>Not built.</b> The <code>standard</code> practices pack is built and proposed at every graft.</td></tr>
         <tr><td class="wrap">Finance capture and books</td><td class="wrap"><b>Not built.</b> No automated payment is part of the first slice.</td></tr>
       </tbody>
     </table>
@@ -152,26 +169,26 @@ import { session } from '../data/dna-session.mjs';
       <h2 style="margin-top:0">What it needs, and what it does not claim</h2>
     </div>
     <ul class="facts">
-      <li><b>git</b><p>The record lives in the repository, so <code>new</code> and <code>init</code> make one when there is none. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
-      <li><b>docker compose</b><p><code>hale dna dev</code> brings up the organism's private services with it: Postgres for its working state, which DNA calls memory; NATS for messaging between its parts, the nerves; Prometheus for monitoring, the senses.</p></li>
-      <li><b>A model</b><p>A key in the vault, <code>ollama</code> on your PATH, or a coding harness (<code>claude</code>, else <code>codex</code>) on it. The organism still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
+      <li><b>git</b><p>The code and every candidate change live in the repository, so a graft makes one when there is none. Alone on one machine no remote is needed. A team, or nodes, need one.</p></li>
+      <li><b>docker compose</b><p>The habitat runs each organism's services: Postgres for its working state and its record, which DNA calls memory; NATS for messaging between its parts, the nerves; Prometheus for monitoring, the senses; and a Forgejo forge where reviews become pull requests.</p></li>
+      <li><b>A model</b><p>A models provider grafted into the habitat, a key in the vault, <code>ollama</code> on your PATH, or a coding harness (<code>claude</code>, else <code>codex</code>) on it. The organism still runs without one; the Leader cannot decide anything, and every review waits for you.</p></li>
       <li><b>Every change waits</b><p>Each waits for a verdict: the Leader's, inside a grant a person wrote, or the Board's. A restart is a restart. Live state does not carry across.</p></li>
       <li><b>A blind spot</b><p>The structural view cannot see what a handler computes. A <code>+1</code> becoming <code>+100</code> is invisible to it, which is why the source diff is never optional, for people and for the Leader alike. The design was gated on a test of exactly that: reviewers deciding from the structural diff alone, the source alone, and both. The combined view is what shipped, and the structural view is credited with what it earned. It decides shape and rules, and it says when it cannot decide.</p></li>
-      <li><b>The habitat</b><p>Designed and partly built. <a href="#habitat">The table above</a> says which pieces are in the tree; the rest is not behaviour to rely on yet.</p></li>
+      <li><b>The habitat</b><p>Built for your machine and machines on your LAN; a hosted profile and the rest of the multi-record design are not. <a href="#habitat">The table above</a> says which pieces are in the tree; the rest is not behaviour to rely on yet.</p></li>
     </ul>
 
     <div class="prose" style="margin-top:var(--s12)">
       <h2 style="margin-top:0">Start</h2>
       <div class="install" role="group" aria-label="Start DNA">
         <span class="sigil" aria-hidden="true">$</span>
-        <span class="cmd">hale dna init . &amp;&amp; hale dna dev</span>
+        <span class="cmd">hale habitat up &amp;&amp; hale habitat graft . --attach &amp;&amp; hale dna dev</span>
       </div>
       <p style="margin-top:var(--s4)">
         The <a href="/docs/dna">organism section of the guide</a> reads the
         organism first: the map of its parts, getting started, one task end to
         end, then one chapter per part, and shaping and governing it. The
-        building block underneath, with the record as a git branch, the
-        review's pin and the autonomy rules, is <a href="/docs/dna/dna">DNA, the building block</a>. The design it
+        building block underneath, with the record, the review's pin and the
+        autonomy rules, is <a href="/docs/dna/dna">DNA, the building block</a>. The design it
         implements is <a href="https://github.com/hale-lang/hale/issues/566">Hale DNA, Phase 3</a>,
         on the <a href="https://github.com/hale-lang/hale/issues/521">RFC</a>.
       </p>
