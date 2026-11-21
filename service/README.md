@@ -1,6 +1,7 @@
 # Playground compile service
 
-**Status: LIVE at `play.hale-lang.org`.** `/playground` iframes it, and it serves
+**Status: OFFLINE.** `play.hale-lang.org` answers 404, so `/playground` iframes the
+precompiled example gallery (`/play/`) until the service is back. When live, it served
 an editable buffer with a Run button — so this service is compiling source
 submitted by anyone on the internet. It runs containerized, with the limits in
 [Containment](#containment) below. The sections after that were written before

@@ -2,23 +2,23 @@
 import Base from '../layouts/Base.astro';
 import Field from '../components/Field.astro';
 ---
-<Base title="Playground" description="Run Hale in the browser with the same compiler you would install.">
+<Base title="Playground" description="Run Hale examples in the browser, precompiled to WebAssembly.">
   <Field />
   <section class="wrap page">
     <div class="page-head">
       <h1>Run Hale in the browser</h1>
       <p class="lede">
-        Your source is compiled to WebAssembly by a compile service written
-        in Hale, and the result runs entirely in the browser. The compiler
-        doing the work is the same one you would install.
+        Curated Hale programs, precompiled to WebAssembly by the compiler
+        you would install, run entirely in the browser. The gallery runs
+        them as written; editing your own source here waits on the compile
+        service, which is offline for now.
       </p>
     </div>
     <div class="play-frame">
-      <iframe src="https://play.hale-lang.org/" title="Hale playground" loading="lazy"></iframe>
+      <iframe src="/play/" title="Hale example gallery" loading="lazy"></iframe>
     </div>
     <div class="actions">
-      <a class="btn btn-ghost" href="https://play.hale-lang.org/" target="_blank" rel="noopener">Open full screen ↗</a>
-      <a class="btn btn-ghost" href="/play/" target="_blank" rel="noopener">The guided tour ↗</a>
+      <a class="btn btn-ghost" href="/play/" target="_blank" rel="noopener">Open full screen ↗</a>
       <a class="btn btn-ghost" href="/docs/getting-started/install">Install locally</a>
     </div>
     <div class="prose" style="margin-top:var(--s12)">

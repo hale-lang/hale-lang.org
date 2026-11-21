@@ -125,8 +125,8 @@ export const examples = [
       "label": "Read WebAssembly & the browser"
     },
     "play": {
-      "href": "https://play.hale-lang.org/",
-      "label": "Run Hale in the playground"
+      "href": "/play/",
+      "label": "Run Hale examples in the browser"
     }
   },
   {
