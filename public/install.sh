@@ -8,6 +8,12 @@
 # Pin a version with HALE_VERSION=<tag>, a tag from
 # https://github.com/hale-lang/hale/releases.
 #
+# Nightly builds of main: HALE_VERSION=nightly installs the newest,
+# HALE_VERSION=nightly-2026-11-21 that day's. A nightly's version
+# (v0.37.1-nightly.20261121+<commit>, as `hale --version` prints it)
+# installs from its nightly too. Without HALE_VERSION, the latest
+# release (a v* tag), never a nightly.
+#
 # Prebuilt targets: x86_64/aarch64 Linux (glibc), Apple Silicon macOS.
 # Anything else (Intel macs, musl, BSD): build from source —
 # https://github.com/hale-lang/hale#building-from-source
@@ -32,14 +38,36 @@ case "$os/$arch" in
   *)             fail "no prebuilt binary for $os/$arch — build from source: https://github.com/$REPO#building-from-source" ;;
 esac
 
-# Latest tag, pre-releases included (every pre-1.0 tag is one).
-if [ -n "${HALE_VERSION:-}" ]; then
-  version="$HALE_VERSION"
-else
-  version="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=1" \
-    | grep -m1 '"tag_name"' | sed 's/.*"tag_name"[^"]*"\([^"]*\)".*/\1/')"
-  [ -n "$version" ] || fail "could not determine the latest release tag"
-fi
+# The newest release tag matching the extended regex $1, newest first as
+# the API lists them; pre-releases included (every pre-1.0 tag is one,
+# and so is every nightly).
+newest_tag() {
+  curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=100" \
+    | grep '"tag_name"' | sed 's/.*"tag_name"[^"]*"\([^"]*\)".*/\1/' \
+    | grep -E "$1" | head -n 1
+}
+
+case "${HALE_VERSION:-}" in
+  "")
+    version="$(newest_tag '^v[0-9]')"
+    [ -n "$version" ] || fail "could not determine the latest release tag"
+    ;;
+  nightly)
+    version="$(newest_tag '^nightly-[0-9]{4}-[0-9]{2}-[0-9]{2}(\.[0-9]+)?$')"
+    [ -n "$version" ] || fail "could not find a nightly build"
+    ;;
+  v*-nightly.* | [0-9]*-nightly.*)
+    # a nightly's version, as `hale --version` and a lock name it:
+    # 0.37.1-nightly.20261121+8fd8d68 is nightly-2026-11-21, and the
+    # day's second (…-nightly.20261121.2+…) nightly-2026-11-21.2
+    version="$(printf '%s' "$HALE_VERSION" \
+      | sed -n 's/^v\{0,1\}[^-]*-nightly\.\([0-9]\{4\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)\(\.[0-9][0-9]*\)\{0,1\}\(+.*\)\{0,1\}$/nightly-\1-\2-\3\4/p')"
+    [ -n "$version" ] || fail "not a nightly version: $HALE_VERSION"
+    ;;
+  *)
+    version="$HALE_VERSION"
+    ;;
+esac
 
 tarball="hale-$version-$target.tar.gz"
 url="https://github.com/$REPO/releases/download/$version/$tarball"
