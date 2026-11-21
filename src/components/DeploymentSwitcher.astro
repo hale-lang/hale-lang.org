@@ -38,6 +38,9 @@ locus NatsAdapter {
 
     fn send(subject: String, bytes: Bytes) { }
 }
+
+// Every panel below is the same App placed differently; this starts it.
+fn main() { App { }; }
 `;
 
 const local = `main locus App {
