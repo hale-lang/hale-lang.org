@@ -103,6 +103,8 @@ main locus App {
         workers: pinned(cores = 0..4, replicas = 4);
     }
 }
+
+fn main() { App { }; }
 // Four single-threaded replicas, one per core.
 // Not one line of Worker changed.` },
   { title: 'supervise.hl', code: `locus Worker {
@@ -153,7 +155,9 @@ main locus Fleet {
         wired:      require subscribes(some workers, topic Tasks);
         one_writer: count publishers(topic Tasks) <= 1;
     }
-}` },
+}
+
+fn main() { Fleet { }; }` },
   { title: 'constitution.hl',
     prelude: `type Settlement { n: Int; }
 topic Settled { payload: Settlement; }
@@ -188,7 +192,9 @@ main locus App {
     }
 
     claims { adopt Core; }
-}` },
+}
+
+fn main() { App { }; }` },
   { title: 'prod.plan.json', code: `{
   "schema": "1.1", "name": "prod",
   "instances": [

@@ -63,7 +63,9 @@ const main = `main locus App {
     bindings {
         Reading: unix("/run/readings.sock", role: listen);
     }
-}`;
+}
+
+fn main() { App { }; }`;
 ---
 <div class="page-head">
     <h1>What a Hale program describes</h1>
